@@ -1,31 +1,42 @@
-# Dockerfile for the Go application
-# Build stage
-FROM golang:1.17-alpine AS builder
+# Stage 1: Build the Go application
+FROM golang:1.23-alpine AS builder
+
+# Set necessary environment variables
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64
 
 WORKDIR /app
 
+# Copy go.mod and go.sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
+# Copy the entire project
 COPY . .
 
+# Build the application
 RUN go build -o main .
 
-# Final stage
+# Stage 2: Create the final lightweight image
 FROM alpine:latest
 
 WORKDIR /app
 
-# Copy the executable
-COPY --from=builder /app/main .
+# Install certificates (if your app makes HTTPS requests)
+RUN apk --no-cache add ca-certificates
 
-# Copy necessary files
+# Copy the executable and necessary files from the builder stage
+COPY --from=builder /app/main .
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/config.yaml .
 
-# Expose the port
+# Expose the application port
 EXPOSE 8080
 
-# Run the application
+# Set the entrypoint
 CMD ["./main"]
