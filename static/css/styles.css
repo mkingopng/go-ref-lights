@@ -1,3 +1,4 @@
+/* static/css/styles.css */
 /* Global styles */
 body, html {
     margin: 0;
@@ -25,7 +26,7 @@ h2 {
 }
 
 .qr-code-container img {
-    max-width: 150px;
+    max-width: 300px;
     width: 100%;
     height: auto;
     border: 3px solid #fff;
@@ -261,4 +262,54 @@ input[type="submit"]:hover {
     .logo-container img {
         max-width: 200px;
     }
+}
+
+/* Action button styles */
+.action-button {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #351e66;
+    color: white;
+    text-align: center;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 150px;
+    margin: 5px;
+}
+
+.action-button:hover {
+    background-color: #2980b9;
+}
+
+/* Specific color classes */
+.action-button.white {
+    background-color: white;
+    color: black;
+}
+
+.action-button.red {
+    background-color: red;
+    color: white;
+}
+
+.message.flash {
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+/* static/css/styles.css */
+
+.connection-status {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
 }

@@ -1,5 +1,7 @@
+<!-- templates/left.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
@@ -7,16 +9,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-  <script>
-    var websocketUrl = "ws://localhost:8080/referee-updates";
-    var socket = new WebSocket(websocketUrl);
-
-    function sendMessage(circleId, color) {
-      var message = JSON.stringify({circleId: circleId, color: color});
-      socket.send(message);
-    }
-  </script>
 </head>
+
 <body>
 <div class="home-icon">
   <a href="/">
@@ -24,12 +18,20 @@
   </a>
 </div>
 <h1 class="title">Left Referee</h1>
+
 <div class="button-container">
-  <button onclick="sendMessage('leftCircle', 'white')" style="background-color: white; color: black;">Good Lift</button>
-  <button onclick="sendMessage('leftCircle', 'red')" style="background-color: red;">No Lift</button>
+  <button onclick="sendMessage({ circleId: 'leftCircle', color: 'white' })" class="action-button white">Good Lift</button>
+  <button onclick="sendMessage({ circleId: 'leftCircle', color: 'red' })" class="action-button red">No Lift</button>
 </div>
+
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo">
 </div>
+
+  <script>
+    var websocketUrl = "{{ .WebsocketURL }}";
+  </script>
+  <script src="/static/js/websocket.js"></script>
+
 </body>
 </html>

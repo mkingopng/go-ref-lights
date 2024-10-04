@@ -1,62 +1,42 @@
+<!-- templates/centre.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
-  <title>Centre Referee</title>
+  <title>Center Referee</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-  <script>
-    var websocketUrl = "{{ .WebsocketURL }}";
-    var socket = new WebSocket(websocketUrl);
-
-    socket.onopen = function() {
-      console.log("WebSocket connection established.");
-    };
-
-    socket.onerror = function(error) {
-      console.error("WebSocket error:", error);
-    };
-
-    socket.onclose = function(event) {
-      console.log("WebSocket connection closed:", event);
-    };
-
-    socket.onmessage = function(event) {
-      console.log("Message received from server:", event.data);
-    };
-
-    function sendMessage(circleId, color) {
-      if (socket.readyState === WebSocket.OPEN) {
-        var message = JSON.stringify({circleId: circleId, color: color});
-        socket.send(message);
-        console.log("Sent message:", message);
-      } else {
-        console.error("WebSocket is not open. Unable to send message.");
-      }
-    }
-
-    function startTimer() {
-      var message = JSON.stringify({action: "startTimer"});
-      socket.send(message);
-    }
-  </script>
 </head>
+
 <body>
 <div class="home-icon">
   <a href="/">
     <i class="fa fa-arrow-left" aria-hidden="true"></i>
   </a>
 </div>
+
 <h1 class="title">Centre Referee</h1>
+
 <div class="button-container">
-  <button onclick="sendMessage('centreCircle', 'white')" style="background-color: white; color: black;">Good Lift</button>
-  <button onclick="sendMessage('centreCircle', 'red')" style="background-color: red;">No Lift</button>
-  <button onclick="startTimer()">Start Timer</button>
+  <button onclick="sendMessage({ circleId: 'centreCircle', color: 'white' })" class="action-button white">Good Lift</button>
+  <button onclick="sendMessage({ circleId: 'centreCircle', color: 'red' })" class="action-button red">No Lift</button>
+  <button onclick="startTimer()" class="action-button">Start Timer</button>
+  <button onclick="stopTimer()" class="action-button">Stop Timer</button>
+  <button onclick="resetTimer()" class="action-button">Reset</button>
 </div>
+
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo">
 </div>
+
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
+<script src="/static/js/websocket.js"></script>
+<script src="/static/js/centre.js"></script>
+
 </body>
 </html>

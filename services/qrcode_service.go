@@ -3,14 +3,16 @@ package services
 
 import (
 	"github.com/skip2/go-qrcode"
+	"github.com/spf13/viper"
 )
 
 // GenerateQRCode creates a QR code for the given dimensions
 func GenerateQRCode(width, height int) ([]byte, error) {
-	// Replace with your application URL or dynamic content
-	applicationURL := "http://localhost:8080"
+	applicationURL := viper.GetString("application_url")
+	if applicationURL == "" {
+		applicationURL = "http://localhost:8080"
+	}
 
-	// Generate QR code
 	png, err := qrcode.Encode(applicationURL, qrcode.Medium, width)
 	if err != nil {
 		return nil, err

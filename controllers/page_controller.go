@@ -10,6 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var (
+	ApplicationURL string
+	WebsocketURL   string
+)
+
+func SetConfig(appURL, wsURL string) {
+	ApplicationURL = appURL
+	WebsocketURL = wsURL
+}
+
 // ShowLoginPage renders the login page
 func ShowLoginPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html", nil)
@@ -41,7 +51,7 @@ func Index(c *gin.Context) {
 // Left renders the left page
 func Left(c *gin.Context) {
 	data := gin.H{
-		"WebsocketURL": "ws://localhost:8080/referee-updates",
+		"WebsocketURL": WebsocketURL,
 	}
 	c.HTML(http.StatusOK, "left.html", data)
 }
@@ -49,7 +59,7 @@ func Left(c *gin.Context) {
 // Centre renders the centre page
 func Centre(c *gin.Context) {
 	data := gin.H{
-		"WebsocketURL": "ws://localhost:8080/referee-updates",
+		"WebsocketURL": WebsocketURL,
 	}
 	c.HTML(http.StatusOK, "centre.html", data)
 }
@@ -57,14 +67,17 @@ func Centre(c *gin.Context) {
 // Right renders the right page
 func Right(c *gin.Context) {
 	data := gin.H{
-		"WebsocketURL": "ws://localhost:8080/referee-updates",
+		"WebsocketURL": WebsocketURL,
 	}
 	c.HTML(http.StatusOK, "right.html", data)
 }
 
 // Lights renders the lights page
 func Lights(c *gin.Context) {
-	c.HTML(http.StatusOK, "lights.html", nil)
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+	}
+	c.HTML(http.StatusOK, "lights.html", data)
 }
 
 // GetQRCode generates and serves the QR code

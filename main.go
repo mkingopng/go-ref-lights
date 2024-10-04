@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
@@ -15,6 +16,22 @@ import (
 )
 
 func main() {
+	// Initialize viper
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(fmt.Errorf("fatal error reading config file: %w", err))
+	}
+
+	// Now you can use viper.GetString("key") to get config values
+	applicationURL := viper.GetString("application_url")
+	websocketURL := viper.GetString("websocket_url")
+
+	// Pass these values to controllers or wherever needed
+	controllers.SetConfig(applicationURL, websocketURL)
+
 	router := gin.Default()
 
 	// Initialize session store
