@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Lights</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/styles.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <script>
+    var websocketUrl = "ws://localhost:8080/referee-updates";
+    var socket = new WebSocket(websocketUrl);
+
+    socket.onmessage = function(event) {
+      var data = JSON.parse(event.data);
+      if (data.circleId) {
+        var circle = document.getElementById(data.circleId);
+        circle.style.backgroundColor = data.color;
+        checkCircles();
+      } else if (data.action === "startTimer") {
+        startTimer();
+      }
+    };
+
+    // Rest of the JavaScript code
+  </script>
+</head>
+<body>
+<div class="home-icon">
+  <a href="/">
+    <i class="fa fa-arrow-left" aria-hidden="true"></i>
+  </a>
+</div>
+<div class="timer-container">
+  <div class="timer" id="title">Attempt Time:</div>
+  <div class="timer" id="timer">60s</div>
+</div>
+<div class="container">
+  <div id="leftCircle" class="circle"></div>
+  <div id="centreCircle" class="circle"></div>
+  <div id="rightCircle" class="circle"></div>
+</div>
+<div id="message" class="message"></div>
+<div class="logo-container">
+  <img src="/static/images/zerow-pro.png" alt="zerow logo">
+</div>
+</body>
+</html>
