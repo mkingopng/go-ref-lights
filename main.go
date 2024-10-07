@@ -6,28 +6,27 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime"
 )
 
 func main() {
-	// Initialize viper
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("fatal error reading config file: %w", err))
+	// Remove Viper initialization
+	// Read configuration from environment variables
+	applicationURL := os.Getenv("APPLICATION_URL")
+	if applicationURL == "" {
+		applicationURL = "http://localhost:8080"
 	}
 
-	// Now you can use viper.GetString("key") to get config values
-	applicationURL := viper.GetString("application_url")
-	websocketURL := viper.GetString("websocket_url")
+	websocketURL := os.Getenv("WEBSOCKET_URL")
+	if websocketURL == "" {
+		websocketURL = "ws://localhost:8080/referee-updates"
+	}
 
 	// Pass these values to controllers or wherever needed
 	controllers.SetConfig(applicationURL, websocketURL)
