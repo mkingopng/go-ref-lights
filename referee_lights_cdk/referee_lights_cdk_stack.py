@@ -25,17 +25,16 @@ class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # 1. Define the task role
+        # define the task role
         task_role = iam.Role(
             self, "TaskRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
         )
 
-        # 2. Define Variables
+        # define Variables
         domain_name = "referee-lights.michaelkingston.com.au"
-        hosted_zone_name = "michaelkingston.com.au"
 
-        # 3. Create VPC
+        # create VPC
         vpc = ec2.Vpc(
             self,
             "RefereeLightsVPC",
@@ -44,14 +43,14 @@ class RefereeLightsCdkStack(Stack):
             nat_gateways=1,
         )
 
-        # 5. Build and Push Docker Image
+        # Build and Push Docker Image
         docker_image_asset = ecr_assets.DockerImageAsset(
             self,
             "RefereeLightsDockerImage",
             directory=str(project_root),
         )
 
-        # 6. Create ECS Cluster
+        # create ECS Cluster
         cluster = ecs.Cluster(
             self,
             "RefereeLightsCluster",
@@ -59,7 +58,7 @@ class RefereeLightsCdkStack(Stack):
             cluster_name="referee-lights-cluster"
         )
 
-        # 7. Define Fargate Task Definition
+        # define Fargate Task Definition
         task_definition = ecs.FargateTaskDefinition(
             self, "RefereeLightsTaskDef",
             family="referee-lights-task",
@@ -68,7 +67,7 @@ class RefereeLightsCdkStack(Stack):
             task_role=task_role
         )
 
-        # Add Container to Task Definition
+        # add Container to Task Definition
         container = task_definition.add_container(
             "RefereeLightsContainer",
             image=ecs.ContainerImage.from_docker_image_asset(docker_image_asset),
@@ -86,14 +85,14 @@ class RefereeLightsCdkStack(Stack):
             )
         )
 
-        # 8. Import ACM Certificate
+        # import ACM Certificate
         certificate = acm.Certificate.from_certificate_arn(
             self,
             "RefereeLightsCertificate",
             certificate_arn="arn:aws:acm:ap-southeast-2:001499655372:certificate/d644df5b-c471-423c-962c-afcc6d86568c"
         )
 
-        # 9. Create Application Load Balancer (ALB) with HTTPS
+        # create Application Load Balancer (ALB) with HTTPS
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "RefereeLightsFargateService",
@@ -106,7 +105,6 @@ class RefereeLightsCdkStack(Stack):
             certificate=certificate,
             protocol=elbv2.ApplicationProtocol.HTTPS,
             redirect_http=True,
-            domain_name=domain_name,
         )
 
         fargate_service.target_group.configure_health_check(
@@ -116,7 +114,7 @@ class RefereeLightsCdkStack(Stack):
             unhealthy_threshold_count=5,
         )
 
-        # 10. Output ALB DNS Name
+        # output ALB DNS Name
         self.output_alb_dns = CfnOutput(
             self,
             "ALBDNS",
