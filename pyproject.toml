@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "go-ref-lights"
+version = "0.1.0"
+description = ""
+authors = ["Michael Kingston <71872141+mkingopng@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aws-cdk-lib = "^2.161.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -10,7 +10,7 @@ import (
 func GenerateQRCode(width, height int) ([]byte, error) {
 	applicationURL := viper.GetString("application_url")
 	if applicationURL == "" {
-		applicationURL = "http://localhost:8080"
+		applicationURL = ""
 	}
 
 	png, err := qrcode.Encode(applicationURL, qrcode.Medium, width)
