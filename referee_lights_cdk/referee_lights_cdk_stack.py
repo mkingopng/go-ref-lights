@@ -106,6 +106,7 @@ class RefereeLightsCdkStack(Stack):
             certificate=certificate,
             protocol=elbv2.ApplicationProtocol.HTTPS,
             redirect_http=True,
+            domain_name=domain_name,
         )
 
         fargate_service.target_group.configure_health_check(
