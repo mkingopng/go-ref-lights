@@ -59,19 +59,19 @@ func main() {
 	})
 	router.Use(sessions.Sessions("mysession", store))
 
-	// Determine the absolute path to the templates directory
+	// determine the absolute path to the templates directory
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates", "*.html") // Corrected path
+	templatesDir := filepath.Join(basepath, "templates", "*.html") // corrected path
 
-	// Load HTML templates
+	// load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(templatesDir)
 
-	// Serve static files under /static
+	// serve static files under /static
 	router.Static("/static", "./static")
 
-	// Public routes
+	// public routes
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
 

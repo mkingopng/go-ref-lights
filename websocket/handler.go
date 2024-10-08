@@ -60,7 +60,10 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("WebSocket read error: %v", err)
 			delete(clients, ws)
-			ws.Close()
+			err := ws.Close()
+			if err != nil {
+				return
+			}
 			break
 		}
 
