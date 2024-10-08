@@ -21,8 +21,9 @@ type DecisionMessage struct {
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all connections by default
-		return true
+		origin := r.Header.Get("Origin")
+		// Allow only specific origins
+		return origin == "http://localhost:8080" || origin == "https://referee-lights.michaelkingston.com.au"
 	},
 }
 
@@ -54,18 +55,19 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	}
 	// Register new client
 	clients[ws] = true
+	log.Println("New WebSocket client connected.")
 
 	for {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
 			log.Printf("WebSocket read error: %v", err)
 			delete(clients, ws)
-			err := ws.Close()
-			if err != nil {
-				return
-			}
+			ws.Close()
+			log.Println("WebSocket client disconnected.")
 			break
 		}
+
+		log.Printf("Received message: %s", msg)
 
 		var decisionMsg DecisionMessage
 		err = json.Unmarshal(msg, &decisionMsg)
@@ -84,6 +86,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		}
 		submissionMsg, _ := json.Marshal(submissionUpdate)
 		broadcast <- submissionMsg
+		log.Printf("Broadcasting judgeSubmitted for judgeId: %s", decisionMsg.JudgeID)
 
 		// Check if all judges have submitted
 		if len(judgeDecisions) == 3 {
@@ -96,6 +99,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 			}
 			resultMsg, _ := json.Marshal(result)
 			broadcast <- resultMsg
+			log.Println("Broadcasting displayResults.")
 
 			// Reset decisions for the next round
 			judgeDecisions = make(map[string]string)

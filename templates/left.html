@@ -20,18 +20,21 @@
 <h1 class="title">Left Referee</h1>
 
 <div class="button-container">
-  <button onclick="sendDecision('white')" class="action-button white">Good Lift</button>
-  <button onclick="sendDecision('red')" class="action-button red">No Lift</button>
+  <button id="whiteButton" class="action-button white">Good Lift</button>
+  <button id="redButton" class="action-button red">No Lift</button>
 </div>
 
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo"> <!-- Corrected Path -->
 </div>
 
+<!-- Define websocketUrl -->
 <script>
   var websocketUrl = "{{ .WebsocketURL }}";
 </script>
+<!-- WebSocket Script -->
 <script src="/static/js/websocket.js"></script> <!-- Corrected Path -->
-
+<!-- Left Referee JS -->
+<script src="/static/js/left.js"></script> <!-- Corrected Path -->
 </body>
 </html>

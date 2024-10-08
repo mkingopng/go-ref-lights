@@ -1,6 +1,7 @@
 <!-- templates/right.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
@@ -16,21 +17,24 @@
     <i class="fa fa-arrow-left" aria-hidden="true"></i>
   </a>
 </div>
-
 <h1 class="title">Right Referee</h1>
+
 <div class="button-container">
-  <button onclick="sendDecision('white')" class="action-button white">Good Lift</button>
-  <button onclick="sendDecision('red')" class="action-button red">No Lift</button>
+  <button id="whiteButton" class="action-button white">Good Lift</button>
+  <button id="redButton" class="action-button red">No Lift</button>
 </div>
 
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo"> <!-- Corrected Path -->
 </div>
 
+<!-- Define websocketUrl -->
 <script>
   var websocketUrl = "{{ .WebsocketURL }}";
 </script>
+<!-- WebSocket Script -->
 <script src="/static/js/websocket.js"></script> <!-- Corrected Path -->
-
+<!-- Right Referee JS -->
+<script src="/static/js/right.js"></script> <!-- Corrected Path -->
 </body>
 </html>

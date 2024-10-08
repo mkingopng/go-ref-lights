@@ -6,8 +6,31 @@ var timeLeft = 60; // Athlete timer
 var secondTimerInterval;
 var secondTimeLeft = 60; // Second timer after judges submit
 
+// Initialize WebSocket connection
+var socket = new WebSocket(websocketUrl);
+
+socket.onopen = function() {
+    console.log("WebSocket connection established");
+};
+
+socket.onerror = function(error) {
+    console.error("WebSocket error:", error);
+    alert("WebSocket error occurred. Check the console for more details.");
+};
+
+socket.onclose = function(event) {
+    console.log("WebSocket connection closed:", event);
+    alert("WebSocket connection closed.");
+};
+
 socket.onmessage = function(event) {
-    var data = JSON.parse(event.data);
+    var data;
+    try {
+        data = JSON.parse(event.data);
+    } catch (e) {
+        console.error("Invalid JSON:", event.data);
+        return;
+    }
 
     if (data.action === "judgeSubmitted") {
         // Update judge submission indicator
@@ -27,7 +50,7 @@ socket.onmessage = function(event) {
                 resetTimer();
                 break;
             default:
-            // Unknown action
+                console.warn("Unknown action:", data.action);
         }
     }
 };

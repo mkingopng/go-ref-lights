@@ -3,17 +3,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
 )
 
 func main() {
@@ -37,12 +38,12 @@ func main() {
 	// Read configuration from environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
-		applicationURL = "https://referee-lights.michaelkingston.com.au"
+		applicationURL = "http://localhost:8080" // Default to localhost for local testing
 	}
 
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
-		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
+		websocketURL = "ws://localhost:8080/referee-updates" // Default to localhost for local testing
 	}
 
 	// Pass these values to controllers or wherever needed
@@ -54,26 +55,32 @@ func main() {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   true, // Ensure cookies are only sent over HTTPS
+		Secure:   false, // Set to true in production
 		SameSite: http.SameSiteLaxMode,
 	})
 	router.Use(sessions.Sessions("mysession", store))
 
-	// determine the absolute path to the templates directory
+	// Determine the absolute path to the templates directory
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates", "*.html") // corrected path
+	templatesDir := filepath.Join(basepath, "templates", "*.html") // Corrected path
 
-	// load HTML templates
+	// Load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(templatesDir)
 
-	// serve static files under /static
+	// Serve static files under /static
 	router.Static("/static", "./static")
 
-	// public routes
+	// Serve favicon.ico
+	router.GET("/favicon.ico", func(c *gin.Context) {
+		c.File("/static/images/favicon.ico") // Adjust the path if necessary
+	})
+
+	// Public routes
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
+	router.GET("/logout", controllers.Logout) // Added Logout route
 
 	// Protected routes
 	protected := router.Group("/", middleware.AuthRequired)

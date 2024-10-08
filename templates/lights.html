@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
 </head>
 <body>
-
 <!-- Judge Submission Indicators -->
 <div class="judge-indicators">
   <div id="leftIndicator" class="indicator" title="Left Judge"></div>
@@ -32,7 +31,7 @@
 
 <!-- QR Code -->
 <div class="qr-code-container">
-  <img src="/static/qrcode.png" alt="QR Code"> <!-- Corrected Path -->
+  <img src="/qrcode" alt="QR Code"> <!-- Corrected Path -->
 </div>
 
 <!-- Second Timer -->
@@ -41,8 +40,13 @@
 <!-- Connection Status -->
 <div id="connectionStatus" class="connection-status"></div>
 
+<!-- Define websocketUrl -->
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
 <!-- WebSocket Script -->
 <script src="/static/js/websocket.js"></script> <!-- Corrected Path -->
+<!-- Lights JS -->
 <script src="/static/js/lights.js"></script> <!-- Corrected Path -->
 </body>
 </html>
