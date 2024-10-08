@@ -10,12 +10,16 @@ import (
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 )
 
 func main() {
+	// Set Gin to release mode for production (optional but recommended)
+	gin.SetMode(gin.ReleaseMode)
+
 	// Initialize the router
 	router := gin.Default()
 
@@ -46,18 +50,25 @@ func main() {
 
 	// Initialize session store
 	store := cookie.NewStore([]byte("secret"))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   true, // Ensure cookies are only sent over HTTPS
+		SameSite: http.SameSiteLaxMode,
+	})
 	router.Use(sessions.Sessions("mysession", store))
 
 	// Determine the absolute path to the templates directory
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "static", "templates", "*.html") // Updated path
+	templatesDir := filepath.Join(basepath, "templates", "*.html") // Corrected path
 
 	// Load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(templatesDir)
 
-	// Static files
+	// Serve static files under /static
 	router.Static("/static", "./static")
 
 	// Public routes

@@ -1,13 +1,13 @@
-<!-- static/templates/lights.html -->
-
+<!-- templates/lights.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Referee Lights</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
 </head>
 <body>
+
 <!-- Judge Submission Indicators -->
 <div class="judge-indicators">
   <div id="leftIndicator" class="indicator" title="Left Judge"></div>
@@ -32,7 +32,7 @@
 
 <!-- QR Code -->
 <div class="qr-code-container">
-  <img src="/static/qrcode.png" alt="QR Code">
+  <img src="/static/qrcode.png" alt="QR Code"> <!-- Corrected Path -->
 </div>
 
 <!-- Second Timer -->
@@ -42,7 +42,7 @@
 <div id="connectionStatus" class="connection-status"></div>
 
 <!-- WebSocket Script -->
-<script src="/js/websocket.js"></script>
-<script src="/js/lights.js"></script>
+<script src="/static/js/websocket.js"></script> <!-- Corrected Path -->
+<script src="/static/js/lights.js"></script> <!-- Corrected Path -->
 </body>
 </html>
