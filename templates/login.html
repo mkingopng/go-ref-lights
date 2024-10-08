@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <title>Referee Lights</title>
@@ -11,20 +12,20 @@
 <body>
 <form action="/login" method="post">
   {{ if .Error }}
-  <div>
+  <div class="error-message">
     {{ .Error }}
   </div>
   {{ end }}
   <div>
     <label>
       Username
-      <input type="text" name="username"/>
+      <input type="text" name="username" required/>
     </label>
   </div>
   <div>
     <label>
       Password
-      <input type="password" name="password"/>
+      <input type="password" name="password" required/>
     </label>
   </div>
   <div>

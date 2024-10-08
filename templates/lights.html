@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
   <meta charset="UTF-8">
   <title>Referee Lights</title>
   <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
@@ -31,7 +32,7 @@
 
 <!-- QR Code -->
 <div class="qr-code-container">
-  <img src="/qrcode" alt="QR Code"> <!-- Corrected Path -->
+  <img src="/qrcode" alt="QR Code">
 </div>
 
 <!-- Second Timer -->
@@ -45,8 +46,6 @@
   var websocketUrl = "{{ .WebsocketURL }}";
 </script>
 <!-- WebSocket Script -->
-<script src="/static/js/websocket.js"></script> <!-- Corrected Path -->
-<!-- Lights JS -->
 <script src="/static/js/lights.js"></script> <!-- Corrected Path -->
 </body>
 </html>

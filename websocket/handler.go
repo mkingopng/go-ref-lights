@@ -14,9 +14,11 @@ var broadcast = make(chan []byte)
 var judgeDecisions = make(map[string]string)
 var judgeMutex = &sync.Mutex{}
 
+// DecisionMessage represents the structure of messages from judges and timer actions
 type DecisionMessage struct {
-	JudgeID  string `json:"judgeId"`
-	Decision string `json:"decision"`
+	JudgeID  string `json:"judgeId,omitempty"`
+	Decision string `json:"decision,omitempty"`
+	Action   string `json:"action,omitempty"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -67,8 +69,6 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		log.Printf("Received message: %s", msg)
-
 		var decisionMsg DecisionMessage
 		err = json.Unmarshal(msg, &decisionMsg)
 		if err != nil {
@@ -77,33 +77,61 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		judgeMutex.Lock()
-		judgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
+		if decisionMsg.JudgeID != "" && decisionMsg.Decision != "" {
+			// Handle judge decision
+			judgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
+			log.Printf("Received decision from %s: %s", decisionMsg.JudgeID, decisionMsg.Decision)
 
-		// Notify that a judge has submitted
-		submissionUpdate := map[string]string{
-			"action":  "judgeSubmitted",
-			"judgeId": decisionMsg.JudgeID,
-		}
-		submissionMsg, _ := json.Marshal(submissionUpdate)
-		broadcast <- submissionMsg
-		log.Printf("Broadcasting judgeSubmitted for judgeId: %s", decisionMsg.JudgeID)
-
-		// Check if all judges have submitted
-		if len(judgeDecisions) == 3 {
-			// Prepare and send combined results
-			result := map[string]string{
-				"action":         "displayResults",
-				"leftDecision":   judgeDecisions["left"],
-				"centreDecision": judgeDecisions["centre"],
-				"rightDecision":  judgeDecisions["right"],
+			// Notify that a judge has submitted
+			submissionUpdate := map[string]string{
+				"action":  "judgeSubmitted",
+				"judgeId": decisionMsg.JudgeID,
 			}
-			resultMsg, _ := json.Marshal(result)
-			broadcast <- resultMsg
-			log.Println("Broadcasting displayResults.")
+			submissionMsg, _ := json.Marshal(submissionUpdate)
+			broadcast <- submissionMsg
 
-			// Reset decisions for the next round
-			judgeDecisions = make(map[string]string)
+			// Check if all judges have submitted
+			if len(judgeDecisions) == 3 {
+				// Determine the overall result
+				whiteCount := 0
+				redCount := 0
+				for _, decision := range judgeDecisions {
+					if decision == "white" {
+						whiteCount++
+					} else if decision == "red" {
+						redCount++
+					}
+				}
+
+				// Prepare and send combined results
+				result := map[string]string{
+					"action":         "displayResults",
+					"leftDecision":   judgeDecisions["left"],
+					"centreDecision": judgeDecisions["centre"],
+					"rightDecision":  judgeDecisions["right"],
+				}
+				resultMsg, _ := json.Marshal(result)
+				broadcast <- resultMsg
+
+				// Reset decisions for the next round
+				judgeDecisions = make(map[string]string)
+			}
+		} else if decisionMsg.Action != "" {
+			// Handle timer actions
+			handleTimerAction(decisionMsg.Action)
 		}
 		judgeMutex.Unlock()
 	}
+}
+
+// handleTimerAction processes timer-related actions
+func handleTimerAction(action string) {
+	// Implement timer action handling if necessary
+	// For example, you can broadcast timer actions to all clients
+	subAction := map[string]string{
+		"action": action,
+	}
+	subActionJSON, _ := json.Marshal(subAction)
+	broadcast <- subActionJSON
+	log.Printf("Timer action broadcasted: %s", action)
 }
