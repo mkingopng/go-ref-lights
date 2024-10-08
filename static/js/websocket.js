@@ -3,19 +3,19 @@
 // initialize WebSocket connection
 var socket = new WebSocket(websocketUrl);
 
-socket.onopen = function() {
-    console.log("WebSocket connection established.");
-};
+// socket.onopen = function() {
+//     console.log("WebSocket connection established.");
+// };
 
-socket.onerror = function(error) {
-    console.error("WebSocket error:", error);
-    alert("WebSocket error occurred. Check the console for more details.");
-};
+// socket.onerror = function(error) {
+//     console.error("WebSocket error:", error);
+//     alert("WebSocket error occurred. Check the console for more details.");
+// };
 
-socket.onclose = function(event) {
-    console.log("WebSocket connection closed:", event);
-    displayConnectionStatus("WebSocket connection closed.", "orange");
-};
+// socket.onclose = function(event) {
+//     console.log("WebSocket connection closed:", event);
+//     displayConnectionStatus("WebSocket connection closed.", "orange");
+// };
 
 // function to send messages
 function sendMessage(messageObj) {
@@ -24,10 +24,10 @@ function sendMessage(messageObj) {
         socket.send(message);
         console.log("Sent message:", message);
         // UI Feedback
-        alert("Action sent successfully.");
+        // alert("Action sent successfully.");
     } else {
         console.error("WebSocket is not open. Unable to send message.");
-        alert("Unable to send action. WebSocket is not connected.");
+        // alert("Unable to send action. WebSocket is not connected.");
     }
 }
 
