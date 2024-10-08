@@ -1,3 +1,4 @@
+// go.mod
 module go-ref-lights
 
 go 1.23

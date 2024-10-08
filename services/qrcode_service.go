@@ -10,7 +10,7 @@ import (
 func GenerateQRCode(width, height int) ([]byte, error) {
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
-		applicationURL = "https://referee-lights.michaelkingston.com.au/login"
+		applicationURL = "https://referee-lights.michaelkingston.com.au"
 	}
 
 	png, err := qrcode.Encode(applicationURL, qrcode.Medium, width)

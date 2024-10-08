@@ -19,6 +19,7 @@ func main() {
 	// Initialize the router
 	router := gin.Default()
 
+	// Set X-Frame-Options header to allow embedding
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set(
 			"X-Frame-Options",
@@ -32,12 +33,12 @@ func main() {
 	// Read configuration from environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
-		applicationURL = "http://localhost:8080"
+		applicationURL = "https://referee-lights.michaelkingston.com.au"
 	}
 
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
-		websocketURL = "ws://localhost:8080/referee-updates"
+		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
 	}
 
 	// Pass these values to controllers or wherever needed
@@ -50,20 +51,20 @@ func main() {
 	// Determine the absolute path to the templates directory
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates", "*.html")
+	templatesDir := filepath.Join(basepath, "static", "templates", "*.html") // Updated path
 
-	// load HTML templates
+	// Load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(templatesDir)
 
-	// static files
+	// Static files
 	router.Static("/static", "./static")
 
-	// public routes
+	// Public routes
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
 
-	// protected routes
+	// Protected routes
 	protected := router.Group("/", middleware.AuthRequired)
 	{
 		protected.GET("/", controllers.Index)

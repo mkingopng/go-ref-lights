@@ -1,5 +1,4 @@
 // websocket/handler.go
-
 package websocket
 
 import (
@@ -22,16 +21,38 @@ type DecisionMessage struct {
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
+		// Allow all connections by default
 		return true
 	},
 }
 
+// HandleMessages listens for incoming messages on the broadcast channel and sends them to all connected clients
+func HandleMessages() {
+	for {
+		// Grab the next message from the broadcast channel
+		msg := <-broadcast
+
+		// Send it out to every client that is currently connected
+		for client := range clients {
+			err := client.WriteMessage(websocket.TextMessage, msg)
+			if err != nil {
+				log.Printf("WebSocket write error: %v", err)
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+// ServeWs handles WebSocket requests from the peer.
 func ServeWs(w http.ResponseWriter, r *http.Request) {
+	// Upgrade initial GET request to a WebSocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
+	// Register new client
 	clients[ws] = true
 
 	for {
@@ -59,7 +80,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 			"judgeId": decisionMsg.JudgeID,
 		}
 		submissionMsg, _ := json.Marshal(submissionUpdate)
-		broadcastToClients(submissionMsg)
+		broadcast <- submissionMsg
 
 		// Check if all judges have submitted
 		if len(judgeDecisions) == 3 {
@@ -71,22 +92,11 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 				"rightDecision":  judgeDecisions["right"],
 			}
 			resultMsg, _ := json.Marshal(result)
-			broadcastToClients(resultMsg)
+			broadcast <- resultMsg
 
 			// Reset decisions for the next round
 			judgeDecisions = make(map[string]string)
 		}
 		judgeMutex.Unlock()
-	}
-}
-
-func broadcastToClients(message []byte) {
-	for client := range clients {
-		err := client.WriteMessage(websocket.TextMessage, message)
-		if err != nil {
-			log.Printf("WebSocket write error: %v", err)
-			client.Close()
-			delete(clients, client)
-		}
 	}
 }
