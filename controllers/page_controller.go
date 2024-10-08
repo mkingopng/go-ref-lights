@@ -96,3 +96,8 @@ func GetQRCode(c *gin.Context) {
 func RefereeUpdates(c *gin.Context) {
 	websocket.ServeWs(c.Writer, c.Request)
 }
+
+// Health returns OK for health checks
+func Health(c *gin.Context) {
+	c.String(http.StatusOK, "OK")
+}

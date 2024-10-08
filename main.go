@@ -16,7 +16,19 @@ import (
 )
 
 func main() {
-	// Remove Viper initialization
+	// Initialize the router
+	router := gin.Default()
+
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set(
+			"X-Frame-Options",
+			"ALLOW-FROM https://referee-lights.michaelkingston.com.au")
+		c.Next()
+	})
+
+	// Add this route for health checks
+	router.GET("/health", controllers.Health)
+
 	// Read configuration from environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
@@ -30,8 +42,6 @@ func main() {
 
 	// Pass these values to controllers or wherever needed
 	controllers.SetConfig(applicationURL, websocketURL)
-
-	router := gin.Default()
 
 	// Initialize session store
 	store := cookie.NewStore([]byte("secret"))
