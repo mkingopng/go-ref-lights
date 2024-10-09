@@ -36,7 +36,7 @@ h2 {
 /* Button container */
 .button-container {
     display: flex;
-    flex-direction: row; /* Ensure horizontal layout */
+    flex-direction: column; /* vertical layout */
     flex-wrap: nowrap;   /* Prevent wrapping to the next line */
     justify-content: center;
     gap: 10px;           /* Space between buttons */

@@ -40,11 +40,11 @@ function startTimer() {
             timeLeft = 0;
             document.getElementById('timer').innerText = '0s';
             // Timer reached zero, display "3 red" result
-            document.getElementById('leftCircle').style.backgroundColor = 'red';
-            document.getElementById('centreCircle').style.backgroundColor = 'red';
-            document.getElementById('rightCircle').style.backgroundColor = 'red';
+            // document.getElementById('leftCircle').style.backgroundColor = 'red';
+            // document.getElementById('centreCircle').style.backgroundColor = 'red';
+            // document.getElementById('rightCircle').style.backgroundColor = 'red';
             // Display "Time Out" message
-            displayMessage('Time Out', 'red');
+            // displayMessage('Time Out', 'red');
         }
     }, 1000);
 }
