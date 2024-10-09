@@ -1,7 +1,6 @@
 <!-- templates/left.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
@@ -20,18 +19,19 @@
 <h1 class="title">Left Referee</h1>
 
 <div class="button-container">
-  <button onclick="sendMessage({ circleId: 'leftCircle', color: 'white' })" class="action-button white">Good Lift</button>
-  <button onclick="sendMessage({ circleId: 'leftCircle', color: 'red' })" class="action-button red">No Lift</button>
+  <button onclick="goodLift('left')" class="action-button white">Good Lift</button>
+  <button onclick="noLift('left')" class="action-button red">No Lift</button>
 </div>
 
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo">
 </div>
 
-  <script>
-    var websocketUrl = "{{ .WebsocketURL }}";
-  </script>
-  <script src="/static/js/websocket.js"></script>
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
+<script src="/static/js/websocket.js"></script>
+<script src="/static/js/lights.js"></script>
 
 </body>
 </html>

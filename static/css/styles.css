@@ -283,6 +283,32 @@ input[type="submit"]:hover {
     background-color: #2980b9;
 }
 
+/* Green Dot Styles */
+.green-dot-container {
+    position: absolute;
+    bottom: -15px; /* Adjust as needed */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 15px;
+    height: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.green-dot {
+    width: 10px;
+    height: 10px;
+    background-color: green;
+    border-radius: 50%;
+    opacity: 0;
+    animation: fadeIn 0.5s forwards;
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
 /* Specific color classes */
 .action-button.white {
     background-color: white;

@@ -20,13 +20,20 @@
   <div class="timer" id="title">Attempt Time:</div>
   <div class="timer" id="timer">60s</div>
 </div>
+
 <div class="container">
-  <div id="leftCircle" class="circle"></div>
-  <div id="centreCircle" class="circle"></div>
-  <div id="rightCircle" class="circle"></div>
+  <div id="leftCircle" class="circle">
+    <div class="green-dot-container" id="leftDotContainer"></div>
+  </div>
+  <div id="centreCircle" class="circle">
+    <div class="green-dot-container" id="centreDotContainer"></div>
+  </div>
+  <div id="rightCircle" class="circle">
+    <div class="green-dot-container" id="rightDotContainer"></div>
+  </div>
 </div>
 
-<div id="message" class="message"></div>
+<div id="message" class="message" style="display: none;"></div>
 
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo">
@@ -34,11 +41,11 @@
 
 <div id="connectionStatus" class="connection-status"></div>
 
-  <script>
-    var websocketUrl = "{{ .WebsocketURL }}";
-  </script>
-  <script src="/static/js/websocket.js"></script>
-  <script src="/static/js/lights.js"></script>
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
+<script src="/static/js/websocket.js"></script>
+<script src="/static/js/lights.js"></script>
 
 </body>
 </html>

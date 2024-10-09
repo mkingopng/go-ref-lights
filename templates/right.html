@@ -19,18 +19,19 @@
 
 <h1 class="title">Right Referee</h1>
 <div class="button-container">
-  <button onclick="sendMessage({ circleId: 'rightCircle', color: 'white' })" class="action-button white">Good Lift</button>
-  <button onclick="sendMessage({ circleId: 'rightCircle', color: 'red' })" class="action-button red">No Lift</button>
+  <button onclick="goodLift('right')" class="action-button white">Good Lift</button>
+  <button onclick="noLift('right')" class="action-button red">No Lift</button>
 </div>
 
 <div class="logo-container">
   <img src="/static/images/zerow-pro.png" alt="zerow logo">
 </div>
 
-  <script>
-    var websocketUrl = "{{ .WebsocketURL }}";
-  </script>
-  <script src="/static/js/websocket.js"></script>
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
+<script src="/static/js/websocket.js"></script>
+<script src="/static/js/lights.js"></script>
 
 </body>
 </html>
