@@ -16,12 +16,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     socket.onerror = function(error) {
         console.error("WebSocket error (Right Referee):", error);
-        alert("WebSocket error occurred. Check the console for more details.");
+        // alert("WebSocket error occurred. Check the console for more details.");
     };
 
     socket.onclose = function(event) {
         console.log("WebSocket connection closed (Right Referee):", event);
-        alert("WebSocket connection closed.");
+        // alert("WebSocket connection closed.");
     };
 
     // Function to send decision
@@ -39,10 +39,10 @@ document.addEventListener('DOMContentLoaded', function() {
             var message = JSON.stringify(messageObj);
             socket.send(message);
             console.log("Action sent successfully (Right Referee):", messageObj);
-            alert("Action sent successfully!");
+            // alert("Action sent successfully!");
         } else {
             console.error("WebSocket is not open (Right Referee). ReadyState:", socket.readyState);
-            alert("Failed to send action. WebSocket is not open.");
+            // alert("Failed to send action. WebSocket is not open.");
         }
     }
 

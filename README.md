@@ -38,6 +38,12 @@ go-ref-lights/
 │       └── right.js
 ├── templates/
 │       └── lights.html
+│       └── left.html
+│       └── centre.html
+│       └── right.html
+│       └── index.html
+│
 ├── main.go
 ├── go.mod
 └── go.sum
+

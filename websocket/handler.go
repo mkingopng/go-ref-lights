@@ -126,8 +126,6 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 
 // handleTimerAction processes timer-related actions
 func handleTimerAction(action string) {
-	// Implement timer action handling if necessary
-	// For example, you can broadcast timer actions to all clients
 	subAction := map[string]string{
 		"action": action,
 	}

@@ -1,5 +1,13 @@
 // static/js/lights.js
 
+// Platform Ready Timer Variables
+var platformReadyTimerInterval;
+var platformReadyTimeLeft = 60; // timer for Athlete to make attempt
+
+// Next Attempt Timer Variables
+var nextAttemptTimerInterval;
+var nextAttemptTimeLeft = 60; // timer for athlete to submit next attempt
+
 document.addEventListener('DOMContentLoaded', function() {
     // Ensure websocketUrl is defined
     if (typeof websocketUrl === 'undefined') {
@@ -16,12 +24,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     socket.onerror = function(error) {
         console.error("WebSocket error (Lights):", error);
-        alert("WebSocket error occurred. Check the console for more details.");
+        // alert("WebSocket error occurred. Check the console for more details.");
     };
 
     socket.onclose = function(event) {
         console.log("WebSocket connection closed (Lights):", event);
-        alert("WebSocket connection closed.");
+        // alert("WebSocket connection closed.");
     };
 
     socket.onmessage = function(event) {
@@ -101,18 +109,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startSecondTimer() {
-        clearInterval(secondTimerInterval);
-        secondTimeLeft = 60;
+        clearInterval(nextAttemptTimerInterval);
+        nextAttemptTimeLeft = 60;
         updateSecondTimerDisplay();
-        secondTimerInterval = setInterval(function() {
-            secondTimeLeft--;
+        nextAttemptTimerInterval = setInterval(function() {
+            nextAttemptTimeLeft--;
             updateSecondTimerDisplay();
-            if (secondTimeLeft <= 0) {
-                clearInterval(secondTimerInterval);
-                secondTimeLeft = 0;
+            if (nextAttemptTimeLeft <= 0) {
+                clearInterval(nextAttemptTimerInterval);
+                nextAttemptTimeLeft = 0;
                 updateSecondTimerDisplay();
                 // Optional: Perform action when second timer ends
-                displayMessage('Next Attempt', 'green');
+                displayMessage('Next Attempt Submission Overdue', 'yellow');
             }
         }, 1000);
     }
@@ -120,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateSecondTimerDisplay() {
         var secondTimerElement = document.getElementById('secondTimer');
         if (secondTimerElement) {
-            secondTimerElement.innerText = secondTimeLeft + 's';
+            secondTimerElement.innerText = nextAttemptTimeLeft + 's';
         } else {
             console.error("Element with id 'secondTimer' not found");
         }
@@ -142,26 +150,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Timer Variables
-    var timerInterval;
-    var timeLeft = 60; // Athlete timer
-
-    var secondTimerInterval;
-    var secondTimeLeft = 60; // Second timer after judges submit
-
-    // Timer Functions
+    // timer Functions
     function startTimer() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
+        if (platformReadyTimerInterval) {
+            clearInterval(platformReadyTimerInterval);
         }
-        timeLeft = 60; // Reset time
-        document.getElementById('timer').innerText = timeLeft + 's';
-        timerInterval = setInterval(function() {
-            timeLeft--;
-            document.getElementById('timer').innerText = timeLeft + 's';
-            if (timeLeft <= 0) {
-                clearInterval(timerInterval);
-                timeLeft = 0;
+        platformReadyTimeLeft = 60; // Reset time
+        document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
+        platformReadyTimerInterval = setInterval(function() {
+            platformReadyTimeLeft--;
+            document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
+            if (platformReadyTimeLeft <= 0) {
+                clearInterval(platformReadyTimerInterval);
+                platformReadyTimeLeft = 0;
                 document.getElementById('timer').innerText = '0s';
                 // Timer reached zero, display message
                 displayMessage('Time Up', 'yellow');
@@ -171,21 +172,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function stopTimer() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
+        if (platformReadyTimerInterval) {
+            clearInterval(platformReadyTimerInterval);
+            platformReadyTimerInterval = null;
             displayMessage('Timer Stopped', 'yellow');
             console.log("Timer stopped");
         }
     }
 
     function resetTimer() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
+        if (platformReadyTimerInterval) {
+            clearInterval(platformReadyTimerInterval);
+            platformReadyTimerInterval = null;
         }
-        timeLeft = 60;
-        document.getElementById('timer').innerText = timeLeft + 's';
+        platformReadyTimeLeft = 60;
+        document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
         // Clear any messages
         displayMessage('', '');
         // Reset circles and indicators
@@ -214,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
         displayMessage('', '');
 
         // Stop second timer
-        clearInterval(secondTimerInterval);
+        clearInterval(nextAttemptTimerInterval);
         var secondTimerElement = document.getElementById('secondTimer');
         if (secondTimerElement) {
             secondTimerElement.innerText = '';

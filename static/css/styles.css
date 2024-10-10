@@ -40,11 +40,11 @@ h2 {
 /* Button container */
 .button-container {
     display: flex;
-    flex-direction: row; /* Ensure horizontal layout */
+    flex-direction: column; /* Ensure horizontal layout */
     flex-wrap: nowrap;   /* Prevent wrapping to the next line */
     justify-content: center;
-    gap: 10px;           /* Space between buttons */
-    margin-bottom: 20px;
+    gap: 20px;           /* Space between buttons */
+    margin-bottom: 10px;
 }
 
 /* Button link styles */
@@ -133,6 +133,7 @@ input[type="submit"]:hover {
     align-items: center;
     gap: 100px;
     flex-wrap: wrap;
+    margin-bottom: 50px;
 }
 
 .circle {
@@ -155,7 +156,7 @@ input[type="submit"]:hover {
 
 /* Logo container */
 .logo-container {
-    margin-top: 20px;
+    margin-top: 5px;
     text-align: center;
 }
 
@@ -198,8 +199,8 @@ input[type="submit"]:hover {
 .judge-indicators {
     display: flex;
     justify-content: center;
-    gap: 50px;
-    margin-bottom: 20px;
+    gap: 500px;
+    margin-bottom: 5px;
 }
 
 .indicator {
@@ -214,12 +215,16 @@ input[type="submit"]:hover {
     position: fixed;
     bottom: 10px;
     right: 10px;
-    font-size: 24px;
+    font-size: 60px;
     color: white;
 }
 
-/* Media Queries for Responsiveness */
+.hidden {
+    display: none;
+}
 
+
+/* Media Queries for Responsiveness */
 /* For screens smaller than 768px (tablets and phones) */
 @media (max-width: 768px) {
     .timer {

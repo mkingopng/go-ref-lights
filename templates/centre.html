@@ -24,7 +24,7 @@
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
-  <button id="startTimerButton" class="action-button">Start Timer</button>
+  <button id="startTimerButton" class="action-button">Platform Ready</button>
   <button id="stopTimerButton" class="action-button">Stop Timer</button>
   <button id="resetTimerButton" class="action-button">Reset</button>
 </div>
@@ -34,11 +34,10 @@
 </div>
 
 <!-- Define websocketUrl -->
-<script>
-  var websocketUrl = "{{ .WebsocketURL }}";
-</script>
+<script> var websocketUrl = "{{ .WebsocketURL }}"; </script>
+
 <!-- WebSocket Script -->
 <script src="/static/js/centre.js"></script> <!-- Corrected Path -->
-</body>
 
+</body>
 </html>
