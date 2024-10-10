@@ -24,12 +24,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     socket.onerror = function(error) {
         console.error("WebSocket error (Lights):", error);
-        // alert("WebSocket error occurred. Check the console for more details.");
     };
 
     socket.onclose = function(event) {
         console.log("WebSocket connection closed (Lights):", event);
-        // alert("WebSocket connection closed.");
     };
 
     socket.onmessage = function(event) {
@@ -42,10 +40,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (data.action === "judgeSubmitted") {
-            // Update judge submission indicator
             showJudgeSubmissionIndicator(data.judgeId);
         } else if (data.action === "displayResults") {
-            // Display the results from all judges
             displayResults(data);
         } else if (data.action === "startTimer" || data.action === "stopTimer" || data.action === "resetTimer") {
             handleTimerAction(data.action);
@@ -65,7 +61,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function displayResults(data) {
-        // Update circles based on decisions
         updateCircle('leftCircle', data.leftDecision);
         updateCircle('centreCircle', data.centreDecision);
         updateCircle('rightCircle', data.rightDecision);
@@ -221,5 +216,24 @@ document.addEventListener('DOMContentLoaded', function() {
             secondTimerElement.innerText = '';
         }
         console.log("Reset for new lift");
+    }
+
+    // Reference to the Platform Ready button and container
+    var platformReadyButton = document.getElementById('platformReadyButton');
+    var platformReadyContainer = document.getElementById('platformReadyContainer');
+
+    if (platformReadyButton && platformReadyContainer) {
+        platformReadyButton.addEventListener('click', function() {
+            platformReadyContainer.classList.toggle('hidden');
+            console.log("Platform Ready button pressed. Toggled visibility.");
+            // Optionally, start the timer when the button is pressed
+            if (!platformReadyContainer.classList.contains('hidden')) {
+                startTimer();
+            } else {
+                stopTimer();
+            }
+        });
+    } else {
+        console.error("Platform Ready button or container not found.");
     }
 });
