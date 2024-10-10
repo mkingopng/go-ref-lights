@@ -1,21 +1,28 @@
 // static/js/lights.js
 
-// Platform Ready Timer Variables
+// platform Ready Timer Variables
 var platformReadyTimerInterval;
-var platformReadyTimeLeft = 60; // timer for Athlete to make attempt
+var platformReadyTimeLeft = 60; // timer for lifter to make attempt
 
-// Next Attempt Timer Variables
+// next Attempt Timer Variables
 var nextAttemptTimerInterval;
-var nextAttemptTimeLeft = 60; // timer for athlete to submit next attempt
+var nextAttemptTimeLeft = 60; // timer for lifter to submit next attempt
+
+// judge decisions dict (to store judges decisions)
+var judgeDecisions = {
+    left: null,
+    centre: null,
+    right: null
+};
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Ensure websocketUrl is defined
+    // ensure websocketUrl is defined
     if (typeof websocketUrl === 'undefined') {
         console.error("websocketUrl is not defined");
         return;
     }
 
-    // Initialize WebSocket connection
+    // initialize WebSocket connection
     var socket = new WebSocket(websocketUrl);
 
     socket.onopen = function() {
@@ -65,7 +72,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCircle('centreCircle', data.centreDecision);
         updateCircle('rightCircle', data.rightDecision);
 
-        // Determine the overall result
+        // store judge decisions for reference
+        judgeDecisions.left = data.leftDecision;
+        judgeDecisions.centre = data.centreDecision;
+        judgeDecisions.right = data.rightDecision;
+
+        // determine the overall result
         var decisions = [data.leftDecision, data.centreDecision, data.rightDecision];
         var whiteCount = decisions.filter(decision => decision === "white").length;
         var redCount = decisions.filter(decision => decision === "red").length;
@@ -74,12 +86,21 @@ document.addEventListener('DOMContentLoaded', function() {
             displayMessage('Good Lift', 'white');
         } else if (redCount >= 2) {
             displayMessage('No Lift', 'red');
-        } else {
-            displayMessage('Mixed Decisions', 'yellow');
         }
 
-        // Start the second timer
+        // start the second timer
         startSecondTimer();
+
+        // clear the message and reset the second timer after 10 seconds
+        setTimeout(function() {
+            displayMessage('', '');
+
+            // reset platform ready timer to 60 sec, but do NOT start it
+            platformReadyTimeLeft = 60;
+            document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
+            clearInterval(platformReadyTimerInterval);  // Ensure the timer is NOT running
+            platformReadyTimerInterval = null;  // Nullify the timer interval to prevent automatic restart
+        }, 10000);
     }
 
     function updateCircle(circleId, decision) {
@@ -114,8 +135,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(nextAttemptTimerInterval);
                 nextAttemptTimeLeft = 0;
                 updateSecondTimerDisplay();
-                // Optional: Perform action when second timer ends
-                displayMessage('Next Attempt Submission Overdue', 'yellow');
+                // displayMessage('', 'yellow');
+
+                // Clear the message and reset the second timer after 10 seconds
+                setTimeout(function() {
+                    displayMessage('', '');  // clear the message
+                    nextAttemptTimeLeft = 60;  // reset the second timer to 60 seconds
+                    updateSecondTimerDisplay();  // update the timer display
+                }, 10000);  // delay 10 seconds b4 resetting timer
             }
         }, 1000);
     }
@@ -145,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // timer Functions
+    // Platform Ready Timer Functions
     function startTimer() {
         if (platformReadyTimerInterval) {
             clearInterval(platformReadyTimerInterval);
@@ -159,7 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(platformReadyTimerInterval);
                 platformReadyTimeLeft = 0;
                 document.getElementById('timer').innerText = '0s';
-                // Timer reached zero, display message
                 displayMessage('Time Up', 'yellow');
             }
         }, 1000);
@@ -170,8 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (platformReadyTimerInterval) {
             clearInterval(platformReadyTimerInterval);
             platformReadyTimerInterval = null;
-            displayMessage('Timer Stopped', 'yellow');
-            console.log("Timer stopped");
+            console.log("Platform Ready Timer stopped");
         }
     }
 
@@ -182,22 +207,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         platformReadyTimeLeft = 60;
         document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
-        // Clear any messages
         displayMessage('', '');
-        // Reset circles and indicators
-        resetForNewLift();
-        console.log("Timer reset");
+        console.log("Platform Ready Timer reset");
     }
 
     function resetCircles() {
-        document.getElementById('leftCircle').style.backgroundColor = 'black';
-        document.getElementById('centreCircle').style.backgroundColor = 'black';
-        document.getElementById('rightCircle').style.backgroundColor = 'black';
-        console.log("Circles reset to black");
+        var leftCircle = document.getElementById('leftCircle');
+        var centreCircle = document.getElementById('centreCircle');
+        var rightCircle = document.getElementById('rightCircle');
+
+        if (leftCircle) {
+            leftCircle.style.backgroundColor = 'black';
+            console.log("Left Circle reset");
+        } else {
+            console.error("Left Circle not found");
+        }
+
+        if (centreCircle) {
+            centreCircle.style.backgroundColor = 'black';
+            console.log("Centre Circle reset");
+        } else {
+            console.error("Centre Circle not found");
+        }
+
+        if (rightCircle) {
+            rightCircle.style.backgroundColor = 'black';
+            console.log("Right Circle reset");
+        } else {
+            console.error("Right Circle not found");
+        }
     }
 
+
     function resetForNewLift() {
-        // Reset circles
         resetCircles();
 
         // Reset indicators
@@ -206,31 +248,30 @@ document.addEventListener('DOMContentLoaded', function() {
             indicator.style.backgroundColor = 'grey';
         });
 
-        // Clear messages
         displayMessage('', '');
-
-        // Stop second timer
-        clearInterval(nextAttemptTimerInterval);
-        var secondTimerElement = document.getElementById('secondTimer');
-        if (secondTimerElement) {
-            secondTimerElement.innerText = '';
-        }
         console.log("Reset for new lift");
     }
 
-    // Reference to the Platform Ready button and container
+    // Platform Ready Button Event Handler
     var platformReadyButton = document.getElementById('platformReadyButton');
     var platformReadyContainer = document.getElementById('platformReadyContainer');
 
     if (platformReadyButton && platformReadyContainer) {
         platformReadyButton.addEventListener('click', function() {
-            platformReadyContainer.classList.toggle('hidden');
-            console.log("Platform Ready button pressed. Toggled visibility.");
-            // Optionally, start the timer when the button is pressed
+            platformReadyContainer.classList.toggle('hidden');  // Toggle visibility of the platform ready container
+
+            // Start the platform ready timer only if it is visible
             if (!platformReadyContainer.classList.contains('hidden')) {
-                startTimer();
+                startTimer();  // Start the Platform Ready timer when the button is pressed
+
+                // Reset circles and decisions
+                resetCircles();
+                judgeDecisions.left = null;
+                judgeDecisions.centre = null;
+                judgeDecisions.right = null;
+                console.log("Circles and decisions reset");
             } else {
-                stopTimer();
+                stopTimer();  // optionally stop the timer when hidden
             }
         });
     } else {
