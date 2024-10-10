@@ -35,7 +35,7 @@ func PerformLogin(c *gin.Context) {
 		session := sessions.Default(c)
 		session.Set("user", username)
 		session.Save()
-		c.Redirect(http.StatusFound, "/")
+		c.Redirect(http.StatusFound, "/") // Redirect to index page after login
 	} else {
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"Error": "Invalid credentials",
@@ -43,9 +43,20 @@ func PerformLogin(c *gin.Context) {
 	}
 }
 
+// Logout handles user logout
+func Logout(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear()
+	session.Save()
+	c.Redirect(http.StatusFound, "/login")
+}
+
 // Index renders the index page
 func Index(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.html", nil)
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+	}
+	c.HTML(http.StatusOK, "index.html", data)
 }
 
 // Left renders the left page

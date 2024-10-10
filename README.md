@@ -3,12 +3,12 @@
 go run main.go
 ```
 
-# Build the Docker image
+# build the Docker image
 ```bash
 docker build -t go-ref-lights .
 ```
 
-# Run the Docker container
+# run the Docker container
 ```bash
 docker run -p 8080:8080 go-ref-lights
 ```
@@ -19,3 +19,32 @@ docker run -p 8080:8080 go-ref-lights
 - 'reset' not working
 - green dots
 - second timer for 'next attempt' triggered by 3 decisions
+
+# ngrok instructions
+
+
+# the structure looks like this:
+
+go-ref-lights/
+├── controllers/
+│   └── page_controller.go
+├── middleware/
+│   └── auth.go
+├── services/
+│   └── qrcode_service.go
+├── websocket/
+│   └── handler.go
+├── static/
+│   ├── css/
+│   │   └── styles.css
+│   └── js/
+│       ├── websocket.js
+│       ├── lights.js
+│       ├── left.js
+│       ├── centre.js
+│       └── right.js
+├── templates/
+│       └── lights.html
+├── main.go
+├── go.mod
+└── go.sum

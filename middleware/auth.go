@@ -2,9 +2,10 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 // AuthRequired is a middleware that checks if the user is authenticated

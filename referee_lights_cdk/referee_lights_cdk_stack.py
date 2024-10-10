@@ -27,6 +27,8 @@ class RefereeLightsCdkStack(Stack):
 
         # define Variables
         domain_name = "referee-lights.michaelkingston.com.au"
+        # domain_name = "localhost:8080"
+
 
         # create VPC
         vpc = ec2.Vpc(
@@ -99,13 +101,7 @@ class RefereeLightsCdkStack(Stack):
                 "APPLICATION_URL": f"https://{domain_name}",
                 "WEBSOCKET_URL": f"wss://{domain_name}/referee-updates",
             },
-            # health_check=ecs.HealthCheck(
-            #     command=["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
-            #     interval=Duration.seconds(30),
-            #     retries=3,
-            #     timeout=Duration.seconds(5),
-            #     start_period=Duration.seconds(60),
-            # ),
+            # health_check=ecs.HealthCheck(...) if applicable
         )
 
         container.add_port_mappings(

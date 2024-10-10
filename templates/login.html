@@ -2,36 +2,37 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <title>Referee Lights</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="/static/css/styles.css" rel="stylesheet">
+  <link href="/static/css/styles.css" rel="stylesheet"> <!-- Corrected Path -->
 </head>
 <body>
 <form action="/login" method="post">
   {{ if .Error }}
-  <div>
+  <div class="error-message">
     {{ .Error }}
   </div>
   {{ end }}
   <div>
     <label>
       Username
-      <input type="text" name="username"/>
+      <input type="text" name="username" required/>
     </label>
   </div>
   <div>
     <label>
       Password
-      <input type="password" name="password"/>
+      <input type="password" name="password" required/>
     </label>
   </div>
   <div>
     <input type="submit" value="Sign In"/>
   </div>
   <div class="logo-container">
-    <img src="/static/images/zerow-pro.png" alt="zerow logo">
+    <img src="/static/images/zerow-pro.png" alt="zerow logo"> <!-- Corrected Path -->
   </div>
 </form>
 </body>

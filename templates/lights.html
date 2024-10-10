@@ -2,25 +2,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
   <meta charset="UTF-8">
-  <title>Lights</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="/static/css/styles.css" rel="stylesheet">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <title>Referee Lights</title>
+  <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
 </head>
-
 <body>
-<div class="home-icon">
-  <a href="/">
-    <i class="fa fa-arrow-left" aria-hidden="true"></i>
-  </a>
-</div>
-<div class="timer-container">
-  <div class="timer" id="title">Attempt Time:</div>
-  <div class="timer" id="timer">60s</div>
+<!-- Judge Submission Indicators -->
+<div class="judge-indicators">
+  <div id="leftIndicator" class="indicator" title="Left Judge"></div>
+  <div id="centreIndicator" class="indicator" title="Centre Judge"></div>
+  <div id="rightIndicator" class="indicator" title="Right Judge"></div>
 </div>
 
+<!-- Timer -->
+<div class="timer-container">
+  <div id="timer" class="timer">60s</div>
+</div>
+
+<!-- Circles -->
 <div class="container">
   <div id="leftCircle" class="circle">
     <div class="green-dot-container" id="leftDotContainer"></div>
@@ -35,11 +35,13 @@
 
 <div id="message" class="message" style="display: none;"></div>
 
-<div class="logo-container">
-  <img src="/static/images/zerow-pro.png" alt="zerow logo">
+<!-- QR Code -->
+<div class="qr-code-container">
+  <img src="/qrcode" alt="QR Code">
 </div>
 
-<div id="connectionStatus" class="connection-status"></div>
+<!-- Second Timer -->
+<div id="secondTimer" class="second-timer"></div>
 
 <script>
   var websocketUrl = "{{ .WebsocketURL }}";
@@ -47,5 +49,14 @@
 <script src="/static/js/websocket.js"></script>
 <script src="/static/js/lights.js"></script>
 
+<!-- Connection Status -->
+<div id="connectionStatus" class="connection-status"></div>
+
+<!-- Define websocketUrl -->
+<script>
+  var websocketUrl = "{{ .WebsocketURL }}";
+</script>
+<!-- WebSocket Script -->
+<script src="/static/js/lights.js"></script> <!-- Corrected Path -->
 </body>
 </html>
