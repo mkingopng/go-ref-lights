@@ -16,6 +16,13 @@ var judgeDecisions = {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Declare platformReadyTimerContainer at the top
+    var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+
+    // platform Ready Button Event Handler
+    var platformReadyButton = document.getElementById('platformReadyButton');
+
+
     // ensure websocketUrl is defined
     if (typeof websocketUrl === 'undefined') {
         console.error("websocketUrl is not defined");
@@ -72,12 +79,12 @@ document.addEventListener('DOMContentLoaded', function() {
         updateCircle('centreCircle', data.centreDecision);
         updateCircle('rightCircle', data.rightDecision);
 
-        // store judge decisions for reference
+        // Store judge decisions for reference
         judgeDecisions.left = data.leftDecision;
         judgeDecisions.centre = data.centreDecision;
         judgeDecisions.right = data.rightDecision;
 
-        // determine the overall result
+        // Determine the overall result
         var decisions = [data.leftDecision, data.centreDecision, data.rightDecision];
         var whiteCount = decisions.filter(decision => decision === "white").length;
         var redCount = decisions.filter(decision => decision === "red").length;
@@ -88,20 +95,28 @@ document.addEventListener('DOMContentLoaded', function() {
             displayMessage('No Lift', 'red');
         }
 
-        // start the second timer
+        // Start the second timer
         startSecondTimer();
 
-        // clear the message and reset the second timer after 10 seconds
+        // Reset the platform ready timer after 10 seconds
         setTimeout(function() {
             displayMessage('', '');
 
-            // reset platform ready timer to 60 sec, but do NOT start it
+            // Reset platform ready timer to 60 sec, but don't start it
             platformReadyTimeLeft = 60;
             document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
             clearInterval(platformReadyTimerInterval);  // Ensure the timer is NOT running
             platformReadyTimerInterval = null;  // Nullify the timer interval to prevent automatic restart
-        }, 10000);
-    }
+
+            // Hide the platform ready timer container
+            if (platformReadyTimerContainer) {
+                platformReadyTimerContainer.classList.add('hidden'); // Hide the timer
+                console.log("Platform Ready Timer Container hidden after countdown");
+            }
+        }, 1000); // Close setTimeout function
+
+    } // Close displayResults function
+
 
     function updateCircle(circleId, decision) {
         var circle = document.getElementById(circleId);
@@ -125,9 +140,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function startSecondTimer() {
+        console.log("startSecondTimer() called");
+        var nextAttemptTimerContainer = document.getElementById('nextAttemptTimerContainer');
+        if (nextAttemptTimerContainer) {
+            nextAttemptTimerContainer.classList.remove('hidden');
+            console.log("Next Attempt Timer Container found and unhidden");
+        } else {
+            console.error("Element with id 'nextAttemptTimerContainer' not found");
+        }
+
         clearInterval(nextAttemptTimerInterval);
         nextAttemptTimeLeft = 60;
         updateSecondTimerDisplay();
+
         nextAttemptTimerInterval = setInterval(function() {
             nextAttemptTimeLeft--;
             updateSecondTimerDisplay();
@@ -135,30 +160,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(nextAttemptTimerInterval);
                 nextAttemptTimeLeft = 0;
                 updateSecondTimerDisplay();
-                // displayMessage('', 'yellow');
 
-                // Clear the message and reset the second timer after 10 seconds
+                // hide the timer container when time is up
+                if (nextAttemptTimerContainer) {
+                    nextAttemptTimerContainer.classList.add('hidden'); // Hide the timer
+                    console.log("Next Attempt Timer Container hidden after countdown");
+                }
+
+                // reset the second timer after 10 seconds
                 setTimeout(function() {
                     displayMessage('', '');  // clear the message
                     nextAttemptTimeLeft = 60;  // reset the second timer to 60 seconds
                     updateSecondTimerDisplay();  // update the timer display
-                }, 10000);  // delay 10 seconds b4 resetting timer
+                }, 10000);  // delay 10 seconds before resetting timer
             }
-        }, 1000);
-    }
+        }, 1000); // close setInterval function
+    } // close startSecondTimer function
+
 
     function updateSecondTimerDisplay() {
         var secondTimerElement = document.getElementById('secondTimer');
         if (secondTimerElement) {
             secondTimerElement.innerText = nextAttemptTimeLeft + 's';
+            console.log("Next Attempt Timer Updated:", nextAttemptTimeLeft + 's'); // Log for debugging
         } else {
             console.error("Element with id 'secondTimer' not found");
         }
     }
 
+
     function handleTimerAction(action) {
         switch(action) {
             case "startTimer":
+                resetForNewLift();
                 startTimer();
                 break;
             case "stopTimer":
@@ -173,8 +207,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Platform Ready Timer Functions
+    // Platform Ready timer functions
     function startTimer() {
+        var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.remove('hidden');
+        }
         if (platformReadyTimerInterval) {
             clearInterval(platformReadyTimerInterval);
         }
@@ -187,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearInterval(platformReadyTimerInterval);
                 platformReadyTimeLeft = 0;
                 document.getElementById('timer').innerText = '0s';
-                displayMessage('Time Up', 'yellow');
+                // displayMessage('Time Up', 'yellow');
             }
         }, 1000);
         console.log("Timer started");
@@ -199,7 +237,13 @@ document.addEventListener('DOMContentLoaded', function() {
             platformReadyTimerInterval = null;
             console.log("Platform Ready Timer stopped");
         }
+        // hide the timer container
+        var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.add('hidden');
+        }
     }
+
 
     function resetTimer() {
         if (platformReadyTimerInterval) {
@@ -210,6 +254,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
         displayMessage('', '');
         console.log("Platform Ready Timer reset");
+
+        // hide the timer container
+        var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.add('hidden');
+        }
     }
 
     function resetCircles() {
@@ -239,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // todo: reset the circles and decisions
     function resetForNewLift() {
         resetCircles();
 
@@ -254,21 +303,27 @@ document.addEventListener('DOMContentLoaded', function() {
             indicator.style.backgroundColor = 'grey';
         });
 
+        // Reset the second timer
+        var nextAttemptTimerContainer = document.getElementById('nextAttemptTimerContainer');
+        if (nextAttemptTimerContainer) {
+            nextAttemptTimerContainer.classList.add('hidden');
+        }
+
         displayMessage('', '');
         console.log("Reset for new lift");
     }
 
-    // Platform Ready Button Event Handler
-    var platformReadyButton = document.getElementById('platformReadyButton');
-    var platformReadyContainer = document.getElementById('platformReadyContainer');
+    // platform Ready Button Event Handler
+    // var platformReadyButton = document.getElementById('platformReadyButton');
+    // var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    if (platformReadyButton && platformReadyContainer) {
+    if (platformReadyButton && platformReadyTimerContainer) {
         platformReadyButton.addEventListener('click', function() {
-            platformReadyContainer.classList.toggle('hidden');  // Toggle visibility of the platform ready container
+            platformReadyTimerContainer.classList.toggle('hidden');  // Toggle visibility of the platform ready container
 
             // Start the platform ready timer only if it is visible
-            if (!platformReadyContainer.classList.contains('hidden')) {
-                startTimer();  // Start the Platform Ready timer when the button is pressed
+            if (!platformReadyTimerContainer.classList.contains('hidden')) {
+                startTimer();  // start Platform Ready timer when button pressed
 
                 // Reset circles and decisions
                 resetCircles();
