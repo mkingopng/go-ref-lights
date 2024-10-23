@@ -166,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case "resetTimer":
                 resetTimer();
+                resetForNewLift()
                 break;
             default:
                 console.warn("Unknown timer action:", action);
@@ -238,9 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-
+    // todo: reset the circles and decisions
     function resetForNewLift() {
         resetCircles();
+
+        // reset the judges decisions
+        judgeDecisions.left = null;
+        judgeDecisions.centre = null;
+        judgeDecisions.right = null;
 
         // Reset indicators
         var indicators = document.querySelectorAll('.indicator');

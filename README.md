@@ -13,10 +13,8 @@ docker build -t go-ref-lights .
 docker run -p 8080:8080 go-ref-lights
 ```
 
-# ngrok instructions
 
-
-# the structure looks like this:
+# project structure:
 
 go-ref-lights/
 ├── controllers/
