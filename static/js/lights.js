@@ -16,7 +16,7 @@ var judgeDecisions = {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Declare platformReadyTimerContainer at the top
+    // declare platformReadyTimerContainer at the top
     var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
     // platform Ready Button Event Handler
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         judgeDecisions.centre = data.centreDecision;
         judgeDecisions.right = data.rightDecision;
 
-        // Determine the overall result
+        // determine the overall result
         var decisions = [data.leftDecision, data.centreDecision, data.rightDecision];
         var whiteCount = decisions.filter(decision => decision === "white").length;
         var redCount = decisions.filter(decision => decision === "red").length;
@@ -95,25 +95,25 @@ document.addEventListener('DOMContentLoaded', function() {
             displayMessage('No Lift', 'red');
         }
 
-        // Start the second timer
+        // start the second timer
         startSecondTimer();
 
-        // Reset the platform ready timer after 10 seconds
+        // reset the platform ready timer after 10 seconds
         setTimeout(function() {
             displayMessage('', '');
 
-            // Reset platform ready timer to 60 sec, but don't start it
+            // reset platform ready timer to 60 sec, but don't start it
             platformReadyTimeLeft = 60;
             document.getElementById('timer').innerText = platformReadyTimeLeft + 's';
-            clearInterval(platformReadyTimerInterval);  // Ensure the timer is NOT running
-            platformReadyTimerInterval = null;  // Nullify the timer interval to prevent automatic restart
+            clearInterval(platformReadyTimerInterval);  // ensure the timer is NOT running
+            platformReadyTimerInterval = null;  // nullify the timer interval to prevent automatic restart
 
-            // Hide the platform ready timer container
+            // hide the platform ready timer container
             if (platformReadyTimerContainer) {
-                platformReadyTimerContainer.classList.add('hidden'); // Hide the timer
+                platformReadyTimerContainer.classList.add('hidden'); // hide the timer
                 console.log("Platform Ready Timer Container hidden after countdown");
             }
-        }, 1000); // Close setTimeout function
+        }, 1000); // close setTimeout function
 
     } // Close displayResults function
 
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Platform Ready timer functions
+    // platform Ready timer functions
     function startTimer() {
         var platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
         if (platformReadyTimerContainer) {
@@ -297,13 +297,13 @@ document.addEventListener('DOMContentLoaded', function() {
         judgeDecisions.centre = null;
         judgeDecisions.right = null;
 
-        // Reset indicators
+        // reset indicators
         var indicators = document.querySelectorAll('.indicator');
         indicators.forEach(indicator => {
             indicator.style.backgroundColor = 'grey';
         });
 
-        // Reset the second timer
+        // reset the second timer
         var nextAttemptTimerContainer = document.getElementById('nextAttemptTimerContainer');
         if (nextAttemptTimerContainer) {
             nextAttemptTimerContainer.classList.add('hidden');
@@ -321,11 +321,11 @@ document.addEventListener('DOMContentLoaded', function() {
         platformReadyButton.addEventListener('click', function() {
             platformReadyTimerContainer.classList.toggle('hidden');  // Toggle visibility of the platform ready container
 
-            // Start the platform ready timer only if it is visible
+            // start the platform ready timer only if it is visible
             if (!platformReadyTimerContainer.classList.contains('hidden')) {
                 startTimer();  // start Platform Ready timer when button pressed
 
-                // Reset circles and decisions
+                // reset circles and decisions
                 resetCircles();
                 judgeDecisions.left = null;
                 judgeDecisions.centre = null;
