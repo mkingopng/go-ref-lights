@@ -15,6 +15,7 @@ from aws_cdk import (
     Duration,
     Stack,
     RemovalPolicy,
+    Tags
 )
 from constructs import Construct
 import pathlib
@@ -25,10 +26,14 @@ class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # Add tags to the stack
+        Tags.of(self).add("Project", "RefereeLightsApp")
+        Tags.of(self).add("Environment", "Production")
+        Tags.of(self).add("Owner", "YourName")
+
         # define Variables
         domain_name = "referee-lights.michaelkingston.com.au"
         # domain_name = "localhost:8080"
-
 
         # create VPC
         vpc = ec2.Vpc(
@@ -38,6 +43,8 @@ class RefereeLightsCdkStack(Stack):
             max_azs=2,
             nat_gateways=1,
         )
+        Tags.of(vpc).add("Name", "RefereeLightsVPC")
+        Tags.of(vpc).add("Project", "RefereeLightsApp")
 
         # create ECS Cluster
         cluster = ecs.Cluster(
@@ -46,6 +53,8 @@ class RefereeLightsCdkStack(Stack):
             cluster_name="referee-lights-cluster",
             vpc=vpc,
         )
+        Tags.of(cluster).add("Name", "RefereeLightsCluster")
+        Tags.of(cluster).add("Project", "RefereeLightsApp")
 
         # define IAM Roles (task_role)
         task_role = iam.Role(
@@ -101,7 +110,6 @@ class RefereeLightsCdkStack(Stack):
                 "APPLICATION_URL": f"https://{domain_name}",
                 "WEBSOCKET_URL": f"wss://{domain_name}/referee-updates",
             },
-            # health_check=ecs.HealthCheck(...) if applicable
         )
 
         container.add_port_mappings(
@@ -139,6 +147,9 @@ class RefereeLightsCdkStack(Stack):
             healthy_threshold_count=2,
             unhealthy_threshold_count=5,
         )
+
+        # set 30 minute idle timeout = 1800 seconds, 5 minute = 300 seconds
+        fargate_service.load_balancer.set_attribute("idle_timeout.timeout_seconds", "300")
 
         # output ALB DNS Name
         self.output_alb_dns = CfnOutput(
