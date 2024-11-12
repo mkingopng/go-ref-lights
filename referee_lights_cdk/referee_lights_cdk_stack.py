@@ -110,7 +110,6 @@ class RefereeLightsCdkStack(Stack):
                 "APPLICATION_URL": f"https://{domain_name}",
                 "WEBSOCKET_URL": f"wss://{domain_name}/referee-updates",
             },
-            # health_check=ecs.HealthCheck(...) if applicable
         )
 
         container.add_port_mappings(
@@ -149,7 +148,7 @@ class RefereeLightsCdkStack(Stack):
             unhealthy_threshold_count=5,
         )
 
-        # set 5 minute idle timeout
+        # set 30 minute idle timeout = 1800 seconds, 5 minute = 300 seconds
         fargate_service.load_balancer.set_attribute("idle_timeout.timeout_seconds", "300")
 
         # output ALB DNS Name
