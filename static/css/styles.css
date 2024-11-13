@@ -52,7 +52,7 @@ h2 {
     display: inline-block;
     padding: 15px 30px;
     font-size: 18px;
-    background-color: #0D1727;
+    background-color: #3A5DAB;
     color: white;
     text-align: center;
     text-decoration: none;
@@ -69,7 +69,7 @@ h2 {
 
 /* Form styles */
 form {
-    background-color: #0d1727;
+    background-color: #3A5DAB;
     padding: 20px;
     border-radius: 10px;
     text-align: center;
@@ -165,7 +165,7 @@ input[type="submit"]:hover {
 
 /* Logo container */
 .logo-container {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: transparent;
     margin-top: 5px;
     text-align: center;
 }
@@ -311,7 +311,7 @@ input[type="submit"]:hover {
 .action-button {
     padding: 15px 30px;
     font-size: 18px;
-    background-color: #0d1727;
+    background-color: #3A5DAB;
     color: white;
     text-align: center;
     border: none;
