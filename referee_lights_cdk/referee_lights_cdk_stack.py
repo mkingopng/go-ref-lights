@@ -15,23 +15,29 @@ from aws_cdk import (
     Duration,
     Stack,
     RemovalPolicy,
-    Tags
+    Aspects,
+    IAspect,
 )
 from constructs import Construct
 import pathlib
 
 project_root = pathlib.Path(__file__).resolve().parent.parent
 
+class TaggingAspect(IAspect):
+    def __init__(self, key: str, value: str):
+        self.key = key
+        self.value = value
+
 class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Add tags to the stack
-        Tags.of(self).add("Project", "RefereeLightsApp")
-        Tags.of(self).add("Environment", "Production")
-        Tags.of(self).add("Owner", "YourName")
+        # add tags to the stack
+        Aspects.of(self).add("Project", "RefereeLightsApp")
+        Aspects.of(self).add("Environment", "Production")
+        Aspects.of(self).add("Owner", "Michael_Kingston")
 
-        # define Variables
+        # define domain name variable (loca ofr testing or actual domain name)
         domain_name = "referee-lights.michaelkingston.com.au"
         # domain_name = "localhost:8080"
 
@@ -43,8 +49,6 @@ class RefereeLightsCdkStack(Stack):
             max_azs=2,
             nat_gateways=1,
         )
-        Tags.of(vpc).add("Name", "RefereeLightsVPC")
-        Tags.of(vpc).add("Project", "RefereeLightsApp")
 
         # create ECS Cluster
         cluster = ecs.Cluster(
@@ -53,16 +57,14 @@ class RefereeLightsCdkStack(Stack):
             cluster_name="referee-lights-cluster",
             vpc=vpc,
         )
-        Tags.of(cluster).add("Name", "RefereeLightsCluster")
-        Tags.of(cluster).add("Project", "RefereeLightsApp")
 
-        # define IAM Roles (task_role)
+        # define IAM task role
         task_role = iam.Role(
             self, "TaskRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
         )
 
-        # define IAM roles (execution_role)
+        # define IAM execution role
         execution_role = iam.Role(
             self, "ExecutionRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
@@ -74,7 +76,7 @@ class RefereeLightsCdkStack(Stack):
             )
         )
 
-        # build Docker Image
+        # build Docker image
         docker_image_asset = ecr_assets.DockerImageAsset(
             self,
             "RefereeLightsDockerImage",
@@ -116,7 +118,7 @@ class RefereeLightsCdkStack(Stack):
             ecs.PortMapping(container_port=8080),
         )
 
-        # import ACM Certificate
+        # import ACM certificate
         certificate = acm.Certificate.from_certificate_arn(
             self,
             "RefereeLightsCertificate",
@@ -148,8 +150,13 @@ class RefereeLightsCdkStack(Stack):
             unhealthy_threshold_count=5,
         )
 
-        # set 30 minute idle timeout = 1800 seconds, 5 minute = 300 seconds
-        fargate_service.load_balancer.set_attribute("idle_timeout.timeout_seconds", "300")
+        # set idle timeout
+        fargate_service.load_balancer.set_attribute(
+            "idle_timeout.timeout_seconds",
+            "3600"  # 60 minutes
+            # "1800"  # 30 minutes
+            # "300"  # 5 minutes
+        )
 
         # output ALB DNS Name
         self.output_alb_dns = CfnOutput(
