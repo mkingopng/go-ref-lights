@@ -3,5 +3,7 @@
 .idea
 .git
 .pyc
+*.pyo
+*.log
 __pycache__/
 react-app/

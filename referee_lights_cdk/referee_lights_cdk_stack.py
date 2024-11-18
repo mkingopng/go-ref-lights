@@ -32,12 +32,12 @@ class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # fix_me: add tags to the stack
+        # add tags to the stack
         Tags.of(self).add("Project", "RefereeLightsApp")
         Tags.of(self).add("Environment", "Production")
         Tags.of(self).add("Owner", "Michael_Kingston")
 
-        # define domain name variable (loca ofr testing or actual domain name)
+        # define domain name variable (local for testing or actual domain name)
         domain_name = "referee-lights.michaelkingston.com.au"
         # domain_name = "localhost:8080"
 
