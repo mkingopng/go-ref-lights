@@ -15,7 +15,7 @@ from aws_cdk import (
     Duration,
     Stack,
     RemovalPolicy,
-    Aspects,
+    Tags,
     IAspect,
 )
 from constructs import Construct
@@ -32,10 +32,10 @@ class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # add tags to the stack
-        Aspects.of(self).add("Project", "RefereeLightsApp")
-        Aspects.of(self).add("Environment", "Production")
-        Aspects.of(self).add("Owner", "Michael_Kingston")
+        # fix_me: add tags to the stack
+        Tags.of(self).add("Project", "RefereeLightsApp")
+        Tags.of(self).add("Environment", "Production")
+        Tags.of(self).add("Owner", "Michael_Kingston")
 
         # define domain name variable (loca ofr testing or actual domain name)
         domain_name = "referee-lights.michaelkingston.com.au"
@@ -153,9 +153,9 @@ class RefereeLightsCdkStack(Stack):
         # set idle timeout
         fargate_service.load_balancer.set_attribute(
             "idle_timeout.timeout_seconds",
-            "3600"  # 60 minutes
-            # "1800"  # 30 minutes
-            # "300"  # 5 minutes
+            # "3600" # 60 minutes
+            # "1800" # 30 minutes
+            "300" # 5 minutes
         )
 
         # output ALB DNS Name

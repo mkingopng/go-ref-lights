@@ -1,3 +1,7 @@
 /cdk.out/
 .gitignore
 .idea
+.git
+.pyc
+__pycache__/
+react-app/
