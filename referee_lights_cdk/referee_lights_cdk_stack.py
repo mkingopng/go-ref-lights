@@ -37,9 +37,8 @@ class RefereeLightsCdkStack(Stack):
         Tags.of(self).add("Environment", "Production")
         Tags.of(self).add("Owner", "Michael_Kingston")
 
-        # define domain name variable (local for testing or actual domain name)
+        # define domain name variable
         domain_name = "referee-lights.michaelkingston.com.au"
-        # domain_name = "localhost:8080"
 
         # create VPC
         vpc = ec2.Vpc(

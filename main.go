@@ -3,18 +3,17 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
-
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
 )
 
 func main() {
@@ -81,6 +80,10 @@ func main() {
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
 	router.GET("/logout", controllers.Logout) // Added Logout route
+
+	// Google Auth routes
+	router.GET("/auth/google/login", controllers.GoogleLogin)
+	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
 	// Protected routes
 	protected := router.Group("/", middleware.AuthRequired)

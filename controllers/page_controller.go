@@ -2,12 +2,11 @@
 package controllers
 
 import (
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
 	"net/http"
-
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 )
 
 var (
@@ -27,20 +26,9 @@ func ShowLoginPage(c *gin.Context) {
 
 // PerformLogin handles the login form submission
 func PerformLogin(c *gin.Context) {
-	username := c.PostForm("username")
-	password := c.PostForm("password")
-
-	// Simple in-memory authentication
-	if username == "user" && password == "zerow" {
-		session := sessions.Default(c)
-		session.Set("user", username)
-		session.Save()
-		c.Redirect(http.StatusFound, "/") // Redirect to index page after login
-	} else {
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
-			"Error": "Invalid credentials",
-		})
-	}
+	// Remove hard-coded login check
+	// Instead, redirect to Google OAuth login
+	c.Redirect(http.StatusFound, "/auth/google/login")
 }
 
 // Logout handles user logout

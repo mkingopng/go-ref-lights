@@ -7,12 +7,20 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 var clients = make(map[*websocket.Conn]bool)
 var broadcast = make(chan []byte)
+
 var judgeDecisions = make(map[string]string)
 var judgeMutex = &sync.Mutex{}
+
+var platformReadyTimerActive bool
+var platformReadyTimeLeft int
+var platformReadyMutex = &sync.Mutex{}
+
+var resultsDisplayDuration = 30 // Seconds after which results are cleared
 
 // DecisionMessage represents the structure of messages from judges and timer actions
 type DecisionMessage struct {
@@ -113,6 +121,16 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 				resultMsg, _ := json.Marshal(result)
 				broadcast <- resultMsg
 
+				// Start a timer to clear results after resultsDisplayDuration
+				go func() {
+					time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
+					clearMsg := map[string]string{
+						"action": "clearResults",
+					}
+					clearMsgJSON, _ := json.Marshal(clearMsg)
+					broadcast <- clearMsgJSON
+				}()
+
 				// Reset decisions for the next round
 				judgeDecisions = make(map[string]string)
 			}
@@ -126,10 +144,75 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 
 // handleTimerAction processes timer-related actions
 func handleTimerAction(action string) {
-	subAction := map[string]string{
-		"action": action,
+	switch action {
+	case "startTimer":
+		startPlatformReadyTimer()
+	case "stopTimer":
+		stopPlatformReadyTimer()
+	case "resetTimer":
+		resetPlatformReadyTimer()
 	}
-	subActionJSON, _ := json.Marshal(subAction)
-	broadcast <- subActionJSON
-	log.Printf("Timer action broadcasted: %s", action)
+
+	log.Printf("Timer action processed on server: %s", action)
+}
+
+// timer handling functions
+func startPlatformReadyTimer() {
+	platformReadyMutex.Lock()
+	if platformReadyTimerActive {
+		// If it's already active, stop the old one first
+		platformReadyMutex.Unlock()
+		stopPlatformReadyTimer()
+		platformReadyMutex.Lock()
+	}
+	platformReadyTimerActive = true
+	platformReadyTimeLeft = 60
+	platformReadyMutex.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			platformReadyMutex.Lock()
+			if !platformReadyTimerActive {
+				// Timer was stopped externally
+				platformReadyMutex.Unlock()
+				return
+			}
+
+			platformReadyTimeLeft--
+			if platformReadyTimeLeft <= 0 {
+				// Time's up
+				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
+				platformReadyTimerActive = false
+				platformReadyMutex.Unlock()
+				return
+			} else {
+				// Broadcast update
+				updateMsg := map[string]interface{}{
+					"action":   "updatePlatformReadyTime",
+					"timeLeft": platformReadyTimeLeft,
+				}
+				msg, _ := json.Marshal(updateMsg)
+				broadcast <- msg
+			}
+			platformReadyMutex.Unlock()
+		}
+	}()
+}
+
+func stopPlatformReadyTimer() {
+	platformReadyMutex.Lock()
+	if platformReadyTimerActive {
+		platformReadyTimerActive = false
+		// Optionally broadcast that it stopped, if desired:
+		// broadcast <- []byte(`{"action":"platformReadyStopped"}`)
+	}
+	platformReadyMutex.Unlock()
+}
+
+func resetPlatformReadyTimer() {
+	// Stopping is enough to reset the state; if needed, you can start again
+	stopPlatformReadyTimer()
+	// Optionally, start a new timer here if that fits your logic
 }
