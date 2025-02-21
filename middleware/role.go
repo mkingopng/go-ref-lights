@@ -1,4 +1,4 @@
-// file: middleware/role.go
+// Package middleware file: middleware/role.go
 package middleware
 
 import (

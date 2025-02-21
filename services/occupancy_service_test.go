@@ -31,14 +31,14 @@ func TestSetPosition_ConcurrentUsers(t *testing.T) {
 
 	wg.Wait()
 
-	// ✅ Ensure exactly **one** user succeeded
+	// Ensure exactly **one** user succeeded
 	if err1 == nil {
 		assert.Error(t, err2, "Second user should fail")
 	} else {
 		assert.NoError(t, err2, "One user must succeed")
 	}
 
-	// ✅ Ensure only **one** user holds the "left" position
+	// Ensure only **one** user holds the "left" position
 	occ := svc.GetOccupancy()
 	if occ.LeftUser != "user1@example.com" && occ.LeftUser != "user2@example.com" {
 		t.Fatalf("Unexpected user assigned to 'left': got %s, expected 'user1@example.com' or 'user2@example.com'", occ.LeftUser)
@@ -59,15 +59,15 @@ func TestSetPosition_SwitchPosition(t *testing.T) {
 	svc := services.OccupancyService{}
 	svc.ResetOccupancy()
 
-	// ✅ User claims "centre"
+	// User claims "centre"
 	err := svc.SetPosition("centre", "referee@example.com")
 	assert.NoError(t, err)
 
-	// ✅ Same user moves to "left"
+	// Same user moves to "left"
 	err = svc.SetPosition("left", "referee@example.com")
 	assert.NoError(t, err)
 
-	// ✅ Ensure "centre" is now empty and "left" is assigned
+	// Ensure "centre" is now empty and "left" is assigned
 	occ := svc.GetOccupancy()
 	assert.Equal(t, "referee@example.com", occ.LeftUser)
 	assert.Empty(t, occ.CentreUser, "Previous position should be cleared")
@@ -91,7 +91,7 @@ func TestResetOccupancy(t *testing.T) {
 	// Reset everything
 	svc.ResetOccupancy()
 
-	// ✅ Ensure all positions are empty
+	// Ensure all positions are empty
 	occ := svc.GetOccupancy()
 	assert.Empty(t, occ.LeftUser, "Left position should be cleared after reset")
 	assert.Empty(t, occ.CentreUser, "Centre position should be cleared after reset")

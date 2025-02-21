@@ -2,14 +2,18 @@
 package services
 
 import (
+	"errors"
 	"github.com/skip2/go-qrcode"
 )
 
-// GenerateQRCode creates a QR code for the given dimensions
-func GenerateQRCode(width, height int) ([]byte, error) {
-	qr, err := qrcode.Encode("http://your-url-here", qrcode.Medium, width)
-	if err != nil {
-		return nil, err
+// QRCodeEncoder defines a function type for QR code generation
+type QRCodeEncoder func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error)
+
+// GenerateQRCode creates a QR code using the provided encoder function
+func GenerateQRCode(width, height int, encoder QRCodeEncoder) ([]byte, error) {
+	if width <= 0 || height <= 0 {
+		return nil, errors.New("invalid dimensions: width and height must be positive")
 	}
-	return qr, nil
+
+	return encoder("http://your-url-here", qrcode.Medium, width)
 }
