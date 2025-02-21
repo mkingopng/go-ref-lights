@@ -103,10 +103,14 @@ func main() {
 		protected.GET("/right", controllers.Right)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
-		protected.GET("/referee-updates", controllers.RefereeUpdates)
 	}
 
-	// Start the WebSocket handler
+	// ✅ WebSocket Route for Live Updates
+	router.GET("/referee-updates", func(c *gin.Context) {
+		websocket.ServeWs(c.Writer, c.Request)
+	})
+
+	// ✅ Start the WebSocket message handler in a separate goroutine
 	go websocket.HandleMessages()
 
 	// Start the server

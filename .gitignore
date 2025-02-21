@@ -1,2 +1,56 @@
-.idea
+# IDE-specific files
+.idea/
+.vscode/
+*.code-workspace
+
+# Build artifacts
+/bin/
+/pkg/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go-specific files
+/go.work
+/go.work.sum
+/go.sum
+/go.mod
+
+# Cache & Dependency directories
+**/vendor/
+**/.cache/
+**/.DS_Store
+**/node_modules/
+
+# Test and coverage reports
+*.cover
+*.cov
+*.test
+*.log
+*.prof
+
+# CDK / Infrastructure-related
 /cdk.out/
+.terraform/
+.terraform.lock.hcl
+
+# Security & Secrets (adjust accordingly)
+.env
+.env.local
+.env.*.local
+secrets.yaml
+config.yaml
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*.bak
+*.old
+
+# Exclude generated files from Repomix or other tools
+/repomix-output.txt

@@ -1,6 +1,17 @@
-
+run app
+```bash
 go run main.go
+```
 
+run all tests
+```bash
+go test -v ./...
+```
+
+compile
+```bash
+go build ./...
+```
 
 Below are the key issues you’ve highlighted along with suggestions on how to address them. After the conceptual outline, you’ll find more concrete directions on implementing some of these changes.
 

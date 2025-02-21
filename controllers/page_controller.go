@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"github.com/skip2/go-qrcode"
 	"log"
 	"net/http"
 
@@ -88,11 +89,6 @@ func SetConfig(appURL, wsURL string) {
 	WebsocketURL = wsURL
 }
 
-// ShowLoginPage renders the login page
-func ShowLoginPage(c *gin.Context) {
-	c.HTML(http.StatusOK, "login.html", nil)
-}
-
 // PerformLogin redirects to Google OAuth login
 func PerformLogin(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/auth/google/login")
@@ -150,11 +146,12 @@ func Lights(c *gin.Context) {
 
 // GetQRCode generates and serves the QR code
 func GetQRCode(c *gin.Context) {
-	png, err := services.GenerateQRCode(250, 250)
+	png, err := services.GenerateQRCode(250, 250, qrcode.Encode) // ✅ Pass the actual encoder function
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Could not generate QR code")
 		return
 	}
+
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
 	if _, err = c.Writer.Write(png); err != nil {

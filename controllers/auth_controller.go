@@ -83,3 +83,7 @@ func GoogleCallback(c *gin.Context) {
 
 	c.Redirect(http.StatusFound, "/") // Redirect to the main page or dashboard
 }
+
+func ShowLoginPage(c *gin.Context) {
+	c.Redirect(http.StatusFound, "/auth/google/login") // Redirects users directly to Google OAuth
+}
