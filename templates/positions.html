@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Select Position</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+<h1>Select Your Referee Position</h1>
+
+<!-- This is a very simple form that references the positions in the server’s occupancy data. -->
+<div>
+    <form action="/position/claim" method="POST">
+        <label>Choose Position:</label>
+        <select name="position">
+            {{ if .Positions.LeftOccupied }}
+            <option value="left" disabled>Left (Occupied by {{ .Positions.LeftUser }})</option>
+            {{ else }}
+            <option value="left">Left (Available)</option>
+            {{ end }}
+
+            {{ if .Positions.CentreOccupied }}
+            <option value="centre" disabled>Centre (Occupied by {{ .Positions.CentreUser }})</option>
+            {{ else }}
+            <option value="centre">Centre (Available)</option>
+            {{ end }}
+
+            {{ if .Positions.RightOccupied }}
+            <option value="right" disabled>Right (Occupied by {{ .Positions.RightUser }})</option>
+            {{ else }}
+            <option value="right">Right (Available)</option>
+            {{ end }}
+        </select>
+        <button type="submit">Claim</button>
+    </form>
+</div>
+
+<a href="/logout">Logout</a>
+
+</body>
+</html>

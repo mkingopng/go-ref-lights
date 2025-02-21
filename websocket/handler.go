@@ -58,21 +58,24 @@ func HandleMessages() {
 // ServeWs handles WebSocket requests from the peer.
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	// Upgrade initial GET request to a WebSocket
-	ws, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
 	// Register new client
-	clients[ws] = true
+	clients[conn] = true
 	log.Println("New WebSocket client connected.")
 
 	for {
-		_, msg, err := ws.ReadMessage()
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			log.Printf("WebSocket read error: %v", err)
-			delete(clients, ws)
-			ws.Close()
+			delete(clients, conn)
+			err := conn.Close()
+			if err != nil {
+				return
+			}
 			log.Println("WebSocket client disconnected.")
 			break
 		}

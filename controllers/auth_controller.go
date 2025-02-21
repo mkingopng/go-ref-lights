@@ -1,4 +1,4 @@
-// controllers/auth_controller.go
+// Package controllers controllers/auth_controller.go
 package controllers
 
 import (

@@ -1,12 +1,14 @@
-// controllers/page_controller.go
+// Package controllers file: controllers/page_controller.go
 package controllers
 
 import (
+	"log"
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
-	"net/http"
 )
 
 var (
@@ -14,6 +16,73 @@ var (
 	WebsocketURL   string
 )
 
+// ShowPositionsPage displays the referee position selection page
+func ShowPositionsPage(c *gin.Context) {
+	session := sessions.Default(c)
+	user := session.Get("user")
+
+	if user == nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	svc := services.OccupancyService{}
+	occ := svc.GetOccupancy()
+	data := gin.H{
+		"ApplicationURL": ApplicationURL,
+		"WebsocketURL":   WebsocketURL,
+		"Positions": map[string]interface{}{
+			"LeftOccupied":   occ.LeftUser != "",
+			"LeftUser":       occ.LeftUser,
+			"CentreOccupied": occ.CentreUser != "",
+			"CentreUser":     occ.CentreUser,
+			"RightOccupied":  occ.RightUser != "",
+			"RightUser":      occ.RightUser,
+		},
+	}
+
+	c.HTML(http.StatusOK, "positions.html", data)
+}
+
+// ClaimPosition handles position assignment
+func ClaimPosition(c *gin.Context) {
+	session := sessions.Default(c)
+	user := session.Get("user")
+
+	if user == nil {
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	position := c.PostForm("position")
+	userEmail := user.(string)
+	svc := &services.OccupancyService{} // Use a pointer to avoid method call issue
+
+	err := svc.SetPosition(position, userEmail)
+	if err != nil {
+		c.String(http.StatusForbidden, "Error: %s", err.Error())
+		return
+	}
+
+	session.Set("refPosition", position)
+	if err := session.Save(); err != nil {
+		log.Printf("Error saving session: %v", err)
+	}
+
+	// Redirect to assigned position view
+	switch position {
+	case "left":
+		c.Redirect(http.StatusFound, "/left")
+	case "centre":
+		c.Redirect(http.StatusFound, "/centre")
+	case "right":
+		c.Redirect(http.StatusFound, "/right")
+	default:
+		c.Redirect(http.StatusFound, "/positions")
+	}
+}
+
+// SetConfig updates global configuration
 func SetConfig(appURL, wsURL string) {
 	ApplicationURL = appURL
 	WebsocketURL = wsURL
@@ -24,58 +93,58 @@ func ShowLoginPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "login.html", nil)
 }
 
-// PerformLogin handles the login form submission
+// PerformLogin redirects to Google OAuth login
 func PerformLogin(c *gin.Context) {
-	// Remove hard-coded login check
-	// Instead, redirect to Google OAuth login
 	c.Redirect(http.StatusFound, "/auth/google/login")
 }
 
 // Logout handles user logout
 func Logout(c *gin.Context) {
 	session := sessions.Default(c)
+	userEmail := session.Get("user")
+	refPosition := session.Get("refPosition")
+
+	// Free up the referee position
+	if userEmail != nil && refPosition != nil {
+		services.UnsetPosition(refPosition.(string), userEmail.(string))
+	}
+
+	// Clear the session
 	session.Clear()
-	session.Save()
+	if err := session.Save(); err != nil {
+		log.Printf("Error saving session: %v", err)
+	}
+
 	c.Redirect(http.StatusFound, "/login")
 }
 
 // Index renders the index page
 func Index(c *gin.Context) {
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-	}
+	data := gin.H{"WebsocketURL": WebsocketURL}
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// Left renders the left page
+// Left renders the left referee view
 func Left(c *gin.Context) {
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-	}
+	data := gin.H{"WebsocketURL": WebsocketURL}
 	c.HTML(http.StatusOK, "left.html", data)
 }
 
-// Centre renders the centre page
+// Centre renders the centre referee view
 func Centre(c *gin.Context) {
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-	}
+	data := gin.H{"WebsocketURL": WebsocketURL}
 	c.HTML(http.StatusOK, "centre.html", data)
 }
 
-// Right renders the right page
+// Right renders the right referee view
 func Right(c *gin.Context) {
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-	}
+	data := gin.H{"WebsocketURL": WebsocketURL}
 	c.HTML(http.StatusOK, "right.html", data)
 }
 
-// Lights renders the lights page
+// Lights renders the light control panel
 func Lights(c *gin.Context) {
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-	}
+	data := gin.H{"WebsocketURL": WebsocketURL}
 	c.HTML(http.StatusOK, "lights.html", data)
 }
 
@@ -88,7 +157,9 @@ func GetQRCode(c *gin.Context) {
 	}
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
-	c.Writer.Write(png)
+	if _, err = c.Writer.Write(png); err != nil {
+		log.Printf("Error writing QR code: %v", err)
+	}
 }
 
 // RefereeUpdates handles WebSocket connections

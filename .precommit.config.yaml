@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v1.4.0
+    hooks:
+      - id: go-fmt
+      - id: go-imports
+      - id: go-vet
+      - id: golangci-lint
+        args: [ "--fast" ]
+        # "--fast" runs a subset of linters quickly. Remove it to run all.
+
+  # Optionally, a separate repo for gosec
+  - repo: https://github.com/securego/gosec
+    rev: v2.16.1
+    hooks:
+      - id: gosec

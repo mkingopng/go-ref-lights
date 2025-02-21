@@ -3,17 +3,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 	// Initialize the router
 	router := gin.Default()
 
-	// Set X-Frame-Options header to allow embedding
+	// Set security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set(
 			"X-Frame-Options",
@@ -31,21 +32,21 @@ func main() {
 		c.Next()
 	})
 
-	// Add this route for health checks
+	// Add health check route
 	router.GET("/health", controllers.Health)
 
-	// Read configuration from environment variables
+	// Read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
-		applicationURL = "http://localhost:8080" // Default to localhost for local testing
+		applicationURL = "http://localhost:8080"
 	}
 
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
-		websocketURL = "ws://localhost:8080/referee-updates" // Default to localhost for local testing
+		websocketURL = "ws://localhost:8080/referee-updates"
 	}
 
-	// Pass these values to controllers or wherever needed
+	// Pass these values to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
 	// Initialize session store
@@ -59,34 +60,42 @@ func main() {
 	})
 	router.Use(sessions.Sessions("mysession", store))
 
-	// Determine the absolute path to the templates directory
+	// Determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates", "*.html") // Corrected path
+	templatesDir := filepath.Join(basepath, "templates")
+
+	// Validate that the templates directory exists
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		log.Fatalf("Templates directory does not exist: %s", templatesDir)
+	}
 
 	// Load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
-	router.LoadHTMLGlob(templatesDir)
+	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
 
-	// Serve static files under /static
+	// Serve static files
 	router.Static("/static", "./static")
 
 	// Serve favicon.ico
 	router.GET("/favicon.ico", func(c *gin.Context) {
-		c.File("/static/images/favicon.ico") // Adjust the path if necessary
+		faviconPath := filepath.Join(basepath, "static", "images", "favicon.ico")
+		c.File(faviconPath)
 	})
 
 	// Public routes
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
-	router.GET("/logout", controllers.Logout) // Added Logout route
+	router.GET("/logout", controllers.Logout)
+	router.GET("/positions", controllers.ShowPositionsPage)
+	router.POST("/position/claim", controllers.ClaimPosition)
 
 	// Google Auth routes
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
 	// Protected routes
-	protected := router.Group("/", middleware.AuthRequired)
+	protected := router.Group("/", middleware.AuthRequired, middleware.PositionRequired())
 	{
 		protected.GET("/", controllers.Index)
 		protected.GET("/left", controllers.Left)
