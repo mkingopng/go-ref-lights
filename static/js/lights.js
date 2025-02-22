@@ -8,15 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextAttemptTimerContainer = document.getElementById('nextAttemptTimerContainer');
     const secondTimerDisplay = document.getElementById('secondTimer');
     const messageElement = document.getElementById('message');
+    const connectionStatusElement = document.getElementById('connectionStatus');
 
     // We'll store judge decisions in an object
-    // If your code needs it, you can keep it.
-    // Otherwise, the server's the source of truth now.
     const judgeDecisions = {
         left: null,
         centre: null,
         right: null
     };
+
+    // Track how many refs are connected (0..3)
+    let connectedReferees = 0;
 
     // Check for the global websocketUrl
     if (typeof websocketUrl === 'undefined') {
@@ -76,14 +78,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearResultsUI();
                 break;
 
+            // Health Check
+            case "refereeHealth":
+                // The server sends {"action":"refereeHealth","connectedReferees":2,"requiredReferees":3} etc.
+                updateHealthStatus(data.connectedReferees, data.requiredReferees);
+                break;
+            case "healthError":
+                // If user tried to start timer but not all refs connected
+                displayMessage(data.message, "red");
+                break;
+
             default:
                 console.warn("Unknown action:", data.action);
         }
     };
 
-    // ------------------------------------------------
     //  Timer UI Handling (Server-Driven)
-    // ------------------------------------------------
     function updatePlatformReadyTimerOnUI(timeLeft) {
         if (platformReadyTimerContainer) {
             platformReadyTimerContainer.classList.remove('hidden');
@@ -112,9 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         displayMessage('Next Attempt Time Up', 'yellow');
     }
 
-    // ------------------------------------------------
     //  Decision Handling
-    // ------------------------------------------------
     function showJudgeSubmissionIndicator(judgeId) {
         const indicator = document.getElementById(`${judgeId}Indicator`);
         if (!indicator) {
@@ -125,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function displayResults(data) {
-        // Destructure the needed properties
         const { leftDecision, centreDecision, rightDecision } = data;
 
         paintCircle('leftCircle', leftDecision);
@@ -155,9 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetJudgeIndicators();
     }
 
-    // ------------------------------------------------
     //  UI Helper Functions
-    // ------------------------------------------------
     function paintCircle(circleId, decision) {
         const circle = document.getElementById(circleId);
         if (!circle) return;
@@ -194,18 +199,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ------------------------------------------------
+    //  Health Check UI
+    function updateHealthStatus(connected, required) {
+        connectedReferees = connected;
+
+        if (connectionStatusElement) {
+            connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
+            connectionStatusElement.style.color = (connected < required) ? "red" : "green";
+        }
+
+        // Optionally disable the "Platform Ready" button if not all refs
+        if (platformReadyButton) {
+            platformReadyButton.disabled = (connected < required);
+        }
+    }
+
     //  Platform Ready Button Logic
-    // ------------------------------------------------
     if (platformReadyButton && platformReadyTimerContainer) {
         platformReadyButton.addEventListener('click', () => {
-            // If container is hidden, user wants to "startTimer"
+            // Current code toggles local container visibility:
             const isHidden = platformReadyTimerContainer.classList.contains('hidden');
             if (isHidden) {
-                // Send to server
+                // Request server to "startTimer" (server will check if all refs connected)
                 socket.send(JSON.stringify({ action: "startTimer" }));
             } else {
-                // Container is visible => user wants to stop
+                // If it's visible, we request to stop
                 socket.send(JSON.stringify({ action: "stopTimer" }));
             }
             // Toggle local display
@@ -216,3 +234,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+

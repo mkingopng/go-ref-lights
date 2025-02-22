@@ -1,4 +1,4 @@
-// Package websocket websocket/handler.go
+// Package websocket websocket/handler.go handles the WebSocket connections & messages
 package websocket
 
 import (
@@ -17,7 +17,7 @@ var clients = make(map[*websocket.Conn]bool)
 // Broadcast channel for sending messages
 var broadcast = make(chan []byte)
 
-// Single session per position
+// Single session per position: left, centre, right
 var refereeSessions = make(map[string]*websocket.Conn)
 
 // Judge decisions and mutex
@@ -61,6 +61,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// ServeWs upgrades the HTTP connection to a WebSocket connection
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -75,11 +76,17 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	go handleReads(conn)
 }
 
+// handleReads reads messages from the client
 func handleReads(conn *websocket.Conn) {
 	defer func() {
 		log.Printf("⚠️ WebSocket disconnected: %v", conn.RemoteAddr())
 		_ = conn.Close()
 		delete(clients, conn)
+
+		// If the disconnect is for a known referee, remove from refereeSessions
+		removeRefereeConnection(conn)
+		// Then broadcast the new referee health to all clients
+		broadcastRefereeHealth()
 	}()
 
 	for {
@@ -103,6 +110,7 @@ func handleReads(conn *websocket.Conn) {
 	}
 }
 
+// startHeartbeat sends a ping every 10s to the client
 func startHeartbeat(conn *websocket.Conn) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -116,6 +124,8 @@ func startHeartbeat(conn *websocket.Conn) {
 				log.Println("❌ Lost connection due to repeated ping failures.")
 				_ = conn.Close()
 				delete(clients, conn)
+				removeRefereeConnection(conn)
+				broadcastRefereeHealth()
 				return
 			}
 		} else {
@@ -124,6 +134,7 @@ func startHeartbeat(conn *websocket.Conn) {
 	}
 }
 
+// processDecision handles the decision message from the client
 func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	judgeMutex.Lock()
 	defer judgeMutex.Unlock()
@@ -145,12 +156,15 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	log.Printf("✅ Decision from %s: %s", decisionMsg.JudgeID, decisionMsg.Decision)
 
 	// Notify clients that a judge submitted
-	sub := map[string]string{
+	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": decisionMsg.JudgeID,
 	}
-	subMsg, _ := json.Marshal(sub)
+	subMsg, _ := json.Marshal(submission)
 	broadcast <- subMsg
+
+	// Broadcast new referee health (in case a new judge connected)
+	broadcastRefereeHealth()
 
 	// If we have all 3 decisions, broadcast the final result
 	if len(judgeDecisions) == 3 {
@@ -158,6 +172,7 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	}
 }
 
+// broadcastFinalResults sends the final results to all clients
 func broadcastFinalResults() {
 	result := map[string]string{
 		"action":         "displayResults",
@@ -180,10 +195,26 @@ func broadcastFinalResults() {
 	judgeDecisions = make(map[string]string)
 }
 
+// handleTimerAction processes the timer actions
 func handleTimerAction(action string) {
 	switch action {
 	case "startTimer":
+		// Health check before allowing the timer to start
+		if !isAllRefsConnected() {
+			// Broadcast a healthError
+			errMsg := map[string]string{
+				"action":  "healthError",
+				"message": "Cannot start timer: Not all referees are connected!",
+			}
+			msg, _ := json.Marshal(errMsg)
+			broadcast <- msg
+
+			log.Println("❌ Timer not started: All referees not connected.")
+			return
+		}
+		// If all refs are connected, start
 		startPlatformReadyTimer()
+
 	case "stopTimer":
 		stopPlatformReadyTimer()
 	case "resetTimer":
@@ -194,7 +225,66 @@ func handleTimerAction(action string) {
 	log.Printf("✅ Timer action processed: %s", action)
 }
 
-// -------------------- Platform Ready Timer --------------------
+// -------------------- Health Check Helpers --------------------
+
+// isAllRefsConnected returns true if "left", "centre", and "right" are present in refereeSessions
+func isAllRefsConnected() bool {
+	// Acquire judgeMutex if you want to ensure thread safety
+	judgeMutex.Lock()
+	defer judgeMutex.Unlock()
+
+	// Check exactly the keys "left", "centre", "right" exist
+	required := []string{"left", "centre", "right"}
+	for _, key := range required {
+		if refereeSessions[key] == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// broadcastRefereeHealth notifies clients how many referees are connected
+func broadcastRefereeHealth() {
+	judgeMutex.Lock()
+	defer judgeMutex.Unlock()
+
+	// Count how many of the three positions have an active connection
+	refs := 0
+	if refereeSessions["left"] != nil {
+		refs++
+	}
+	if refereeSessions["centre"] != nil {
+		refs++
+	}
+	if refereeSessions["right"] != nil {
+		refs++
+	}
+
+	data := map[string]interface{}{
+		"action":            "refereeHealth",
+		"connectedReferees": refs,
+		"requiredReferees":  3,
+	}
+	msg, _ := json.Marshal(data)
+	broadcast <- msg
+}
+
+// removeRefereeConnection removes the given conn from refereeSessions if it matches
+func removeRefereeConnection(conn *websocket.Conn) {
+	judgeMutex.Lock()
+	defer judgeMutex.Unlock()
+
+	// Find which judge was using this conn
+	for jID, c := range refereeSessions {
+		if c == conn {
+			delete(refereeSessions, jID)
+			log.Printf("ℹ️ Removed referee session for judge: %s", jID)
+			break
+		}
+	}
+}
+
+// startPlatformReadyTimer starts a 60s timer for the platform ready
 func startPlatformReadyTimer() {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -231,6 +321,7 @@ func startPlatformReadyTimer() {
 	}()
 }
 
+// stopPlatformReadyTimer stops the current timer
 func stopPlatformReadyTimer() {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -239,6 +330,7 @@ func stopPlatformReadyTimer() {
 	platformReadyTimeLeft = 60
 }
 
+// resetPlatformReadyTimer resets the timer to 60s
 func resetPlatformReadyTimer() {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -251,7 +343,7 @@ func resetPlatformReadyTimer() {
 	platformReadyTimeLeft = 60
 }
 
-// -------------------- Next Attempt Timers --------------------
+// startNextAttemptTimer starts a 60s timer for the next attempt
 func startNextAttemptTimer() {
 	nextAttemptMutex.Lock()
 	defer nextAttemptMutex.Unlock()
@@ -287,6 +379,7 @@ func startNextAttemptTimer() {
 	}()
 }
 
+// broadcastTimeUpdate sends a message to all clients with the current timeLeft
 func broadcastTimeUpdate(action string, timeLeft int) {
 	msg, _ := json.Marshal(map[string]interface{}{
 		"action":   action,
@@ -304,6 +397,8 @@ func HandleMessages() {
 				log.Printf("⚠️ WriteMessage error: %v", err)
 				_ = conn.Close()
 				delete(clients, conn)
+				removeRefereeConnection(conn)
+				broadcastRefereeHealth()
 			}
 		}
 	}

@@ -13,7 +13,7 @@ compile
 go build ./...
 ```
 
-What’s Left To Do
+# What’s Left To Do
 
 1. Health Check Mechanism
 	- Many meets require a “ready” status only if all three referees are logged in correctly.
