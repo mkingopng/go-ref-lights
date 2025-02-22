@@ -12,28 +12,24 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"go-ref-lights/controllers"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
 )
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: No .env file found. Using system environment variables.")
+	}
+
 	// Set Gin to release mode for production (optional but recommended)
 	gin.SetMode(gin.ReleaseMode)
 
 	// Initialize the router
 	router := gin.Default()
-
-	// Set security headers
-	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set(
-			"X-Frame-Options",
-			"ALLOW-FROM https://referee-lights.michaelkingston.com.au")
-		c.Next()
-	})
-
-	// Add health check route
-	router.GET("/health", controllers.Health)
 
 	// Read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
@@ -49,13 +45,24 @@ func main() {
 	// Pass these values to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
+	// Set security headers
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set(
+			"X-Frame-Options",
+			"ALLOW-FROM https://referee-lights.michaelkingston.com.au")
+		c.Next()
+	})
+
+	// Add health check route
+	router.GET("/health", controllers.Health)
+
 	// Initialize session store
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   false, // Set to true in production
+		Secure:   os.Getenv("GIN_MODE") == "release", // Secure in production
 		SameSite: http.SameSiteLaxMode,
 	})
 	router.Use(sessions.Sessions("mysession", store))
@@ -105,12 +112,12 @@ func main() {
 		protected.GET("/qrcode", controllers.GetQRCode)
 	}
 
-	// ✅ WebSocket Route for Live Updates
+	// WebSocket Route for Live Updates
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
 
-	// ✅ Start the WebSocket message handler in a separate goroutine
+	// Start the WebSocket message handler in a separate goroutine
 	go websocket.HandleMessages()
 
 	// Start the server

@@ -29,7 +29,6 @@
 # Test and coverage reports
 *.cover
 *.cov
-*.test
 *.log
 *.prof
 
@@ -54,3 +53,5 @@ config.yaml
 
 # Exclude generated files from Repomix or other tools
 /repomix-output.txt
+
+/reflights_client_secret_apps.googleusercontent.com.json
