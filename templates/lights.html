@@ -2,10 +2,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <title>Referee Lights</title>
-  <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
 
@@ -39,10 +39,14 @@
   <img src="/static/images/zerow_white.png" alt="zerow logo">
 </div>
 
+<!-- Button to send "Platform Ready" action -->
+<button id="platformReadyButton" class="action-button">Platform Ready</button>
+
 <div id="connectionStatus" class="connection-status"></div>
 
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
+  // The backend inserts this WebSocket URL.
+  const websocketUrl = "{{ .WebsocketURL }}";
 </script>
 
 <script src="/static/js/lights.js"></script>
