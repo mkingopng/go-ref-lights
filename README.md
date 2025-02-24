@@ -43,11 +43,3 @@ go build ./...
 	- These quick visual adjustments can be handled in your CSS / JavaScript.
 
 ---
-
-### **Recommended Next Step**
-
-A common immediate next step is **implementing a “health check”**:
-1. If all three refs (left, center, right) aren’t properly connected, show a warning or prevent “Platform Ready” from starting.
-2. Possibly add an endpoint or a small UI indicator that shows “3/3 referees connected.”
-
-After that, you might move on to **refining your position-switching flow** or **scaling for multiple meets** if that’s high priority for your upcoming events.
