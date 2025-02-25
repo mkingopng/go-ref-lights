@@ -20,8 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let connectedReferees = 0;
 
     // Check for the global websocketUrl
+    console.log("🏁 Lights.js script initializing...");
+    console.log(`🔍 Checking required variables: websocketUrl=${typeof websocketUrl}`);
+
     if (typeof websocketUrl === 'undefined') {
-        console.error("websocketUrl is not defined");
+        console.error("❌ websocketUrl is not defined. WebSocket connection cannot be established.");
         return;
     }
 
@@ -29,24 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = new WebSocket(websocketUrl);
 
     socket.onopen = () => {
-        console.log("WebSocket connection established (Lights).");
+        console.log(`✅ WebSocket connection established (Lights) at: ${websocketUrl}`);
     };
-
     socket.onerror = (error) => {
-        console.error("WebSocket error (Lights):", error);
+        console.error(`⚠️ WebSocket error (Lights):`, error);
     };
-
     socket.onclose = (event) => {
-        console.log("WebSocket connection closed (Lights):", event);
+        console.warn(`🔴 WebSocket closed (Lights). Code: ${event.code}, Reason: ${event.reason || "Unknown"}`);
     };
 
     // Listen for messages from the server
     socket.onmessage = (event) => {
+        console.log(`📩 Received WebSocket message at ${new Date().toISOString()}:`, event.data);
         let data;
         try {
             data = JSON.parse(event.data);
         } catch (e) {
-            console.error("Invalid JSON from server:", event.data);
+            console.error(`❌ Invalid JSON from server:`, event.data);
             return;
         }
 
@@ -54,36 +56,45 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (data.action) {
             // Server-driven timer updates
             case "updatePlatformReadyTime":
+                console.log(`⏳ Platform Ready Timer Update: ${data.timeLeft}s`);
                 updatePlatformReadyTimerOnUI(data.timeLeft);
                 break;
             case "platformReadyExpired":
+                console.log(`⏳ Platform Ready Timer Expired.`);
                 handlePlatformReadyExpired();
                 break;
             case "updateNextAttemptTime":
+                console.log(`⏳ updated Next Attempt Timer Expired.`);
                 updateNextAttemptTimerOnUI(data.timeLeft, data.index);
                 break;
             case "nextAttemptExpired":
+                console.log(`⏳ Next Attempt Ready Timer Expired.`);
                 handleNextAttemptExpired();
                 break;
 
             // Judge/Decision Handling
             case "judgeSubmitted":
+                console.log(`🎯 Judge submission received from: ${data.judgeId}`);
                 showJudgeSubmissionIndicator(data.judgeId);
                 break;
             case "displayResults":
+                console.log(`🏆 Displaying final results.`);
                 displayResults(data);
                 break;
             case "clearResults":
+                console.log(`🗑 Clearing results from UI.`);
                 clearResultsUI();
                 break;
 
-            // Health Check
+            // health Check
             case "refereeHealth":
+                console.log(`💡 Referee Health Update: ${data.connectedReferees}/${data.requiredReferees} connected.`);
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
 
             case "healthError":
                 // If user tried to start timer but not all refs connected
+                console.warn(`⚠️ Health error: ${data.message}`);
                 displayMessage(data.message, "red");
                 break;
 
@@ -98,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             platformReadyTimerContainer.classList.remove('hidden');
         }
         if (timerDisplay) {
+            console.log(`⏳ Updating Platform Ready Timer UI: ${timeLeft}s`);
             timerDisplay.innerText = `${timeLeft}s`;
         }
     }
@@ -162,8 +174,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function displayResults(data) {
+        console.log(`✅ Judge ${judgeId} submitted a decision.`);
         const { leftDecision, centreDecision, rightDecision } = data;
-
+        const indicator = document.getElementById(`${judgeId}Indicator`);
+        if (!indicator) {
+            console.warn(`⚠️ No indicator found for judgeId: ${judgeId}`);
+            return;
+        }
         paintCircle('leftCircle', leftDecision);
         paintCircle('centreCircle', centreDecision);
         paintCircle('rightCircle', rightDecision);
@@ -230,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //  Health Check UI
     function updateHealthStatus(connected, required) {
+        console.log(`💡 Referee Connection Update: ${connected}/${required} referees connected.`);
         connectedReferees = connected;
 
         if (connectionStatusElement) {
@@ -239,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Optionally disable the "Platform Ready" button if not all refs
         if (platformReadyButton) {
+            console.log(`🔒 Platform Ready Button: ${connected}/${required} refs connected.`);
             platformReadyButton.disabled = (connected < required);
         }
     }
@@ -261,5 +280,4 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.warn("Platform Ready button or container not found.");
     }
-
 });

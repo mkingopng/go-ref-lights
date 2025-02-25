@@ -19,40 +19,44 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// We'll store a simple struct for upcoming meets
 var upcomingMeets []struct {
 	Date     string `json:"date"`
 	MeetName string `json:"meetName"`
 }
 
 func main() {
-	// Load environment variables from .env file
+	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found. Using system environment variables.")
+	} else {
+		log.Println("Loaded .env file successfully.")
 	}
+	log.Printf("APPLICATION_URL: %s", os.Getenv("APPLICATION_URL"))
+	log.Printf("WEBSOCKET_URL: %s", os.Getenv("WEBSOCKET_URL"))
 
-	// Set Gin to release mode for production (optional)
+	// Production config or dev
 	gin.SetMode(gin.ReleaseMode)
 
-	// Initialize the router
 	router := gin.Default()
 
-	// Read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
 		applicationURL = "http://localhost:8080"
 	}
+	log.Printf("Using APPLICATION_URL: %s", applicationURL)
 
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
 		websocketURL = "ws://localhost:8080/referee-updates"
 	}
+	log.Printf("Using WEBSOCKET_URL: %s", websocketURL)
 
-	// Pass these values to controllers (used by some templates)
+	// for your templates
 	controllers.SetConfig(applicationURL, websocketURL)
+	log.Println("Controller configuration set.")
 
-	// Set security headers
+	// security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set(
 			"X-Frame-Options",
@@ -60,61 +64,84 @@ func main() {
 		c.Next()
 	})
 
-	// Add health check route
+	// health
 	router.GET("/health", controllers.Health)
 
-	// Initialize session store
+	// sessions
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		// In production, you'd want Secure=true if using HTTPS
 		Secure:   os.Getenv("GIN_MODE") == "release",
 		SameSite: http.SameSiteLaxMode,
 	})
 	router.Use(sessions.Sessions("mysession", store))
+	log.Printf("Session store = %v", store)
 
-	// Load upcoming_meets.json
+	// load upcoming meets
+	log.Println("Loading upcoming meets from JSON...")
 	err = loadUpcomingMeetsJSON("upcoming_meets.json")
 	if err != nil {
 		log.Fatalf("Failed to load meets JSON: %v", err)
 	}
+	log.Printf("Loaded %d upcoming meets.", len(upcomingMeets))
 
-	// Determine absolute path for templates
+	// templates
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 	templatesDir := filepath.Join(basepath, "templates")
 
-	// Validate that the templates directory exists
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		log.Fatalf("Templates directory does not exist: %s", templatesDir)
 	}
-
-	// Load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
-	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
+	log.Println("Templates loaded from:", templatesDir)
 
-	// Serve static files
+	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
 	router.Static("/static", "./static")
 
-	// Serve favicon.ico
 	router.GET("/favicon.ico", func(c *gin.Context) {
 		faviconPath := filepath.Join(basepath, "static", "images", "favicon.ico")
 		c.File(faviconPath)
 	})
 
-	// 1) Root route: If no meet is chosen, redirect to /select-meet
-	//    Otherwise, go to the normal index page
+	// 1) Force the user to see SELECT-MEET first
 	router.GET("/", func(c *gin.Context) {
+		// Always redirect to /select-meet
+		log.Printf("Root request received, redirecting to /select-meet")
+		c.Redirect(http.StatusFound, "/select-meet")
+	})
+
+	// 2) "Select Meet" page
+	router.GET("/select-meet", func(c *gin.Context) {
+		log.Printf("Select Meet page requested")
+		c.HTML(http.StatusOK, "select_meet.html", gin.H{
+			"Meets": upcomingMeets,
+		})
+	})
+
+	router.POST("/select-meet", func(c *gin.Context) {
+		chosenMeet := c.PostForm("meetName")
+		log.Printf("Meet selected: %s", chosenMeet)
+		session := sessions.Default(c)
+		session.Set("selectedMeet", chosenMeet)
+		_ = session.Save()
+		c.Redirect(http.StatusFound, "/index")
+	})
+
+	// 3) /index route that displays the actual home/Index page
+	router.GET("/index", func(c *gin.Context) {
 		session := sessions.Default(c)
 		if session.Get("selectedMeet") == nil {
-			// Force them to pick a meet first
+			log.Println("No meet selected in session; redirecting to /select-meet")
+			// if meet not chosen, back to select-meet
 			c.Redirect(http.StatusFound, "/select-meet")
 			return
 		}
-		// If a meet is chosen, just show the normal index page
-		controllers.Index(c) // or redirect to /positions, your call
+		// otherwise, show the normal index
+		log.Printf("Displaying index for meet: %v", session.Get("selectedMeet"))
+		controllers.Index(c)
 	})
 
 	// Public routes
@@ -122,29 +149,11 @@ func main() {
 	router.POST("/login", controllers.PerformLogin)
 	router.GET("/logout", controllers.Logout)
 
-	// Google Auth routes
+	// Google Auth
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
-	// 2) Show the "Select Meet" page
-	router.GET("/select-meet", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "select_meet.html", gin.H{
-			"Meets": upcomingMeets,
-		})
-	})
-
-	// 3) Handle form POST from /select-meet
-	router.POST("/select-meet", func(c *gin.Context) {
-		chosenMeet := c.PostForm("meetName")
-		session := sessions.Default(c)
-		session.Set("selectedMeet", chosenMeet)
-		_ = session.Save()
-
-		// Then redirect them to /positions or wherever
-		c.Redirect(http.StatusFound, "/positions")
-	})
-
-	// Protected routes: Must be logged in, have a position, AND have selected a meet
+	// 4) Protected routes
 	protected := router.Group("/",
 		middleware.AuthRequired,
 		middleware.PositionRequired(),
@@ -153,25 +162,47 @@ func main() {
 	{
 		protected.GET("/positions", controllers.ShowPositionsPage)
 		protected.POST("/position/claim", controllers.ClaimPosition)
-
 		protected.GET("/left", controllers.Left)
 		protected.GET("/centre", controllers.Centre)
 		protected.GET("/right", controllers.Right)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
-		protected.GET("/referee-updates", controllers.RefereeUpdates)
+
+		// behind login & meet selection
+		protected.GET("/referee-updates", func(c *gin.Context) {
+			session := sessions.Default(c)
+			meetNameVal := session.Get("selectedMeet")
+			if meetNameVal == nil {
+				meetNameVal = "DEFAULT_MEET"
+			}
+			log.Printf("WebSocket connection request: meetName=%s", meetNameVal)
+			var judgeIdStr string
+			if refPosVal := session.Get("refPosition"); refPosVal != nil {
+				judgeIdStr = refPosVal.(string)
+			} else {
+				judgeIdStr = ""
+			}
+			log.Printf("WebSocket connection request: meetName=%s, judgeId=%s", meetNameVal, judgeIdStr)
+			q := c.Request.URL.Query()
+			q.Set("meetName", meetNameVal.(string))
+			q.Set("judgeId", judgeIdStr)
+			c.Request.URL.RawQuery = q.Encode()
+			websocket.ServeWs(c.Writer, c.Request)
+		})
 	}
 
-	// Start the WebSocket message handler in a separate goroutine
-	go websocket.HandleMessages()
+	// start Single-Goroutine WebSocket Manager
+	log.Println("Starting WebSocket manager goroutine.")
+	go websocket.StartWebSocketManager()
 
-	// Finally, run the server
+	// run
+	log.Println("Server starting on port 8080")
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}
 }
 
-// loadUpcomingMeetsJSON loads the upcoming_meets.json file into our upcomingMeets slice
+// loadUpcomingMeetsJSON
 func loadUpcomingMeetsJSON(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -180,8 +211,7 @@ func loadUpcomingMeetsJSON(path string) error {
 	return json.Unmarshal(data, &upcomingMeets)
 }
 
-// ensureMeetSelected is middleware that forces the user to pick a meet
-// before accessing the protected routes.
+// ensureMeetSelected middleware
 func ensureMeetSelected() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)

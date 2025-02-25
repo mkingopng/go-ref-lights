@@ -12,7 +12,7 @@
   <label for="meetNameSelect">Upcoming Meets</label>
   <select id="meetNameSelect" name="meetName">
     {{range .Meets}}
-    <option value="{{.MeetName}}">{{.Date}} - {{.MeetName}} ({{.Venue}})</option>
+    <option value="{{.MeetName}}">{{.Date}} - {{.MeetName}}</option>
     {{end}}
   </select>
   <button type="submit">Continue</button>

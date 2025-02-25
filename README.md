@@ -1,3 +1,8 @@
+compile
+```bash
+go build ./...
+```
+
 run app
 ```bash
 go run main.go
@@ -6,11 +11,6 @@ go run main.go
 run all tests
 ```bash
 go test -v ./...
-```
-
-compile
-```bash
-go build ./...
 ```
 
 ---
