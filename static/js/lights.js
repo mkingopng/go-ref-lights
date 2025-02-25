@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageElement = document.getElementById('message');
     const connectionStatusElement = document.getElementById('connectionStatus');
 
-    // We'll store judge decisions in an object
+    // store judge decisions in an object
     const judgeDecisions = {
         left: null,
         centre: null,
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleNextAttemptExpired(data.index);
                 break;
 
-            // judge/Decision Handling
+            // judge decision Handling
             case "judgeSubmitted":
                 showJudgeSubmissionIndicator(data.judgeId);
                 break;
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearResultsUI();
                 break;
 
-            // health Check
+            // health check
             case "refereeHealth":
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
@@ -145,14 +145,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNextAttemptExpired(timerIndex) {
         console.log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
+
         if (nextAttemptRows[timerIndex]) {
             console.log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
-            nextAttemptRows[timerIndex].rowDiv.remove();  // Remove from DOM
-            delete nextAttemptRows[timerIndex];           // Remove from memory
+
+            // Fade out the element before removing it
+            const rowDiv = nextAttemptRows[timerIndex].rowDiv;
+            rowDiv.style.transition = "opacity 0.5s ease-out";
+            rowDiv.style.opacity = "0";
+
+            setTimeout(() => {
+                rowDiv.remove();  // Remove from DOM
+                delete nextAttemptRows[timerIndex]; // Remove from memory
+            }, 500); // Wait for animation to complete
         } else {
             console.warn(`Timer #${timerIndex + 1} not found in nextAttemptRows!`);
         }
     }
+
 
     //  decision handling
     function showJudgeSubmissionIndicator(judgeId) {

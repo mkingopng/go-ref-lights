@@ -16,6 +16,9 @@ import (
 // clients tracks all connected clients (for broadcast usage)
 var clients = make(map[*websocket.Conn]bool)
 
+// Global mutex to synchronize writes
+var writeMutex sync.Mutex
+
 // broadcast is a channel for sending messages to all clients
 var broadcast = make(chan []byte)
 
@@ -51,6 +54,14 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// Function that writes messages to WebSocket
+func safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error {
+	writeMutex.Lock()         // Acquire lock
+	defer writeMutex.Unlock() // Release lock after writing
+
+	return conn.WriteMessage(messageType, data)
+}
+
 // ServeWs is our main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -84,7 +95,8 @@ func HandleMessages() {
 	for {
 		msg := <-broadcast
 		for conn := range clients {
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			// Use the thread-safe write function
+			if err := safeWriteMessage(conn, websocket.TextMessage, msg); err != nil {
 				log.Printf("⚠️ WriteMessage error: %v", err)
 				_ = conn.Close()
 				delete(clients, conn)

@@ -13,8 +13,6 @@ run all tests
 go test -v ./...
 ```
 
-
-
 ---
 # Issues identified during testing
 - the claim positions page (http://localhost:8080/positions) needs formatting/styling.
