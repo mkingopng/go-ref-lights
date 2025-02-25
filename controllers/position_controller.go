@@ -1,4 +1,4 @@
-// file: controllers/position_controller.go
+// Package controllers file: controllers/position_controller.go
 package controllers
 
 import (
@@ -63,7 +63,10 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	}
 
 	session.Set("refPosition", position)
-	session.Save()
+	err = session.Save()
+	if err != nil {
+		return
+	}
 
 	switch position {
 	case "left":

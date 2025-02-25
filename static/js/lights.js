@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // check for the global websocketUrl
     if (typeof websocketUrl === 'undefined') {
-        console.error("websocketUrl is not defined");
+        console.error("❌ websocketUrl is not defined. WebSocket connection cannot be established.");
         return;
     }
 
@@ -27,22 +27,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = new WebSocket(websocketUrl);
 
     socket.onopen = () => {
-        console.log("WebSocket connection established (Lights).");
+        console.log(`✅ WebSocket connection established (Lights) at: ${websocketUrl}`);
     };
     socket.onerror = (error) => {
-        console.error("WebSocket error (Lights):", error);
+        console.error(`⚠️ WebSocket error (Lights):`, error);
     };
     socket.onclose = (event) => {
-        console.log("WebSocket connection closed (Lights):", event);
+        console.warn(`🔴 WebSocket closed (Lights). Code: ${event.code}, Reason: ${event.reason || "Unknown"}`);
     };
 
     // listen for messages from the server
     socket.onmessage = (event) => {
+        console.log(`📩 Received WebSocket message at ${new Date().toISOString()}:`, event.data);
         let data;
         try {
             data = JSON.parse(event.data);
         } catch (e) {
-            console.error("Invalid JSON from server:", event.data);
+            console.error(`❌ Invalid JSON from server:`, event.data);
             return;
         }
 
@@ -50,12 +51,15 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (data.action) {
             // server-driven timer updates
             case "updatePlatformReadyTime":
+                console.log(`⏳ Platform Ready Timer Update: ${data.timeLeft}s`);
                 updatePlatformReadyTimerOnUI(data.timeLeft);
                 break;
             case "platformReadyExpired":
+                console.log(`⏳ Platform Ready Timer Expired.`);
                 handlePlatformReadyExpired();
                 break;
             case "updateNextAttemptTime":
+                console.log(`⏳ updated Next Attempt Timer Expired.`);
                 updateNextAttemptTimerOnUI(data.timeLeft, data.index);
                 break;
             case "nextAttemptExpired":
@@ -65,17 +69,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // judge decision Handling
             case "judgeSubmitted":
+                console.log(`🎯 Judge submission received from: ${data.judgeId}`);
                 showJudgeSubmissionIndicator(data.judgeId);
                 break;
             case "displayResults":
+                console.log(`🏆 Displaying final results.`);
                 displayResults(data);
                 break;
             case "clearResults":
+                console.log(`🗑 Clearing results from UI.`);
                 clearResultsUI();
                 break;
 
             // health check
             case "refereeHealth":
+                console.log(`💡 Referee Health Update: ${data.connectedReferees}/${data.requiredReferees} connected.`);
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
 
@@ -95,6 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             platformReadyTimerContainer.classList.remove('hidden');
         }
         if (timerDisplay) {
+            console.log(`⏳ Updating Platform Ready Timer UI: ${timeLeft}s`);
             timerDisplay.innerText = `${timeLeft}s`;
         }
     }
@@ -175,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function displayResults(data) {
+        console.log(`✅ Judge ${judgeId} submitted a decision.`);
         const { leftDecision, centreDecision, rightDecision } = data;
         paintCircle('leftCircle', leftDecision);
         paintCircle('centreCircle', centreDecision);
@@ -241,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //  health check UI
     function updateHealthStatus(connected, required) {
+        console.log(`💡 Referee Connection Update: ${connected}/${required} referees connected.`);
         connectedReferees = connected;
         if (connectionStatusElement) {
             connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
@@ -249,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // disable the "Platform Ready" button if not all refs
         if (platformReadyButton) {
+            console.log(`🔒 Platform Ready Button: ${connected}/${required} refs connected.`);
             platformReadyButton.disabled = (connected < required);
         }
     }
