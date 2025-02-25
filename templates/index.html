@@ -1,6 +1,7 @@
 <!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -13,15 +14,18 @@
 <body>
 <h1>Scan To Login</h1>
 
+<!--QR Code container-->
 <div class="qr-code-container">
-  <img src="/qrcode" alt="QR Code"> <!-- Correct Path -->
+  <img src="/qrcode" alt="QR Code">
 </div>
 
+<!--Button container: lights or select ref positions-->
 <div class="button-container">
   <a href="/lights" class="button-link">Lights</a>
   <a href="/positions" class="button-link">Select Referee Position</a>
 </div>
 
+<!--APL logo container-->
 <div class="logo-container">
   <img src="/static/images/apl_logo.png" alt="apl logo">
 </div>

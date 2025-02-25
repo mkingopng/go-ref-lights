@@ -1,11 +1,9 @@
 // static/js/lights.js
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Cache references to DOM elements
+    // cache references to DOM elements
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const timerDisplay = document.getElementById('timer');
-    const secondTimerDisplay = document.getElementById('secondTimer');
     const messageElement = document.getElementById('message');
     const connectionStatusElement = document.getElementById('connectionStatus');
 
@@ -16,31 +14,29 @@ document.addEventListener('DOMContentLoaded', () => {
         right: null
     };
 
-    // Track how many refs are connected (0..3)
+    // track how many refs are connected (0..3)
     let connectedReferees = 0;
 
-    // Check for the global websocketUrl
+    // check for the global websocketUrl
     if (typeof websocketUrl === 'undefined') {
         console.error("websocketUrl is not defined");
         return;
     }
 
-    // Initialize the WebSocket connection
+    // initialize the WebSocket connection
     const socket = new WebSocket(websocketUrl);
 
     socket.onopen = () => {
         console.log("WebSocket connection established (Lights).");
     };
-
     socket.onerror = (error) => {
         console.error("WebSocket error (Lights):", error);
     };
-
     socket.onclose = (event) => {
         console.log("WebSocket connection closed (Lights):", event);
     };
 
-    // Listen for messages from the server
+    // listen for messages from the server
     socket.onmessage = (event) => {
         let data;
         try {
@@ -50,9 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check the action
+        // check the action
         switch (data.action) {
-            // Server-driven timer updates
+            // server-driven timer updates
             case "updatePlatformReadyTime":
                 updatePlatformReadyTimerOnUI(data.timeLeft);
                 break;
@@ -67,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleNextAttemptExpired(data.index);
                 break;
 
-            // Judge/Decision Handling
+            // judge/Decision Handling
             case "judgeSubmitted":
                 showJudgeSubmissionIndicator(data.judgeId);
                 break;
@@ -78,13 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearResultsUI();
                 break;
 
-            // Health Check
+            // health Check
             case "refereeHealth":
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
 
             case "healthError":
-                // If user tried to start timer but not all refs connected
+                // if user tried to start timer but not all refs connected
                 displayMessage(data.message, "red");
                 break;
 
@@ -93,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    //  Timer UI Handling (Server-Driven)
+    //  timer UI Handling (Server-Driven)
     function updatePlatformReadyTimerOnUI(timeLeft) {
         if (platformReadyTimerContainer) {
             platformReadyTimerContainer.classList.remove('hidden');
@@ -108,41 +104,41 @@ document.addEventListener('DOMContentLoaded', () => {
         // displayMessage('Time Up', 'yellow');
     }
 
-    // We'll store a reference to our container for all next-attempt timers:
+    // store a reference to container for all next-attempt timers:
     const multiTimerContainer = document.getElementById('multiNextAttemptTimers');
 
-// Keep track of DOM elements for each timer row in a dictionary:
+// keep track of DOM elements for each timer row in a dictionary:
     const nextAttemptRows = {};
 
-// Called when we see "updateNextAttemptTime" from the server
+// called when we see "updateNextAttemptTime" from the server
     function updateNextAttemptTimerOnUI(timeLeft, timerIndex) {
-        // Make sure we have a container for all timers
+        // make sure we have a container for all timers
         if (!multiTimerContainer) return;
 
-        // If we don't yet have a row for this index, create one
+        // if we don't yet have a row for this index, create one
         if (!nextAttemptRows[timerIndex]) {
-            // Create a new <div> for the row
+            // create a new <div> for the row
             const rowDiv = document.createElement('div');
-            rowDiv.classList.add('timer-container'); // same styling
+            rowDiv.classList.add('timer-container');
             rowDiv.style.marginBottom = '10px';
 
-            // Create a label
+            // create a label
             const label = document.createElement('div');
             label.innerText = `Next Attempt #${timerIndex + 1}:`;
             label.classList.add('timer');  // so it picks up big font if you like
             rowDiv.appendChild(label);
 
-            // Create a time display
+            // create a time display
             const timeSpan = document.createElement('div');
             timeSpan.classList.add('second-timer');
             timeSpan.innerText = `${timeLeft}s`;
             rowDiv.appendChild(timeSpan);
 
             multiTimerContainer.appendChild(rowDiv);
-            // Store references
+            // store references
             nextAttemptRows[timerIndex] = { rowDiv, label, timeSpan };
         } else {
-            // Update existing
+            // update existing next attempt timer rows
             nextAttemptRows[timerIndex].timeSpan.innerText = `${timeLeft}s`;
         }
     }
@@ -158,8 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-    //  Decision Handling
+    //  decision handling
     function showJudgeSubmissionIndicator(judgeId) {
         const indicator = document.getElementById(`${judgeId}Indicator`);
         if (!indicator) {
@@ -171,19 +166,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function displayResults(data) {
         const { leftDecision, centreDecision, rightDecision } = data;
-
         paintCircle('leftCircle', leftDecision);
         paintCircle('centreCircle', centreDecision);
         paintCircle('rightCircle', rightDecision);
-
         judgeDecisions.left   = leftDecision;
         judgeDecisions.centre = centreDecision;
         judgeDecisions.right  = rightDecision;
-
         const decisions = [leftDecision, centreDecision, rightDecision];
         const whiteCount = decisions.filter(d => d === "white").length;
         const redCount   = decisions.filter(d => d === "red").length;
-
         if (whiteCount >= 2) {
             displayMessage("Good Lift", "white");
         } else if (redCount >= 2) {
@@ -199,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetJudgeIndicators();
     }
 
-    //  UI Helper Functions
+    //  UI helper functions
     function paintCircle(circleId, decision) {
         const circle = document.getElementById(circleId);
         if (!circle) return;
@@ -216,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Reset all judge indicators to grey
     function resetJudgeIndicators() {
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach(indicator => {
@@ -223,12 +215,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Display a message on the screen
     function displayMessage(text, color) {
         if (!messageElement) return;
         messageElement.innerText = text;
         messageElement.style.color = color;
 
-        // If "Time Up" => flash
+        // if "Time Up" => flash  // fix_me: redundant
         if (text.includes("Time Up")) {
             messageElement.classList.add('flash');
         } else {
@@ -236,31 +229,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    //  Health Check UI
+    //  health check UI
     function updateHealthStatus(connected, required) {
         connectedReferees = connected;
-
         if (connectionStatusElement) {
             connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
             connectionStatusElement.style.color = (connected < required) ? "red" : "green";
         }
 
-        // Optionally disable the "Platform Ready" button if not all refs
+        // disable the "Platform Ready" button if not all refs
         if (platformReadyButton) {
             platformReadyButton.disabled = (connected < required);
         }
     }
 
-    //  Platform Ready Button Logic
+    //  Platform Ready button logic
     if (platformReadyButton && platformReadyTimerContainer) {
         platformReadyButton.addEventListener('click', () => {
-            // Current code toggles local container visibility:
+            // current code toggles local container visibility:
             const isHidden = platformReadyTimerContainer.classList.contains('hidden');
             if (isHidden) {
-                // Request server to "startTimer" (server will check if all refs connected)
+                // request server to "startTimer" (server will check if all refs connected)
                 socket.send(JSON.stringify({ action: "startTimer" }));
             } else {
-                // If it's visible, we request to stop
+                // if it's visible, we request to stop
                 socket.send(JSON.stringify({ action: "stopTimer" }));
             }
             // toggle local display
@@ -269,5 +261,4 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.warn("Platform Ready button or container not found.");
     }
-
 });

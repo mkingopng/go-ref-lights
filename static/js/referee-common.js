@@ -1,5 +1,4 @@
 // static/js/referee-common.js
-
 document.addEventListener('DOMContentLoaded', function() {
 
     if (typeof websocketUrl === 'undefined') {
@@ -11,13 +10,13 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Initialize WebSocket
+    // initialize WebSocket
     const socket = new WebSocket(websocketUrl);
 
-    // Grab common DOM elements
+    // grab common DOM elements
     const healthEl = document.getElementById("healthStatus");
 
-    // For "Centre" we might also have extra timer buttons, so let's find them safely
+    // "Centre" has extra timer buttons
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
@@ -26,11 +25,11 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.onopen = function() {
         console.log(`WebSocket connected for judgeId: ${judgeId}`);
 
-        // Immediately register yourself as connected
+        // immediately register as connected
         const registerMsg = {
             action: "registerRef",
             judgeId: judgeId
-            // If you have multi-meet, you might also add "meetName":"STATE_CHAMPS" or something
+            // When i have multi-meet, I might also add "meetName":"STATE_CHAMPS" or something
         };
         socket.send(JSON.stringify(registerMsg));
     };
@@ -47,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (data.action) {
             case "refereeHealth":
-                // The server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
+                // the server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -55,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             case "healthError":
-                // Example: "Cannot start timer: Not all referees are connected!"
+                // example: "Cannot start timer: Not all referees are connected!"
                 alert(data.message);
                 break;
             default:
@@ -63,12 +62,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // WebSocket event: error
+    // webSocket event: error
     socket.onerror = function(error) {
         console.error(`WebSocket error (${judgeId}):`, error);
     };
 
-    // WebSocket event: close
+    // webSocket event: close
     socket.onclose = function(event) {
         console.log(`WebSocket closed (${judgeId}):`, event);
         if (healthEl) {
@@ -77,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Utility to send JSON
+    // utility to send JSON
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(obj));
@@ -87,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // If these buttons exist, wire them up
+    // if these buttons exist, wire them up
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
             sendMessage({ judgeId: judgeId, decision: "white" });
@@ -105,14 +104,4 @@ document.addEventListener('DOMContentLoaded', function() {
             sendMessage({ action: "startTimer" });
         });
     }
-    // if (stopTimerButton) {
-    //     stopTimerButton.addEventListener('click', function() {
-    //         sendMessage({ action: "stopTimer" });
-    //     });
-    // }
-    // if (resetTimerButton) {
-    //     resetTimerButton.addEventListener('click', function() {
-    //         sendMessage({ action: "resetTimer" });
-    //     });
-    // }
 });

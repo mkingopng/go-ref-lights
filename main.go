@@ -101,7 +101,7 @@ func main() {
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
-	// Protected routes
+	// protected routes
 	protected := router.Group("/", middleware.AuthRequired, middleware.PositionRequired())
 	{
 		protected.GET("/", controllers.Index)
@@ -112,15 +112,15 @@ func main() {
 		protected.GET("/qrcode", controllers.GetQRCode)
 	}
 
-	// WebSocket Route for Live Updates
+	// webSocket Route for Live Updates
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
 
-	// Start the WebSocket message handler in a separate goroutine
+	// start the WebSocket message handler in a separate goroutine
 	go websocket.HandleMessages()
 
-	// Start the server
+	// start the server
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}

@@ -14,8 +14,10 @@
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Right Referee</h1>
 
+<!--connection Health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
+<!--Ref decision button container-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
@@ -25,6 +27,8 @@
   var websocketUrl = "{{ .WebsocketURL }}";
   var judgeId = "right";
 </script>
+
 <script src="/static/js/referee-common.js"></script>
+
 </body>
 </html>
