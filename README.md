@@ -1,3 +1,8 @@
+compile
+```bash
+go build ./...
+```
+
 run app
 ```bash
 go run main.go
@@ -8,10 +13,7 @@ run all tests
 go test -v ./...
 ```
 
-compile
-```bash
-go build ./...
-```
+
 
 ---
 # Issues identified during testing
