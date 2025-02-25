@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Select Position</title>
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
+
 <h1>Select Your Referee Position</h1>
 
-<!-- This is a very simple form that references the positions in the server’s occupancy data. -->
-<div>
+<div class="button-container">
     <form action="/position/claim" method="POST">
-        <label>Choose Position:</label>
-        <select name="position">
+        <label for="positionSelect" style="margin-right:10px;">Choose Position:</label>
+        <select id="positionSelect" name="position" style="padding:8px; border-radius:5px; margin-right:10px;">
             {{ if .Positions.LeftOccupied }}
             <option value="left" disabled>Left (Occupied by {{ .Positions.LeftUser }})</option>
             {{ else }}
@@ -31,11 +31,13 @@
             <option value="right">Right (Available)</option>
             {{ end }}
         </select>
-        <button type="submit">Claim</button>
+        <button class="action-button" type="submit">Claim</button>
     </form>
 </div>
 
-<a href="/logout">Logout</a>
+<div class="button-container">
+    <a href="/logout" class="button-link">Logout</a>
+</div>
 
 </body>
 </html>

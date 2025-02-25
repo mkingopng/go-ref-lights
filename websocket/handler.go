@@ -11,34 +11,34 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// GLOBALS NEEDED FOR ALL WEBSOCKETS (NOT SPECIFIC TO A SINGLE MEET)
+// GLOBALS
 
-// clients tracks all connected clients (for broadCast usage)
+// clients tracks all connected clients (for broadcast usage)
 var clients = make(map[*websocket.Conn]bool)
 
 // broadcast is a channel for sending messages to all clients
 var broadcast = make(chan []byte)
 
-// HandleMessages for the global broadcast loop
-func HandleMessages() {
-	for {
-		msg := <-broadcast
-		for conn := range clients {
-			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-				log.Printf("⚠️ WriteMessage error: %v", err)
-				_ = conn.Close()
-				delete(clients, conn)
-			}
-		}
-	}
+// Store info about which meet & judge is associated with each connection.
+// This helps us remove them from the correct meet's state on disconnection.
+type connectionInfo struct {
+	meetName string
+	judgeID  string
 }
 
-// resultsDisplayDuration controls how long final decisions remain displayed
-var resultsDisplayDuration = 30
-var platformReadyMutex = &sync.Mutex{}
-var nextAttemptMutex = &sync.Mutex{}
+// connectionMapping maps each WebSocket conn -> (meetName, judgeID)
+var connectionMapping = make(map[*websocket.Conn]connectionInfo)
 
-// upgrader allows us to create WebSocket connections
+// resultsDisplayDuration controls how long final decisions remain displayed
+var resultsDisplayDuration = 15
+
+// Mutexes for concurrency around timers
+var (
+	platformReadyMutex = &sync.Mutex{}
+	nextAttemptMutex   = &sync.Mutex{}
+)
+
+// WEBSOCKET UPGRADE
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow all if Test-Mode
@@ -51,7 +51,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// ServeWs websocket entry point
+// ServeWs is our main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -61,30 +61,69 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("✅ WebSocket connected: %v", conn.RemoteAddr())
 
-	// track globally
+	// Track globally
 	clients[conn] = true
 
-	// e.g. ws://.../referee-updates?meetName=STATE_CHAMPS_2025
+	// If there's no meetName query param, fall back to "DEFAULT_MEET"
 	meetName := r.URL.Query().Get("meetName")
 	if meetName == "" {
 		meetName = "DEFAULT_MEET"
 	}
 
-	// start the heartbeat (pings) in background
+	// Start the heartbeat (pings) in the background
 	go startHeartbeat(conn)
 
-	// start reading messages
+	// Start reading messages from this connection
 	go handleReads(conn, meetName)
 }
 
-// READING MESSAGES
+// GLOBAL BROADCAST LOOP
 
-// handleReads reads incoming messages from a WebSocket connection
+// HandleMessages listens for messages on the broadcast channel and sends them to all clients
+func HandleMessages() {
+	for {
+		msg := <-broadcast
+		for conn := range clients {
+			if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+				log.Printf("⚠️ WriteMessage error: %v", err)
+				_ = conn.Close()
+				delete(clients, conn)
+				// Also remove from connectionMapping if needed
+				if info, ok := connectionMapping[conn]; ok {
+					meetState := getMeetState(info.meetName)
+					if meetState.RefereeSessions[info.judgeID] == conn {
+						meetState.RefereeSessions[info.judgeID] = nil
+					}
+					delete(connectionMapping, conn)
+					// Optionally broadcast updated health for that meet
+					broadcastRefereeHealth(meetState)
+				}
+			}
+		}
+	}
+}
+
+// MESSAGE READING & DISCONNECTION HANDLING
+
+// handleReads reads messages from a connection and processes them
 func handleReads(conn *websocket.Conn, defaultMeetName string) {
 	defer func() {
+		// On disconnection, remove from global clients map
 		log.Printf("⚠️ WebSocket disconnected: %v", conn.RemoteAddr())
 		_ = conn.Close()
 		delete(clients, conn)
+
+		// If we know which meet/judge this conn belonged to, remove from that meet's state
+		if info, ok := connectionMapping[conn]; ok {
+			meetState := getMeetState(info.meetName)
+			if meetState.RefereeSessions[info.judgeID] == conn {
+				meetState.RefereeSessions[info.judgeID] = nil
+				log.Printf("🚪 Removing %s from meet %s (due to disconnect)", info.judgeID, info.meetName)
+				// Broadcast updated health for that meet
+				broadcastRefereeHealth(meetState)
+			}
+			delete(connectionMapping, conn)
+		}
 	}()
 
 	for {
@@ -100,23 +139,58 @@ func handleReads(conn *websocket.Conn, defaultMeetName string) {
 			continue
 		}
 
-		// if the incoming JSON has no meetName, fallback to the param
+		// If the JSON has no meetName, fallback to the default
 		if decisionMsg.MeetName == "" {
 			decisionMsg.MeetName = defaultMeetName
 		}
 
-		// if the JSON has an Action, it might be a timer request
-		if decisionMsg.Action != "" {
+		// Distinguish between "actions" vs. "decisions"
+		switch decisionMsg.Action {
+		case "registerRef":
+			// store the connection, broadcast health
+			registerRef(decisionMsg, conn)
+		case "startTimer", "stopTimer", "resetTimer", "startNextAttemptTimer":
 			handleTimerAction(decisionMsg.Action, decisionMsg.MeetName)
-		} else {
+		default:
+			// if there's no recognized Action, we treat it as a Decision
 			processDecision(decisionMsg, conn)
 		}
 	}
 }
 
-// HEARTBEAT
+// registerRef marks a referee as connected in the meetState
+func registerRef(msg DecisionMessage, conn *websocket.Conn) {
+	if msg.JudgeID == "" {
+		// If we have no judgeId, do nothing
+		return
+	}
 
-// startHeartbeat sends periodic pings to the client to keep the connection alive
+	meetState := getMeetState(msg.MeetName)
+	// If there's an existing session for that judge, close it out
+	existingConn, exists := meetState.RefereeSessions[msg.JudgeID]
+	if exists && existingConn != nil && existingConn != conn {
+		log.Printf("🔴 Kicking out old session for ref: %s in meet: %s", msg.JudgeID, msg.MeetName)
+		_ = existingConn.Close()
+		delete(clients, existingConn)
+	}
+
+	// Store the new conn
+	meetState.RefereeSessions[msg.JudgeID] = conn
+
+	// Also update global mapping
+	connectionMapping[conn] = connectionInfo{
+		meetName: msg.MeetName,
+		judgeID:  msg.JudgeID,
+	}
+
+	log.Printf("✅ Referee %s registered (meet: %s)", msg.JudgeID, msg.MeetName)
+	// Broadcast updated health
+	broadcastRefereeHealth(meetState)
+}
+
+// HEARTBEAT (PING) KEEPS CONNECTIONS ALIVE
+
+// startHeartbeat sends a ping every 10 seconds to keep the connection alive
 func startHeartbeat(conn *websocket.Conn) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -130,6 +204,16 @@ func startHeartbeat(conn *websocket.Conn) {
 				log.Println("❌ Connection lost due to repeated ping failures.")
 				_ = conn.Close()
 				delete(clients, conn)
+
+				// Also remove from connectionMapping if needed
+				if info, ok := connectionMapping[conn]; ok {
+					meetState := getMeetState(info.meetName)
+					if meetState.RefereeSessions[info.judgeID] == conn {
+						meetState.RefereeSessions[info.judgeID] = nil
+					}
+					delete(connectionMapping, conn)
+					broadcastRefereeHealth(meetState)
+				}
 				return
 			}
 		} else {
@@ -138,9 +222,9 @@ func startHeartbeat(conn *websocket.Conn) {
 	}
 }
 
-// DECISION HANDLING
+// DECISION & REFEREE HANDLING
 
-// processDecision handles incoming decisions from judges
+// processDecision handles a decision message from a referee
 func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	meetState := getMeetState(decisionMsg.MeetName)
 
@@ -149,22 +233,37 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 		return
 	}
 
-	// single session enforcement for this meet
+	// Single-session enforcement for this judge in this meet
 	existingConn, exists := meetState.RefereeSessions[decisionMsg.JudgeID]
 	if exists && existingConn != nil && existingConn != conn {
 		log.Printf("🔴 Kicking out old session for referee: %s in meet: %s",
 			decisionMsg.JudgeID, decisionMsg.MeetName)
 		_ = existingConn.Close()
-		delete(clients, existingConn) // This removes them from global too
+		delete(clients, existingConn) // remove from global set
 		meetState.RefereeSessions[decisionMsg.JudgeID] = nil
+
+		// Also remove from connectionMapping
+		if info, ok := connectionMapping[existingConn]; ok {
+			if info.judgeID == decisionMsg.JudgeID && info.meetName == decisionMsg.MeetName {
+				delete(connectionMapping, existingConn)
+			}
+		}
 	}
 
+	// Store the new connection in meet state
 	meetState.RefereeSessions[decisionMsg.JudgeID] = conn
 	meetState.JudgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
+
+	// Update global mapping so we know this conn -> meet/judge
+	connectionMapping[conn] = connectionInfo{
+		meetName: decisionMsg.MeetName,
+		judgeID:  decisionMsg.JudgeID,
+	}
+
 	log.Printf("✅ Decision from %s: %s (meet: %s)",
 		decisionMsg.JudgeID, decisionMsg.Decision, decisionMsg.MeetName)
 
-	// let everyone know a judge submitted
+	// Let everyone know a judge submitted
 	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": decisionMsg.JudgeID,
@@ -172,16 +271,19 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	subMsg, _ := json.Marshal(submission)
 	broadcast <- subMsg
 
-	// if we have decisions from all 3 judges, broadcast final results
+	// Also broadcast updated health (who is connected) for this meet
+	broadcastRefereeHealth(meetState)
+
+	// If we have decisions from all 3 judges, broadcast final results
 	if len(meetState.JudgeDecisions) == 3 {
 		broadcastFinalResults(decisionMsg.MeetName)
 	}
 }
 
-// broadcastFinalResults sends the final decisions to all clients
 func broadcastFinalResults(meetName string) {
 	meetState := getMeetState(meetName)
 
+	// 1) Broadcast the final decisions
 	result := map[string]string{
 		"action":         "displayResults",
 		"leftDecision":   meetState.JudgeDecisions["left"],
@@ -191,6 +293,10 @@ func broadcastFinalResults(meetName string) {
 	resultMsg, _ := json.Marshal(result)
 	broadcast <- resultMsg
 
+	// 2) Immediately start the next-lifter timer
+	startNextAttemptTimer(meetState)
+
+	// 3) Clear the results after a set duration
 	go func() {
 		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
@@ -198,11 +304,11 @@ func broadcastFinalResults(meetName string) {
 		broadcast <- clearJSON
 	}()
 
-	// reset for next lift
+	// 4) Reset for next lift
 	meetState.JudgeDecisions = make(map[string]string)
 }
 
-// TIMER ACTIONS (MEET-AWARE)
+// TIMER / PLATFORM READY
 
 // handleTimerAction processes timer-related actions
 func handleTimerAction(action, meetName string) {
@@ -210,7 +316,7 @@ func handleTimerAction(action, meetName string) {
 
 	switch action {
 	case "startTimer":
-		// Health check
+		// only allow "Platform Ready" if all refs are connected
 		if !isAllRefsConnected(meetState) {
 			errMsg := map[string]string{
 				"action":  "healthError",
@@ -221,19 +327,36 @@ func handleTimerAction(action, meetName string) {
 			log.Println("❌ Timer not started: All referees not connected.")
 			return
 		}
+		// 1) Clear old decisions
+		meetState.JudgeDecisions = make(map[string]string)
+
+		// 2) Broadcast a "clearResults" so the Lights page resets its UI
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		broadcast <- clearJSON
+
+		// 3) Now start the Platform Ready timer
 		startPlatformReadyTimer(meetState)
 
 	case "stopTimer":
 		stopPlatformReadyTimer(meetState)
+
 	case "resetTimer":
 		resetPlatformReadyTimer(meetState)
+		// clear judge decisions on reset if you want
+		meetState.JudgeDecisions = make(map[string]string)
+		// broadcast 'clearResults' to reset visuals
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		broadcast <- clearJSON
+
 	case "startNextAttemptTimer":
 		startNextAttemptTimer(meetState)
 	}
+
 	log.Printf("✅ Timer action processed: %s (meet: %s)", action, meetName)
 }
 
-// isAllRefsConnected checks if all 3 referees are connected
 func isAllRefsConnected(meetState *MeetState) bool {
 	if meetState.RefereeSessions["left"] == nil {
 		return false
@@ -247,7 +370,7 @@ func isAllRefsConnected(meetState *MeetState) bool {
 	return true
 }
 
-// startPlatformReadyTimer starts the 60-second timer for Platform Ready
+// startPlatformReadyTimer start/Stop/Reset the Platform Ready Timer
 func startPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -269,7 +392,7 @@ func startPlatformReadyTimer(meetState *MeetState) {
 				return
 			}
 			meetState.PlatformReadyTimeLeft--
-			broadcastTimeUpdate("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft)
+			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0)
 			if meetState.PlatformReadyTimeLeft <= 0 {
 				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
 				meetState.PlatformReadyActive = false
@@ -282,7 +405,7 @@ func startPlatformReadyTimer(meetState *MeetState) {
 	}()
 }
 
-// stopPlatformReadyTimer stops the Platform Ready timer
+// stopPlatformReadyTimer stops the Platform Ready Timer
 func stopPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -290,7 +413,7 @@ func stopPlatformReadyTimer(meetState *MeetState) {
 	meetState.PlatformReadyTimeLeft = 60
 }
 
-// resetPlatformReadyTimer resets the Platform Ready timer to 60 seconds
+// resetPlatformReadyTimer resets the Platform Ready Timer
 func resetPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
@@ -303,7 +426,9 @@ func resetPlatformReadyTimer(meetState *MeetState) {
 	meetState.PlatformReadyTimeLeft = 60
 }
 
-// startNextAttemptTimer starts a 60-second timer for the next attempt
+// NEXT ATTEMPT TIMER
+
+// NextAttemptTimer is a struct for tracking the next attempt timer
 func startNextAttemptTimer(meetState *MeetState) {
 	nextAttemptMutex.Lock()
 	defer nextAttemptMutex.Unlock()
@@ -325,7 +450,10 @@ func startNextAttemptTimer(meetState *MeetState) {
 				return
 			}
 			meetState.NextAttemptTimers[idx].TimeLeft--
-			broadcastTimeUpdate("updateNextAttemptTime", meetState.NextAttemptTimers[idx].TimeLeft)
+			broadcastTimeUpdateWithIndex("updateNextAttemptTime",
+				meetState.NextAttemptTimers[idx].TimeLeft,
+				idx,
+			)
 			if meetState.NextAttemptTimers[idx].TimeLeft <= 0 {
 				broadcast <- []byte(`{"action":"nextAttemptExpired"}`)
 				meetState.NextAttemptTimers[idx].Active = false
@@ -337,13 +465,32 @@ func startNextAttemptTimer(meetState *MeetState) {
 	}()
 }
 
-// UTIL
+// UTILITIES
 
-// broadcastTimeUpdate sends a time update to all clients
-func broadcastTimeUpdate(action string, timeLeft int) {
+// broadcastRefereeHealth sends a message to all clients with the current referee health
+func broadcastRefereeHealth(meetState *MeetState) {
+	var connectedIDs []string
+	for judgeID, c := range meetState.RefereeSessions {
+		if c != nil {
+			connectedIDs = append(connectedIDs, judgeID)
+		}
+	}
+	msg := map[string]interface{}{
+		"action":            "refereeHealth",
+		"connectedRefIDs":   connectedIDs,
+		"connectedReferees": len(connectedIDs),
+		"requiredReferees":  3, // or however many you expect
+	}
+	out, _ := json.Marshal(msg)
+	broadcast <- out
+}
+
+// broadcastTimeUpdate sends a message to all clients with a time update
+func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int) {
 	msg, _ := json.Marshal(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
+		"index":    index, // <--- so the client knows which timer
 	})
 	broadcast <- msg
 }

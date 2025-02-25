@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const timerDisplay = document.getElementById('timer');
-    const nextAttemptTimerContainer = document.getElementById('nextAttemptTimerContainer');
     const secondTimerDisplay = document.getElementById('secondTimer');
     const messageElement = document.getElementById('message');
     const connectionStatusElement = document.getElementById('connectionStatus');
@@ -61,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 handlePlatformReadyExpired();
                 break;
             case "updateNextAttemptTime":
-                updateNextAttemptTimerOnUI(data.timeLeft);
+                updateNextAttemptTimerOnUI(data.timeLeft, data.index);
                 break;
             case "nextAttemptExpired":
                 handleNextAttemptExpired();
@@ -80,9 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Health Check
             case "refereeHealth":
-                // The server sends {"action":"refereeHealth","connectedReferees":2,"requiredReferees":3} etc.
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
+
             case "healthError":
                 // If user tried to start timer but not all refs connected
                 displayMessage(data.message, "red");
@@ -105,15 +104,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handlePlatformReadyExpired() {
         if (timerDisplay) timerDisplay.innerText = '0s';
-        displayMessage('Time Up', 'yellow');
+        // displayMessage('Time Up', 'yellow');
     }
 
-    function updateNextAttemptTimerOnUI(timeLeft) {
-        if (nextAttemptTimerContainer) {
-            nextAttemptTimerContainer.classList.remove('hidden');
-        }
-        if (secondTimerDisplay) {
-            secondTimerDisplay.innerText = `${timeLeft}s`;
+    // We'll store a reference to our container for all next-attempt timers:
+    const multiTimerContainer = document.getElementById('multiNextAttemptTimers');
+
+// Keep track of DOM elements for each timer row in a dictionary:
+    const nextAttemptRows = {};
+
+// Called when we see "updateNextAttemptTime" from the server
+    function updateNextAttemptTimerOnUI(timeLeft, timerIndex) {
+        // Make sure we have a container for all timers
+        if (!multiTimerContainer) return;
+
+        // If we don't yet have a row for this index, create one
+        if (!nextAttemptRows[timerIndex]) {
+            // Create a new <div> for the row
+            const rowDiv = document.createElement('div');
+            rowDiv.classList.add('timer-container'); // same styling
+            rowDiv.style.marginBottom = '10px';
+
+            // Create a label
+            const label = document.createElement('div');
+            label.innerText = `Next Attempt #${timerIndex + 1}:`;
+            label.classList.add('timer');  // so it picks up big font if you like
+            rowDiv.appendChild(label);
+
+            // Create a time display
+            const timeSpan = document.createElement('div');
+            timeSpan.classList.add('second-timer');
+            timeSpan.innerText = `${timeLeft}s`;
+            rowDiv.appendChild(timeSpan);
+
+            multiTimerContainer.appendChild(rowDiv);
+            // Store references
+            nextAttemptRows[timerIndex] = { rowDiv, label, timeSpan };
+        } else {
+            // Update existing
+            nextAttemptRows[timerIndex].timeSpan.innerText = `${timeLeft}s`;
         }
     }
 
@@ -226,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If it's visible, we request to stop
                 socket.send(JSON.stringify({ action: "stopTimer" }));
             }
-            // Toggle local display
+            // toggle local display
             platformReadyTimerContainer.classList.toggle('hidden');
         });
     } else {
@@ -234,4 +263,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
-
