@@ -1,10 +1,6 @@
 // static/js/referee-common.js
 
 document.addEventListener('DOMContentLoaded', function() {
-    // We assume "judgeId" and "websocketUrl" were defined in a <script> block on each HTML page.
-    // For example
-    //   <script>var judgeId = "centre"; var websocketUrl = "...";</script>
-    //   <script src="/static/js/referee-common.js"></script>
 
     if (typeof websocketUrl === 'undefined') {
         console.error("websocketUrl is not defined");
@@ -25,8 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
-    const stopTimerButton  = document.getElementById('stopTimerButton');
-    const resetTimerButton = document.getElementById('resetTimerButton');
+    // const stopTimerButton  = document.getElementById('stopTimerButton');
+    // const resetTimerButton = document.getElementById('resetTimerButton');
 
     // WebSocket event: opened
     socket.onopen = function() {
@@ -106,17 +102,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
+            sendMessage({ action: "resetLights" });
+            sendMessage({ action: "resetTimer" });
             sendMessage({ action: "startTimer" });
         });
     }
-    if (stopTimerButton) {
-        stopTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "stopTimer" });
-        });
-    }
-    if (resetTimerButton) {
-        resetTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "resetTimer" });
-        });
-    }
+    // if (stopTimerButton) {
+    //     stopTimerButton.addEventListener('click', function() {
+    //         sendMessage({ action: "stopTimer" });
+    //     });
+    // }
+    // if (resetTimerButton) {
+    //     resetTimerButton.addEventListener('click', function() {
+    //         sendMessage({ action: "resetTimer" });
+    //     });
+    // }
 });

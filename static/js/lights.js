@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNextAttemptExpired() {
         if (secondTimerDisplay) secondTimerDisplay.innerText = '0s';
-        displayMessage('Next Attempt Time Up', 'yellow');
+        displayMessage('', 'yellow');
     }
 
     //  Decision Handling
