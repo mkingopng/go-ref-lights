@@ -41,16 +41,11 @@ var (
 	connectionMapping = make(map[*websocket.Conn]connectionInfo)
 
 	// manager channels
-	register   = make(chan registerMsg)
+	//register   = make(chan registerMsg)
 	unregister = make(chan *websocket.Conn)
-	broadcast  = make(chan []byte) // for raw message broadcasts
 )
 
 // registerMsg is used when a new connection arrives
-type registerMsg struct {
-	conn *websocket.Conn
-	info connectionInfo
-}
 
 // the WebSocket Upgrader
 var upgrader = websocket.Upgrader{
@@ -74,6 +69,7 @@ func safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error 
 }
 
 // ServeWs is our main WebSocket entry point
+// ServeWs is our main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -92,8 +88,16 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	log.Printf("📡 New WebSocket connection - Meet: %s, Judge: %s, Total Clients: %d",
 		meetName, judgeID, len(clients)+1)
 
+	// Register the new connection **without using HandleMessages**
+	clients[conn] = true
+	connectionMapping[conn] = connectionInfo{meetName: meetName, judgeID: judgeID}
+	log.Printf("✅ Registered new judge: %s in meet: %s", judgeID, meetName)
+
+	// Start heartbeat to keep connection alive
+	go startHeartbeat(conn)
+
 	// Start reading messages from this connection
-	go handleReads(conn, meetName)
+	go handleReads(conn, meetName, judgeID)
 }
 
 // GLOBAL BROADCAST LOOP
@@ -121,9 +125,6 @@ func HandleMessages() {
 			}
 		}
 	}
-
-	go startHeartbeat(conn)
-	go handleReads(conn, meetName, judgeID)
 }
 
 // handleReads processes messages from a given connection
