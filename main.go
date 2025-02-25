@@ -153,12 +153,8 @@ func main() {
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
-	// 4) Protected routes
-	protected := router.Group("/",
-		middleware.AuthRequired,
-		middleware.PositionRequired(),
-		ensureMeetSelected(),
-	)
+	// protected routes
+	protected := router.Group("/", middleware.AuthRequired, middleware.PositionRequired())
 	{
 		protected.GET("/positions", controllers.ShowPositionsPage)
 		protected.POST("/position/claim", controllers.ClaimPosition)
@@ -168,35 +164,15 @@ func main() {
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
 
-		// behind login & meet selection
-		protected.GET("/referee-updates", func(c *gin.Context) {
-			session := sessions.Default(c)
-			meetNameVal := session.Get("selectedMeet")
-			if meetNameVal == nil {
-				meetNameVal = "DEFAULT_MEET"
-			}
-			log.Printf("WebSocket connection request: meetName=%s", meetNameVal)
-			var judgeIdStr string
-			if refPosVal := session.Get("refPosition"); refPosVal != nil {
-				judgeIdStr = refPosVal.(string)
-			} else {
-				judgeIdStr = ""
-			}
-			log.Printf("WebSocket connection request: meetName=%s, judgeId=%s", meetNameVal, judgeIdStr)
-			q := c.Request.URL.Query()
-			q.Set("meetName", meetNameVal.(string))
-			q.Set("judgeId", judgeIdStr)
-			c.Request.URL.RawQuery = q.Encode()
-			websocket.ServeWs(c.Writer, c.Request)
-		})
-	}
+	// webSocket Route for Live Updates
+	router.GET("/referee-updates", func(c *gin.Context) {
+		websocket.ServeWs(c.Writer, c.Request)
+	})
 
-	// start Single-Goroutine WebSocket Manager
-	log.Println("Starting WebSocket manager goroutine.")
-	go websocket.StartWebSocketManager()
+	// start the WebSocket message handler in a separate goroutine
+	go websocket.HandleMessages()
 
-	// run
-	log.Println("Server starting on port 8080")
+	// start the server
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}

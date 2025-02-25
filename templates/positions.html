@@ -1,14 +1,20 @@
+<!--templates/positions.html-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <meta charset="UTF-8">
     <title>Select Position</title>
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/static/css/styles.css" rel="stylesheet">
 </head>
+
 <body>
 
 <h1>Select Your Referee Position</h1>
 
+<!--select referee position container-->
 <div class="button-container">
     <form action="/position/claim" method="POST">
         <label for="positionSelect" style="margin-right:10px;">Choose Position:</label>
@@ -35,8 +41,14 @@
     </form>
 </div>
 
+<!--logout button container-->
 <div class="button-container">
     <a href="/logout" class="button-link">Logout</a>
+</div>
+
+<!--APL logo container-->
+<div class="logo-container">
+    <img src="/static/images/apl_logo.png" alt="apl logo">
 </div>
 
 </body>

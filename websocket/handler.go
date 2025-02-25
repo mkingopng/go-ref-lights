@@ -23,7 +23,11 @@ var (
 	nextAttemptMutex   = &sync.Mutex{}
 )
 
-// SINGLE-GOROUTINE MANAGER
+// Global mutex to synchronize writes
+var writeMutex sync.Mutex
+
+// broadcast is a channel for sending messages to all clients
+var broadcast = make(chan []byte)
 
 // connectionInfo tracks which meet & judge belongs to each connection.
 type connectionInfo struct {
@@ -61,62 +65,15 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// StartWebSocketManager runs in its own goroutine.
-// handles registration, unregistration, and broadcast events.
-func StartWebSocketManager() {
-	log.Println("🟢 WebSocket Manager started. Listening for connections and messages.")
-	for {
-		select {
-		case reg := <-register:
-			kickOutIfNeeded(reg.info)
-			clients[reg.conn] = true
-			connectionMapping[reg.conn] = reg.info
-			log.Printf("✅ Referee %s registered (meet: %s). Total connections: %d",
-				reg.info.judgeID, reg.info.meetName, len(clients))
-			meetState := getMeetState(reg.info.meetName)
-			broadcastRefereeHealth(meetState)
+// Function that writes messages to WebSocket
+func safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error {
+	writeMutex.Lock()         // Acquire lock
+	defer writeMutex.Unlock() // Release lock after writing
 
-		case conn := <-unregister:
-			if _, ok := clients[conn]; ok {
-				delete(clients, conn)
-			}
-			if info, ok := connectionMapping[conn]; ok {
-				meetState := getMeetState(info.meetName)
-				if meetState.RefereeSessions[info.judgeID] == conn {
-					meetState.RefereeSessions[info.judgeID] = nil
-					log.Printf("🚪 Removing %s from meet %s (disconnect). Active referees: %d",
-						info.judgeID, info.meetName, len(meetState.RefereeSessions))
-					broadcastRefereeHealth(meetState)
-				}
-				delete(connectionMapping, conn)
-			}
-			log.Printf("🔴 Connection closed. Remaining active connections: %d", len(clients))
-		case msg := <-broadcast:
-			log.Printf("📢 Broadcasting message to %d clients", len(clients))
-			for conn := range clients {
-				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
-					log.Printf("⚠️ WriteMessage error: %v", err)
-					_ = conn.Close()
-					unregister <- conn
-				}
-			}
-		}
-	}
+	return conn.WriteMessage(messageType, data)
 }
 
-// Kick out older connection if the same meet/judge is already connected
-func kickOutIfNeeded(newInfo connectionInfo) {
-	for conn, info := range connectionMapping {
-		if info.meetName == newInfo.meetName && info.judgeID == newInfo.judgeID {
-			log.Printf("🔴 Kicking out old session for ref: %s in meet: %s", info.judgeID, info.meetName)
-			_ = conn.Close()
-			unregister <- conn
-			log.Printf("🔄 Active connections after removal: %d", len(clients)-1)
-		}
-	}
-}
-
-// ServeWs is our main entry point for new WebSocket connections
+// ServeWs is our main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -135,12 +92,34 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	log.Printf("📡 New WebSocket connection - Meet: %s, Judge: %s, Total Clients: %d",
 		meetName, judgeID, len(clients)+1)
 
-	register <- registerMsg{
-		conn: conn,
-		info: connectionInfo{
-			meetName: meetName,
-			judgeID:  judgeID,
-		},
+	// Start reading messages from this connection
+	go handleReads(conn, meetName)
+}
+
+// GLOBAL BROADCAST LOOP
+
+// HandleMessages listens for messages on the broadcast channel and sends them to all clients
+func HandleMessages() {
+	for {
+		msg := <-broadcast
+		for conn := range clients {
+			// Use the thread-safe write function
+			if err := safeWriteMessage(conn, websocket.TextMessage, msg); err != nil {
+				log.Printf("⚠️ WriteMessage error: %v", err)
+				_ = conn.Close()
+				delete(clients, conn)
+				// Also remove from connectionMapping if needed
+				if info, ok := connectionMapping[conn]; ok {
+					meetState := getMeetState(info.meetName)
+					if meetState.RefereeSessions[info.judgeID] == conn {
+						meetState.RefereeSessions[info.judgeID] = nil
+					}
+					delete(connectionMapping, conn)
+					// Optionally broadcast updated health for that meet
+					broadcastRefereeHealth(meetState)
+				}
+			}
+		}
 	}
 
 	go startHeartbeat(conn)

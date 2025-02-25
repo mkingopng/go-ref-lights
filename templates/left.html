@@ -1,17 +1,25 @@
 <!-- templates/left.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <title>Left Referee</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
+
 <body>
+
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Left Referee</h1>
 
-<div id="healthStatus" style="margin-top:10px; font-size:16px;">Disconnected</div>
+<!--referee position health status-->
+<div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
+<!--referee decision button container-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
@@ -23,7 +31,7 @@
   var judgeId = "left";
 </script>
 
-<!-- 2) Now load referee-common.js, which uses judgeId -->
 <script src="/static/js/referee-common.js"></script>
+
 </body>
 </html>

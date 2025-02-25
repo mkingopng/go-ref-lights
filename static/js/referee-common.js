@@ -1,10 +1,5 @@
 // static/js/referee-common.js
-
 document.addEventListener('DOMContentLoaded', function() {
-    // We assume "judgeId" and "websocketUrl" were defined in a <script> block on each HTML page.
-    // For example
-    //   <script>var judgeId = "centre"; var websocketUrl = "...";</script>
-    //   <script src="/static/js/referee-common.js"></script>
 
     console.log("🏁 Referee script initializing...");
     console.log(`🔍 Checking required variables: websocketUrl=${typeof websocketUrl}, judgeId=${typeof judgeId}`);
@@ -18,29 +13,26 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    console.log(`✅ Detected judgeId: ${judgeId}`);
-    console.log(`✅ Detected websocketUrl: ${websocketUrl}`);
-
-    // Initialize WebSocket
+    // initialize WebSocket
     const socket = new WebSocket(websocketUrl);
 
-    // Grab common DOM elements
+    // grab common DOM elements
     const healthEl = document.getElementById("healthStatus");
 
-    // For "Centre" we might also have extra timer buttons, so let's find them safely
+    // "Centre" has extra timer buttons
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
-    const stopTimerButton  = document.getElementById('stopTimerButton');
-    const resetTimerButton = document.getElementById('resetTimerButton');
 
     // WebSocket event: opened
     socket.onopen = function() {
         console.log(`🟢 WebSocket connected for judgeId: ${judgeId}`);
 
+        // immediately register as connected
         const registerMsg = {
             action: "registerRef",
             judgeId: judgeId
+            // When i have multi-meet, I might also add "meetName":"STATE_CHAMPS" or something
         };
 
         try {
@@ -65,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (data.action) {
             case "refereeHealth":
-                console.log("🔍 Referee health update received:", data);
+                // the server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -74,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
 
             case "healthError":
-                console.warn("⚠️ Health error received:", data.message);
+                // example: "Cannot start timer: Not all referees are connected!"
                 alert(data.message);
                 break;
 
@@ -83,12 +75,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // WebSocket event: error
+    // webSocket event: error
     socket.onerror = function(error) {
         console.error(`❌ WebSocket error for judgeId: ${judgeId}`, "Error:", error);
     };
 
-    // WebSocket event: close
+    // webSocket event: close
     socket.onclose = function(event) {
         console.warn(`🔴 WebSocket closed for judgeId: ${judgeId}`, "Code:", event.code, "Reason:", event.reason);
         if (healthEl) {
@@ -97,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Utility to send JSON
+    // utility to send JSON
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
             try {
@@ -111,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // If these buttons exist, wire them up
+    // if these buttons exist, wire them up
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
             console.log(`⚪ White button clicked by judgeId: ${judgeId}`);
@@ -127,17 +119,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "startTimer" });
-        });
-    }
-    if (stopTimerButton) {
-        stopTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "stopTimer" });
-        });
-    }
-    if (resetTimerButton) {
-        resetTimerButton.addEventListener('click', function() {
+            sendMessage({ action: "resetLights" });
             sendMessage({ action: "resetTimer" });
+            sendMessage({ action: "startTimer" });
         });
     }
 });
