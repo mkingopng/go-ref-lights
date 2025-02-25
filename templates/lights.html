@@ -3,10 +3,13 @@
 <html lang="en">
 <head>
   <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
   <title>Referee Lights</title>
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/styles.css" rel="stylesheet">
 </head>
+
 <body>
 
 <!-- Platform Ready Timer -->
@@ -38,13 +41,13 @@
 </div>
 
 <div class="logo-container">
-  <img src="/static/images/zerow_white.png" alt="zerow logo">
+  <img src="/static/images/apl_logo.png" alt="apl logo">
 </div>
 
+<!-- Connection Status -->
 <div id="connectionStatus" class="connection-status"></div>
 
 <script>
-  // The backend inserts this WebSocket URL.
   const websocketUrl = "{{ .WebsocketURL }}";
 </script>
 

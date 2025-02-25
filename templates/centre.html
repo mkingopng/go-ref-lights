@@ -2,15 +2,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- ... -->
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <title>Center Referee</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
+
 <body>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Center Referee</h1>
 
-<div id="healthStatus" style="margin-top:10px; font-size:16px;">Disconnected</div>
+<div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
@@ -21,11 +24,10 @@
 </div>
 
 <script>
-  // The server sets this variable.
-  // Or if you have a dynamic .WebsocketURL in Go code, keep it the same:
   var websocketUrl = "{{ .WebsocketURL }}";
   var judgeId = "centre";
 </script>
 <script src="/static/js/referee-common.js"></script>
+
 </body>
 </html>
