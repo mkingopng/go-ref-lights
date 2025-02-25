@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateNextAttemptTimerOnUI(data.timeLeft, data.index);
                 break;
             case "nextAttemptExpired":
-                handleNextAttemptExpired();
+                console.log(`Received nextAttemptExpired event for index: ${data.index}`);
+                handleNextAttemptExpired(data.index);
                 break;
 
             // Judge/Decision Handling
@@ -146,10 +147,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleNextAttemptExpired() {
-        if (secondTimerDisplay) secondTimerDisplay.innerText = '0s';
-        displayMessage('', 'yellow');
+    function handleNextAttemptExpired(timerIndex) {
+        console.log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
+        if (nextAttemptRows[timerIndex]) {
+            console.log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
+            nextAttemptRows[timerIndex].rowDiv.remove();  // Remove from DOM
+            delete nextAttemptRows[timerIndex];           // Remove from memory
+        } else {
+            console.warn(`Timer #${timerIndex + 1} not found in nextAttemptRows!`);
+        }
     }
+
 
     //  Decision Handling
     function showJudgeSubmissionIndicator(judgeId) {

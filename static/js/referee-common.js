@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
-    // const stopTimerButton  = document.getElementById('stopTimerButton');
-    // const resetTimerButton = document.getElementById('resetTimerButton');
 
     // WebSocket event: opened
     socket.onopen = function() {
