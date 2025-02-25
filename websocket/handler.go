@@ -1,4 +1,5 @@
-// Package websocket websocket/handler.go
+// Package websocket: contains the WebSocket handler and related functions
+// file: websocket/handler.go
 package websocket
 
 import (
@@ -11,56 +12,112 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Global Variables
-// Tracks all connected clients (conn -> true/false)
-var clients = make(map[*websocket.Conn]bool)
+// GLOBALS
 
-// Broadcast channel for sending messages to all clients
-var broadcast = make(chan []byte)
+// resultsDisplayDuration controls how long final decisions remain displayed
+var resultsDisplayDuration = 15
 
-// Tracks each judge's last decision
-var judgeDecisions = make(map[string]string)
-var judgeMutex = &sync.Mutex{}
+// platformReadyMutex, nextAttemptMutex for your timer logic
+var (
+	platformReadyMutex = &sync.Mutex{}
+	nextAttemptMutex   = &sync.Mutex{}
+)
 
-// Timers for "platform ready"
-var platformReadyTimerActive bool
-var platformReadyTimeLeft int
-var platformReadyMutex = &sync.Mutex{}
+// SINGLE-GOROUTINE MANAGER
 
-// Timers for "next attempt"
-var nextAttemptMutex = &sync.Mutex{}
-var nextAttemptTimerActive bool
-var nextAttemptTimeLeft int
-
-// Results display for 30 seconds, then cleared
-var resultsDisplayDuration = 30
-
-// Tracks current WebSocket connections for each referee (left, centre, right)
-var refereeSessions = make(map[string]*websocket.Conn)
-
-// DecisionMessage is the JSON payload for decisions or actions
-type DecisionMessage struct {
-	JudgeID  string `json:"judgeId,omitempty"`
-	Decision string `json:"decision,omitempty"`
-	Action   string `json:"action,omitempty"`
+// connectionInfo tracks which meet & judge belongs to each connection.
+type connectionInfo struct {
+	meetName string
+	judgeID  string
 }
 
-// Upgrader config — only allow certain origins
+// store all connected clients, plus a channel for broadcasting
+var (
+	clients           = make(map[*websocket.Conn]bool)
+	connectionMapping = make(map[*websocket.Conn]connectionInfo)
+
+	// manager channels
+	register   = make(chan registerMsg)
+	unregister = make(chan *websocket.Conn)
+	broadcast  = make(chan []byte) // for raw message broadcasts
+)
+
+// registerMsg is used when a new connection arrives
+type registerMsg struct {
+	conn *websocket.Conn
+	info connectionInfo
+}
+
+// the WebSocket Upgrader
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins in test mode
+		// If "Test-Mode", skip
 		if r.Header.Get("Test-Mode") == "true" {
 			return true
 		}
-		// Production restriction
 		origin := r.Header.Get("Origin")
-		return origin == "http://localhost:8080" || origin == "https://referee-lights.michaelkingston.com.au"
+		return origin == "http://localhost:8080" ||
+			origin == "https://referee-lights.michaelkingston.com.au"
 	},
 }
 
-// ServeWs - Upgrades HTTP to WebSocket
+// StartWebSocketManager runs in its own goroutine.
+// handles registration, unregistration, and broadcast events.
+func StartWebSocketManager() {
+	log.Println("🟢 WebSocket Manager started. Listening for connections and messages.")
+	for {
+		select {
+		case reg := <-register:
+			kickOutIfNeeded(reg.info)
+			clients[reg.conn] = true
+			connectionMapping[reg.conn] = reg.info
+			log.Printf("✅ Referee %s registered (meet: %s). Total connections: %d",
+				reg.info.judgeID, reg.info.meetName, len(clients))
+			meetState := getMeetState(reg.info.meetName)
+			broadcastRefereeHealth(meetState)
+
+		case conn := <-unregister:
+			if _, ok := clients[conn]; ok {
+				delete(clients, conn)
+			}
+			if info, ok := connectionMapping[conn]; ok {
+				meetState := getMeetState(info.meetName)
+				if meetState.RefereeSessions[info.judgeID] == conn {
+					meetState.RefereeSessions[info.judgeID] = nil
+					log.Printf("🚪 Removing %s from meet %s (disconnect). Active referees: %d",
+						info.judgeID, info.meetName, len(meetState.RefereeSessions))
+					broadcastRefereeHealth(meetState)
+				}
+				delete(connectionMapping, conn)
+			}
+			log.Printf("🔴 Connection closed. Remaining active connections: %d", len(clients))
+		case msg := <-broadcast:
+			log.Printf("📢 Broadcasting message to %d clients", len(clients))
+			for conn := range clients {
+				if err := conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+					log.Printf("⚠️ WriteMessage error: %v", err)
+					_ = conn.Close()
+					unregister <- conn
+				}
+			}
+		}
+	}
+}
+
+// Kick out older connection if the same meet/judge is already connected
+func kickOutIfNeeded(newInfo connectionInfo) {
+	for conn, info := range connectionMapping {
+		if info.meetName == newInfo.meetName && info.judgeID == newInfo.judgeID {
+			log.Printf("🔴 Kicking out old session for ref: %s in meet: %s", info.judgeID, info.meetName)
+			_ = conn.Close()
+			unregister <- conn
+			log.Printf("🔄 Active connections after removal: %d", len(clients)-1)
+		}
+	}
+}
+
+// ServeWs is our main entry point for new WebSocket connections
 func ServeWs(w http.ResponseWriter, r *http.Request) {
-	// Upgrade to WebSocket
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("❌ WebSocket upgrade error: %v", err)
@@ -69,64 +126,82 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("✅ WebSocket connected: %v", conn.RemoteAddr())
 
-	// Track this client
-	clients[conn] = true
+	meetName := r.URL.Query().Get("meetName")
+	if meetName == "" {
+		meetName = "DEFAULT_MEET"
+	}
+	judgeID := r.URL.Query().Get("judgeId")
 
-	// Start a heartbeat (ping) goroutine
+	log.Printf("📡 New WebSocket connection - Meet: %s, Judge: %s, Total Clients: %d",
+		meetName, judgeID, len(clients)+1)
+
+	register <- registerMsg{
+		conn: conn,
+		info: connectionInfo{
+			meetName: meetName,
+			judgeID:  judgeID,
+		},
+	}
+
 	go startHeartbeat(conn)
-
-	// Start a goroutine to read incoming messages
-	go handleReads(conn)
+	go handleReads(conn, meetName, judgeID)
 }
 
-// handleReads - Reads messages from the client until error/close
-func handleReads(conn *websocket.Conn) {
+// handleReads processes messages from a given connection
+func handleReads(conn *websocket.Conn, defaultMeetName, defaultJudgeID string) {
 	defer func() {
-		// clean-up on disconnect
-		log.Printf("⚠️ WebSocket disconnected: %v", conn.RemoteAddr())
+		log.Printf("⚠️ WebSocket disconnected: %v. Active connections: %d", conn.RemoteAddr(), len(clients)-1)
 		_ = conn.Close()
-		delete(clients, conn)
+		unregister <- conn
 	}()
 
 	for {
-		// Read the next message
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("⚠️ WebSocket read error: %v", err)
-			return // exit the loop, triggers the deferring
+			log.Printf("⚠️ WebSocket read error from %v: %v", conn.RemoteAddr(), err)
+			return
 		}
 
-		// Unmarshal JSON
-		var decisionMsg DecisionMessage
-		if err := json.Unmarshal(msg, &decisionMsg); err != nil {
-			log.Printf("⚠️ Invalid JSON: %v", err)
+		var dMsg DecisionMessage
+		if err := json.Unmarshal(msg, &dMsg); err != nil {
+			log.Printf("⚠️ Invalid JSON received from %v: %v", conn.RemoteAddr(), err)
 			continue
 		}
 
-		// Process either a decision or an action
-		if decisionMsg.Action != "" {
-			handleTimerAction(decisionMsg.Action)
-		} else {
-			processDecision(decisionMsg, conn)
+		if dMsg.MeetName == "" {
+			dMsg.MeetName = defaultMeetName
+		}
+		if dMsg.JudgeID == "" && defaultJudgeID != "" {
+			dMsg.JudgeID = defaultJudgeID
+		}
+
+		log.Printf("📩 Received action: %s (Judge: %s, Meet: %s)", dMsg.Action, dMsg.JudgeID, dMsg.MeetName)
+
+		switch dMsg.Action {
+		case "registerRef":
+			registerRef(dMsg, conn)
+		case "startTimer", "stopTimer", "resetTimer", "startNextAttemptTimer":
+			handleTimerAction(dMsg.Action, dMsg.MeetName)
+		default:
+			processDecision(dMsg, conn)
 		}
 	}
 }
 
-// startHeartbeat - Periodically sends ping frames
+// startHeartbeat sends ping every 10s to keep connection alive
 func startHeartbeat(conn *websocket.Conn) {
+	log.Printf("🔄 Starting heartbeat for: %v", conn.RemoteAddr())
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-
 	failedPings := 0
-
 	for range ticker.C {
 		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 			failedPings++
-			log.Printf("⚠️ WebSocket ping failed (%d/3): %v", failedPings, err)
+			log.Printf("⚠️ WebSocket ping failed (%d/3) for %v: %v", failedPings, conn.RemoteAddr(), err)
 			if failedPings >= 3 {
-				log.Println("❌ WebSocket connection lost due to repeated ping failures.")
+				log.Printf("❌ Closing connection due to repeated ping failures: %v", conn.RemoteAddr())
 				_ = conn.Close()
-				delete(clients, conn)
+				unregister <- conn
 				return
 			}
 		} else {
@@ -135,211 +210,257 @@ func startHeartbeat(conn *websocket.Conn) {
 	}
 }
 
-// processDecision - Store and broadcast judge decisions
-func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
-	judgeMutex.Lock()
-	defer judgeMutex.Unlock()
+// registerRef is existing logic for referee registration
+func registerRef(msg DecisionMessage, conn *websocket.Conn) {
+	if msg.JudgeID == "" {
+		log.Println("registerRef received with empty judgeID; ignoring registration.")
+		return
+	}
+	meetState := getMeetState(msg.MeetName)
 
+	// single-session enforcement
+	existingConn, exists := meetState.RefereeSessions[msg.JudgeID]
+	if exists && existingConn != nil && existingConn != conn {
+		log.Printf("🔴 Kicking out old session for ref: %s in meet: %s", msg.JudgeID, msg.MeetName)
+		_ = existingConn.Close()
+		unregister <- existingConn // tell manager to remove it
+	}
+	meetState.RefereeSessions[msg.JudgeID] = conn
+	log.Printf("✅ Referee %s registered via registerRef (meet: %s)", msg.JudgeID, msg.MeetName)
+	broadcastRefereeHealth(meetState)
+}
+
+// processDecision is your existing logic for judge decisions
+func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
+	meetState := getMeetState(decisionMsg.MeetName)
+
+	// basic validation
 	if decisionMsg.JudgeID == "" || decisionMsg.Decision == "" {
-		// If there's no judge or decision, ignore
 		return
 	}
 
-	// Kick out any old session for that judge
-	if existingConn, exists := refereeSessions[decisionMsg.JudgeID]; exists {
-		log.Printf("🔴 Kicking out old session for referee: %s", decisionMsg.JudgeID)
-		_ = existingConn.Close() // ignore errors
-		delete(refereeSessions, decisionMsg.JudgeID)
-		delete(clients, existingConn)
+	// single-session enforcement
+	existingConn, exists := meetState.RefereeSessions[decisionMsg.JudgeID]
+	if exists && existingConn != nil && existingConn != conn {
+		log.Printf("🔴 Kicking out old session for referee: %s in meet: %s",
+			decisionMsg.JudgeID, decisionMsg.MeetName)
+		_ = existingConn.Close()
+		unregister <- existingConn
+		meetState.RefereeSessions[decisionMsg.JudgeID] = nil
 	}
 
-	// Assign the new session
-	refereeSessions[decisionMsg.JudgeID] = conn
+	// store new decision
+	meetState.RefereeSessions[decisionMsg.JudgeID] = conn
+	meetState.JudgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
 
-	// Record decision
-	judgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
-	log.Printf("✅ Received decision from %s: %s", decisionMsg.JudgeID, decisionMsg.Decision)
+	log.Printf("✅ Decision from %s: %s (meet: %s)",
+		decisionMsg.JudgeID, decisionMsg.Decision, decisionMsg.MeetName)
 
-	// Let others know a judge has submitted
-	submissionUpdate := map[string]string{
+	// let everyone know a judge submitted
+	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": decisionMsg.JudgeID,
 	}
-	submissionMsg, _ := json.Marshal(submissionUpdate)
-	broadcast <- submissionMsg
+	subMsg, _ := json.Marshal(submission)
+	broadcast <- subMsg
 
-	// If we have decisions from all three judges, broadcast
-	if len(judgeDecisions) == 3 {
-		broadcastFinalResults()
+	// also broadcast updated health
+	broadcastRefereeHealth(meetState)
+
+	// if all 3 have responded:
+	if len(meetState.JudgeDecisions) == 3 {
+		broadcastFinalResults(decisionMsg.MeetName)
 	}
 }
 
-// broadcastFinalResults - Send final 3-judge result
-func broadcastFinalResults() {
-	whiteCount, redCount := 0, 0
-	for _, d := range judgeDecisions {
-		if d == "white" {
-			whiteCount++
-		} else if d == "red" {
-			redCount++
-		}
-	}
+// broadcastFinalResults remains the same
+func broadcastFinalResults(meetName string) {
+	meetState := getMeetState(meetName)
 
-	// Send final decisions
+	// 1) broadcast final decisions
 	result := map[string]string{
 		"action":         "displayResults",
-		"leftDecision":   judgeDecisions["left"],
-		"centreDecision": judgeDecisions["centre"],
-		"rightDecision":  judgeDecisions["right"],
+		"leftDecision":   meetState.JudgeDecisions["left"],
+		"centreDecision": meetState.JudgeDecisions["centre"],
+		"rightDecision":  meetState.JudgeDecisions["right"],
 	}
 	resultMsg, _ := json.Marshal(result)
 	broadcast <- resultMsg
 
-	// Clear results after 30 seconds
+	// 2) start next-lifter timer
+	startNextAttemptTimer(meetState)
+
+	// 3) clear results after set duration
 	go func() {
 		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
-		clearMsgJSON, _ := json.Marshal(clearMsg)
-		broadcast <- clearMsgJSON
+		clearJSON, _ := json.Marshal(clearMsg)
+		broadcast <- clearJSON
 	}()
 
-	// Reset judge decisions
-	judgeDecisions = make(map[string]string)
+	// 4) reset for next lift
+	meetState.JudgeDecisions = make(map[string]string)
 }
 
-// handleTimerAction - Called when user sends "action"
-func handleTimerAction(action string) {
+// timer logic (Platform Ready, Next Attempt, etc.)
+
+// handleTimerAction processes timer-related actions
+func handleTimerAction(action, meetName string) {
+	meetState := getMeetState(meetName)
 	switch action {
 	case "startTimer":
-		startPlatformReadyTimer()
-	case "stopTimer":
-		stopPlatformReadyTimer()
-	case "resetTimer":
-		resetPlatformReadyTimer()
-	case "startNextAttemptTimer":
-		startNextAttemptTimer()
-	}
-	log.Printf("✅ Timer action processed: %s", action)
-}
-
-// Timer Functions for Next Attempt
-func startNextAttemptTimer() {
-	nextAttemptMutex.Lock()
-	defer nextAttemptMutex.Unlock()
-
-	// Stop any old timer before starting a new one
-	if nextAttemptTimerActive {
-		log.Println("⚠️ Stopping previous next attempt timer before starting a new one")
-		nextAttemptTimerActive = false
-	}
-
-	nextAttemptTimerActive = true
-	nextAttemptTimeLeft = 60
-
-	go func() {
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-
-		for range ticker.C {
-			nextAttemptMutex.Lock()
-			if !nextAttemptTimerActive {
-				nextAttemptMutex.Unlock()
-				return
+		if !isAllRefsConnected(meetState) {
+			errMsg := map[string]string{
+				"action":  "healthError",
+				"message": "Cannot start timer: Not all referees are connected!",
 			}
-
-			nextAttemptTimeLeft--
-			if nextAttemptTimeLeft <= 0 {
-				broadcast <- []byte(`{"action":"nextAttemptExpired"}`)
-				nextAttemptTimerActive = false
-				nextAttemptMutex.Unlock()
-				return
-			}
-
-			// Broadcast time update
-			updateMsg, _ := json.Marshal(map[string]interface{}{
-				"action":   "updateNextAttemptTime",
-				"timeLeft": nextAttemptTimeLeft,
-			})
-			broadcast <- updateMsg
-
-			nextAttemptMutex.Unlock()
+			msg, _ := json.Marshal(errMsg)
+			broadcast <- msg
+			log.Println("❌ Timer not started: All referees not connected.")
+			return
 		}
-	}()
+		// clear old decisions
+		meetState.JudgeDecisions = make(map[string]string)
+		// force lights to clear
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		broadcast <- clearJSON
+		startPlatformReadyTimer(meetState)
+
+	case "stopTimer":
+		stopPlatformReadyTimer(meetState)
+
+	case "resetTimer":
+		resetPlatformReadyTimer(meetState)
+		meetState.JudgeDecisions = make(map[string]string)
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		broadcast <- clearJSON
+
+	case "startNextAttemptTimer":
+		startNextAttemptTimer(meetState)
+	}
+	log.Printf("✅ Timer action processed: %s (meet: %s)", action, meetName)
 }
 
-// Timer Functions for Platform Ready
-func startPlatformReadyTimer() {
+func isAllRefsConnected(meetState *MeetState) bool {
+	return meetState.RefereeSessions["left"] != nil &&
+		meetState.RefereeSessions["centre"] != nil &&
+		meetState.RefereeSessions["right"] != nil
+}
+
+// platformReady, next attempt logic remains
+func startPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
-
-	if platformReadyTimerActive {
-		log.Println("⚠️ Platform Ready Timer already running. Ignoring duplicate start.")
+	if meetState.PlatformReadyActive {
+		log.Println("⚠️ Platform Ready Timer already running.")
 		return
 	}
-
-	platformReadyTimerActive = true
-	platformReadyTimeLeft = 60
-
+	meetState.PlatformReadyActive = true
+	meetState.PlatformReadyTimeLeft = 60
+	ticker := time.NewTicker(time.Second)
 	go func() {
-		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-
 		for range ticker.C {
 			platformReadyMutex.Lock()
-			if !platformReadyTimerActive {
+			if !meetState.PlatformReadyActive {
 				platformReadyMutex.Unlock()
 				return
 			}
-
-			platformReadyTimeLeft--
-			if platformReadyTimeLeft <= 0 {
+			meetState.PlatformReadyTimeLeft--
+			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0)
+			if meetState.PlatformReadyTimeLeft <= 0 {
 				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
-				platformReadyTimerActive = false
+				meetState.PlatformReadyActive = false
+				meetState.PlatformReadyTimeLeft = 60
 				platformReadyMutex.Unlock()
 				return
 			}
-
-			// Broadcast time update
-			updateMsg, _ := json.Marshal(map[string]interface{}{
-				"action":   "updatePlatformReadyTime",
-				"timeLeft": platformReadyTimeLeft,
-			})
-			broadcast <- updateMsg
-
 			platformReadyMutex.Unlock()
 		}
 	}()
 }
 
-func stopPlatformReadyTimer() {
+func stopPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
-	platformReadyTimerActive = false
+	meetState.PlatformReadyActive = false
+	meetState.PlatformReadyTimeLeft = 60
 }
 
-func resetPlatformReadyTimer() {
+func resetPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
 
-	if !platformReadyTimerActive {
-		log.Println("⚠️ No active timer to reset")
+	if !meetState.PlatformReadyActive {
+		log.Println("⚠️ No active timer to reset.")
 		return
 	}
-	platformReadyTimerActive = false
-	platformReadyTimeLeft = 60
+	meetState.PlatformReadyActive = false
+	meetState.PlatformReadyTimeLeft = 60
 }
 
-// HandleMessages - The broadcast loop
-func HandleMessages() {
-	for {
-		msg := <-broadcast
-		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, msg)
-			if err != nil {
-				log.Printf("⚠️ WebSocket write error: %v", err)
-				_ = client.Close()
-				delete(clients, client)
+// next attempts
+func startNextAttemptTimer(meetState *MeetState) {
+	nextAttemptMutex.Lock()
+	defer nextAttemptMutex.Unlock()
+
+	newTimer := NextAttemptTimer{
+		TimeLeft: 60,
+		Active:   true,
+	}
+	meetState.NextAttemptTimers = append(meetState.NextAttemptTimers, newTimer)
+	idx := len(meetState.NextAttemptTimers) - 1
+
+	ticker := time.NewTicker(time.Second)
+	go func() {
+		defer ticker.Stop()
+		for range ticker.C {
+			nextAttemptMutex.Lock()
+			if !meetState.NextAttemptTimers[idx].Active {
+				nextAttemptMutex.Unlock()
+				return
 			}
+			meetState.NextAttemptTimers[idx].TimeLeft--
+			broadcastTimeUpdateWithIndex("updateNextAttemptTime",
+				meetState.NextAttemptTimers[idx].TimeLeft,
+				idx,
+			)
+			if meetState.NextAttemptTimers[idx].TimeLeft <= 0 {
+				broadcast <- []byte(`{"action":"nextAttemptExpired"}`)
+				meetState.NextAttemptTimers[idx].Active = false
+				nextAttemptMutex.Unlock()
+				return
+			}
+			nextAttemptMutex.Unlock()
+		}
+	}()
+}
+
+// broadcastRefereeHealth, broadcastTimeUpdateWithIndex remain the same
+func broadcastRefereeHealth(meetState *MeetState) {
+	var connectedIDs []string
+	for judgeID, c := range meetState.RefereeSessions {
+		if c != nil {
+			connectedIDs = append(connectedIDs, judgeID)
 		}
 	}
+	msg := map[string]interface{}{
+		"action":            "refereeHealth",
+		"connectedRefIDs":   connectedIDs,
+		"connectedReferees": len(connectedIDs),
+		"requiredReferees":  3,
+	}
+	out, _ := json.Marshal(msg)
+	broadcast <- out
+}
+
+func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int) {
+	msg, _ := json.Marshal(map[string]interface{}{
+		"action":   action,
+		"timeLeft": timeLeft,
+		"index":    index,
+	})
+	broadcast <- msg
 }

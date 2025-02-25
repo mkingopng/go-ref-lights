@@ -2,10 +2,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <meta charset="UTF-8">
   <title>Referee Lights</title>
-  <link rel="stylesheet" href="/static/css/styles.css"> <!-- Corrected Path -->
+  <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
 
@@ -30,6 +30,8 @@
 <div id="message" class="message"></div>
 
 <!-- Next Attempt Timer -->
+<div id="multiNextAttemptTimers" style="margin-top: 20px;"></div>
+
 <div id="nextAttemptTimerContainer" class="timer-container hidden">
   <div class="timer" id="title-2">Submit next attempt:</div>
   <div id="secondTimer" class="second-timer">60s</div>
@@ -42,7 +44,9 @@
 <div id="connectionStatus" class="connection-status"></div>
 
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
+  // The backend inserts this WebSocket URL.
+  const websocketUrl = "{{ .WebsocketURL }}";
+  // var judgeId = "lights";
 </script>
 
 <script src="/static/js/lights.js"></script>

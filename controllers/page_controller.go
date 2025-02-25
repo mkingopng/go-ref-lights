@@ -22,11 +22,20 @@ func ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
 
+	// Make sure user is logged in
 	if user == nil {
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
+	// Make sure a meet is chosen
+	meetName := session.Get("selectedMeet")
+	if meetName == nil {
+		c.Redirect(http.StatusFound, "/select-meet")
+		return
+	}
+
+	// Retrieve occupancy and render positions
 	svc := services.OccupancyService{}
 	occ := svc.GetOccupancy()
 	data := gin.H{
@@ -40,6 +49,8 @@ func ShowPositionsPage(c *gin.Context) {
 			"RightOccupied":  occ.RightUser != "",
 			"RightUser":      occ.RightUser,
 		},
+		// Optionally display which meet is selected in the UI
+		"SelectedMeet": meetName,
 	}
 
 	c.HTML(http.StatusOK, "positions.html", data)
@@ -161,6 +172,13 @@ func GetQRCode(c *gin.Context) {
 
 // RefereeUpdates handles WebSocket connections
 func RefereeUpdates(c *gin.Context) {
+	session := sessions.Default(c)
+	meetNameVal := session.Get("selectedMeet")
+	if meetNameVal == nil {
+		meetNameVal = "DEFAULT_MEET"
+	}
+	// Append ?meetName=whatever
+	c.Request.URL.RawQuery = "meetName=" + meetNameVal.(string)
 	websocket.ServeWs(c.Writer, c.Request)
 }
 

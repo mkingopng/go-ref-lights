@@ -1,38 +1,29 @@
 <!-- templates/left.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon"> <!-- Added Favicon -->
   <meta charset="UTF-8">
   <title>Left Referee</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="/static/css/styles.css" rel="stylesheet"> <!-- Corrected Path -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <link href="/static/css/styles.css" rel="stylesheet">
 </head>
-
 <body>
-<div class="home-icon">
-  <a href="/">
-    <i class="fa fa-arrow-left" aria-hidden="true"></i>
-  </a>
-</div>
+<div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Left Referee</h1>
+
+<div id="healthStatus" style="margin-top:10px; font-size:16px;">Disconnected</div>
 
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
 </div>
 
-<div class="logo-container">
-  <img src="/static/images/zerow_white.png" alt="zerow logo">
-</div>
-
+<!-- 1) Define judgeId before we load referee-common.js! -->
 <script>
   var websocketUrl = "{{ .WebsocketURL }}";
+  var judgeId = "left";
 </script>
-<script src="/static/js/left.js"></script>
-</body>
 
+<!-- 2) Now load referee-common.js, which uses judgeId -->
+<script src="/static/js/referee-common.js"></script>
+</body>
 </html>
