@@ -3,7 +3,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -48,7 +47,6 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow all if Test-Mode
 		if r.Header.Get("Test-Mode") == "true" {
-
 			return true
 		}
 		origin := r.Header.Get("Origin")
@@ -476,7 +474,6 @@ func startNextAttemptTimer(meetState *MeetState) {
 	ticker := time.NewTicker(1 * time.Second)
 	go func(id int) {
 		defer ticker.Stop()
-
 		for range ticker.C {
 			nextAttemptMutex.Lock()
 
@@ -507,9 +504,10 @@ func startNextAttemptTimer(meetState *MeetState) {
 				// mark it inactive (or remove it completely)
 				meetState.NextAttemptTimers[idx].Active = false
 
-				// optionally broadcast a specific "expired" message
-				broadcast <- []byte(`{"action":"nextAttemptExpired","timerID":` +
-					fmt.Sprint(id) + `}`)
+				// Calculate display index for the expired timer (array index + 1)
+				expiredDisplayIndex := idx + 1
+				// Broadcast an expiration message with the correct display index
+				broadcastTimeUpdateWithIndex("nextAttemptExpired", 0, expiredDisplayIndex)
 
 				// remove this timer from the slice
 				meetState.NextAttemptTimers = removeTimerByIndex(meetState.NextAttemptTimers, idx)
@@ -550,6 +548,17 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer) {
 	}
 }
 
+// broadcastTimeUpdateWithIndex sends a message to all clients with a time update,
+// including a display index so the client can map the update to the correct timer.
+func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int) {
+	msg, _ := json.Marshal(map[string]interface{}{
+		"action":   action,
+		"timeLeft": timeLeft,
+		"index":    index, // Used by the client to update the correct timer row
+	})
+	broadcast <- msg
+}
+
 // UTILITIES
 
 // broadcastRefereeHealth sends message to all clients w/ current ref health
@@ -568,14 +577,4 @@ func broadcastRefereeHealth(meetState *MeetState) {
 	}
 	out, _ := json.Marshal(msg)
 	broadcast <- out
-}
-
-// broadcastTimeUpdate sends a message to all clients with a time update
-func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int) {
-	msg, _ := json.Marshal(map[string]interface{}{
-		"action":   action,
-		"timeLeft": timeLeft,
-		"index":    index, // <--- so the client knows which timer
-	})
-	broadcast <- msg
 }

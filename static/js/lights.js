@@ -157,24 +157,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // called when we see "updateNextAttemptTime" from the server
     function updateNextAttemptTimerOnUI(timeLeft, timerIndex) {
         log(`update next attempt timer UI: ${timeLeft}s for index ${timerIndex}`);
-        // make sure we have a container for all timers
         if (!multiTimerContainer) return;
 
-        // if we don't yet have a row for this index, create one
+        // If we don't yet have a row for this index, create one
         if (!nextAttemptRows[timerIndex]) {
             log(`Creating new timer row for index ${timerIndex}`);
-            // create a new <div> for the row
+
+            // Create a new <div> for the row
             const rowDiv = document.createElement('div');
             rowDiv.classList.add('timer-container');
             rowDiv.style.marginBottom = '10px';
 
-            // create a label
+            // Create a label for the timer row
             const label = document.createElement('div');
+            // Displaying index + 1 if you want to show human-friendly numbering
             label.innerText = `Next Attempt #${timerIndex + 1}:`;
             label.classList.add('timer');
             rowDiv.appendChild(label);
 
-            // create a time display
+            // Create a time display element
             const timeSpan = document.createElement('div');
             timeSpan.classList.add('second-timer');
             timeSpan.innerText = `${timeLeft}s`;
@@ -186,29 +187,39 @@ document.addEventListener('DOMContentLoaded', () => {
             log(`Updating existing timer row for index ${timerIndex}`);
             nextAttemptRows[timerIndex].timeSpan.innerText = `${timeLeft}s`;
         }
+
+        // If timeLeft is 0 or less, fade out and remove the timer row
+        if (timeLeft <= 0) {
+            const { rowDiv } = nextAttemptRows[timerIndex];
+            rowDiv.style.transition = "opacity 0.5s ease-out";
+            rowDiv.style.opacity = "0";
+            setTimeout(() => {
+                if (rowDiv.parentNode) {
+                    rowDiv.parentNode.removeChild(rowDiv);
+                }
+                delete nextAttemptRows[timerIndex];
+            }, 500);
+        }
     }
 
     function handleNextAttemptExpired(timerIndex) {
         log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
-
         if (nextAttemptRows[timerIndex]) {
             log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
-
-            // Fade out the element before removing it
-            const rowDiv = nextAttemptRows[timerIndex].rowDiv;
+            const { rowDiv } = nextAttemptRows[timerIndex];
             rowDiv.style.transition = "opacity 0.5s ease-out";
             rowDiv.style.opacity = "0";
-
             setTimeout(() => {
-                rowDiv.remove();  // Remove from DOM
-                delete nextAttemptRows[timerIndex]; // Remove from memory
-            }, 500); // Wait for animation to complete
+                if (rowDiv.parentNode) {
+                    rowDiv.parentNode.removeChild(rowDiv);
+                }
+                delete nextAttemptRows[timerIndex];
+            }, 500);
         } else {
             log(`Timer #${timerIndex + 1} not found in nextAttemptRows!`, 'warn');
         }
     }
-
-
+    
     //  decision handling
     function showJudgeSubmissionIndicator(judgeId) {
         log(`Showing judge submission indicator for judgeId "${judgeId}"`);
