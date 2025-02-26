@@ -1,4 +1,3 @@
-# /usr/bin/env python3
 """
 boilerplate to make CDK work
 """
