@@ -133,6 +133,17 @@ func main() {
 	router.GET("/positions", controllers.ShowPositionsPage)
 	router.POST("/position/claim", controllers.ClaimPosition)
 
+	// In your main.go or an admin controller file
+	router.GET("/admin/clear-meet", func(c *gin.Context) {
+		meetName := c.Query("meetName")
+		if meetName == "" {
+			c.String(http.StatusBadRequest, "meetName query parameter is required")
+			return
+		}
+		websocket.ClearMeetState(meetName) // use package qualifier
+		c.String(http.StatusOK, "Cleared MeetState for meet: %s", meetName)
+	})
+
 	// Google Auth routes
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)

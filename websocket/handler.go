@@ -444,15 +444,6 @@ func resetPlatformReadyTimer(meetState *MeetState) {
 	meetState.PlatformReadyTimeLeft = 60
 }
 
-// NEXT ATTEMPT TIMER
-
-// NextAttemptTimer now has an ID for unique identification
-type NextAttemptTimer struct {
-	ID       int
-	TimeLeft int
-	Active   bool
-}
-
 // track an incrementing ID so each new timer gets a unique ID
 var nextAttemptIDCounter int
 
