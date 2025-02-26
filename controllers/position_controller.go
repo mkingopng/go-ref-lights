@@ -25,13 +25,15 @@ func NewPositionController(service services.OccupancyServiceInterface) *Position
 func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	if user == nil {
-		logger.Warn.Println("ShowPositionsPage: User not logged in; redirecting to /login")
+	meetId, ok := session.Get("meetId").(string)
+	if user == nil || !ok || meetId == "" {
+		logger.Warn.Println("ShowPositionsPage: User not logged in or not meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
-	occ := pc.OccupancyService.GetOccupancy()
+	// pass tje meetId to GetOccupancy
+	occ := pc.OccupancyService.GetOccupancy(meetId)
 	logger.Debug.Printf("ShowPositionsPage: Retrieved occupancy state: %+v", occ)
 	data := gin.H{
 		"Positions": map[string]interface{}{
@@ -42,6 +44,7 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 			"RightOccupied":  occ.RightUser != "",
 			"RightUser":      occ.RightUser,
 		},
+		"meetId": meetId,
 	}
 
 	logger.Info.Println("ShowPositionsPage: Rendering positions page")
@@ -52,17 +55,18 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	if user == nil {
-		logger.Warn.Println("ClaimPosition: User not logged in; redirecting to /login")
+	meetId, ok := session.Get("meetId").(string)
+	if user == nil || !ok || meetId == "" {
+		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
 	position := c.PostForm("position")
 	userEmail := user.(string)
-	logger.Info.Printf("ClaimPosition: User %s attempting to claim position %s", userEmail, position)
+	logger.Info.Printf("ClaimPosition: User %s attempting to claim position %s in meet %s", userEmail, position, meetId)
 
-	err := pc.OccupancyService.SetPosition(position, userEmail)
+	err := pc.OccupancyService.SetPosition(meetId, position, userEmail)
 	if err != nil {
 		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s: %v", position, userEmail, err)
 		c.String(http.StatusForbidden, "Error: %s", err.Error())
@@ -76,7 +80,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s", userEmail, position)
+	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetId)
 
 	// Redirect to the appropriate view based on the claimed position
 	switch position {

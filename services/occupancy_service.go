@@ -21,7 +21,7 @@ var occupancyMap = make(map[string]*Occupancy)
 
 // OccupancyServiceInterface defines an interface for dependency injection.
 type OccupancyServiceInterface interface {
-	GetOccupancy() Occupancy
+	GetOccupancy(meetId string) Occupancy
 	SetPosition(meetId, position, userEmail string) error
 	ResetOccupancyForMeet(meetId string)
 }
@@ -111,15 +111,15 @@ func (s *OccupancyService) SetPosition(meetId, position, userEmail string) error
 	return nil
 }
 
-// ResetOccupancy resets the global occupancy state.
+// ResetOccupancyForMeet ResetOccupancy resets the global occupancy state.
 func (s *OccupancyService) ResetOccupancyForMeet(meetId string) {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 	occupancyMap[meetId] = &Occupancy{}
-	logger.Info.Println("Occupancy state for meet %s has been reset.", meetId)
+	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetId)
 }
 
-// UnsetPosition frees up a referee position.
+// UnsetPosition frees up a referee position for a specific meet
 func UnsetPosition(meetId, position, userEmail string) {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()

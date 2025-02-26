@@ -119,28 +119,27 @@ func main() {
 
 	// Serve static files
 	router.Static("/static", "./static")
-
-	// Serve favicon.ico
 	router.GET("/favicon.ico", func(c *gin.Context) {
 		faviconPath := filepath.Join(basepath, "static", "images", "favicon.ico")
 		c.File(faviconPath)
 	})
 
 	// Public routes
+	router.GET("/meets", controllers.ShowMeets)
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
 	router.GET("/logout", controllers.Logout)
 	router.GET("/positions", controllers.ShowPositionsPage)
 	router.POST("/position/claim", controllers.ClaimPosition)
 
-	// In your main.go or an admin controller file
+	// Admin route for clearing a meet's state.
 	router.GET("/admin/clear-meet", func(c *gin.Context) {
 		meetName := c.Query("meetName")
 		if meetName == "" {
 			c.String(http.StatusBadRequest, "meetName query parameter is required")
 			return
 		}
-		websocket.ClearMeetState(meetName) // use package qualifier
+		websocket.ClearMeetState(meetName)
 		c.String(http.StatusOK, "Cleared MeetState for meet: %s", meetName)
 	})
 

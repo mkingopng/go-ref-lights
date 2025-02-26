@@ -183,10 +183,11 @@ func Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	userEmail := session.Get("user")
 	refPosition := session.Get("refPosition")
+	meetId, ok := session.Get("meetId").(string)
 
-	if userEmail != nil && refPosition != nil {
+	if userEmail != nil && refPosition != nil && ok && meetId != "" {
 		logger.Info.Printf("Logout: Logging out user %s from position %s", userEmail, refPosition)
-		services.UnsetPosition(refPosition.(string), userEmail.(string))
+		services.UnsetPosition(meetId, refPosition.(string), userEmail.(string))
 	}
 
 	session.Clear()
