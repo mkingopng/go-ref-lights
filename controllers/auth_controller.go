@@ -110,6 +110,17 @@ func GoogleCallback(c *gin.Context) {
 
 // ShowLoginPage redirects users to Google OAuth login
 func ShowLoginPage(c *gin.Context) {
+	// capture meetId from the query string (eg /login?meetId=meet1)
+	meetId := c.Query("meetId")
+	if meetId != "" {
+		session := sessions.Default(c)
+		session.Set("meetId", meetId)
+		if err := session.Save(); err != nil {
+			logger.Error.Printf("❌ Failed to save session: %v", err)
+		} else {
+			logger.Info.Printf("Stored meetId %s in session", meetId)
+		}
+	}
 	logger.Info.Println("Redirecting to Google OAuth login page (ShowLoginPage)")
 	c.Redirect(http.StatusFound, "/auth/google/login")
 }

@@ -1,0 +1,29 @@
+{
+  "meets": [
+    {
+      "id": "meet1",
+      "name": "Complete Strength Open",
+      "date": "March 1"
+    },
+    {
+      "id": "meet2",
+      "name": "South Australian State Championships",
+      "date": "March 2"
+    },
+    {
+      "id": "meet3",
+      "name": "Metal Mayham",
+      "date": "March 2"
+    },
+    {
+      "id": "meet4",
+      "name": "Queensland State Championships",
+      "date": "March 9"
+    },
+    {
+      "id": "meet5",
+      "name": "Vic Summer Send Off",
+      "date": "March 9"
+    }
+  ]
+}

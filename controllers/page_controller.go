@@ -17,19 +17,20 @@ var (
 	WebsocketURL   string
 )
 
-// ShowPositionsPage displays the referee position selection page
+// ShowPositionsPage displays the referee position selection page.
 func ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	if user == nil {
-		logger.Warn.Println("ShowPositionsPage: User not logged in; redirecting to /login")
-		c.Redirect(http.StatusFound, "/login")
+	meetId, ok := session.Get("meetId").(string)
+	if user == nil || !ok || meetId == "" {
+		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /login or /meets")
+		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 
 	svc := services.OccupancyService{}
-	occ := svc.GetOccupancy()
-	logger.Debug.Printf("ShowPositionsPage: Occupancy state: %+v", occ)
+	occ := svc.GetOccupancy(meetId)
+	logger.Debug.Printf("ShowPositionsPage: Occupancy state for meet %s: %+v", meetId, occ)
 
 	data := gin.H{
 		"ApplicationURL": ApplicationURL,
@@ -42,30 +43,32 @@ func ShowPositionsPage(c *gin.Context) {
 			"RightOccupied":  occ.RightUser != "",
 			"RightUser":      occ.RightUser,
 		},
+		"meetId": meetId,
 	}
 
 	logger.Info.Println("ShowPositionsPage: Rendering positions page")
 	c.HTML(http.StatusOK, "positions.html", data)
 }
 
-// ClaimPosition handles position assignment
+// ClaimPosition handles position assignment.
 func ClaimPosition(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	if user == nil {
-		logger.Warn.Println("ClaimPosition: User not logged in; redirecting to /login")
+	meetId, ok := session.Get("meetId").(string)
+	if user == nil || !ok || meetId == "" {
+		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
+	// Note: Fixed typo "postion" -> "position"
 	position := c.PostForm("position")
 	userEmail := user.(string)
-	svc := &services.OccupancyService{} // Use a pointer to avoid method call issue
+	svc := &services.OccupancyService{}
 
-	logger.Info.Printf("ClaimPosition: User %s attempting to claim position %s", userEmail, position)
-	err := svc.SetPosition(position, userEmail)
+	err := svc.SetPosition(meetId, position, userEmail)
 	if err != nil {
-		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s: %v", position, userEmail, err)
+		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s in meet %s: %v", position, userEmail, meetId, err)
 		c.String(http.StatusForbidden, "Error: %s", err.Error())
 		return
 	}
@@ -73,10 +76,11 @@ func ClaimPosition(c *gin.Context) {
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
+		// Optionally handle the error
 	}
 
-	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s", userEmail, position)
-	// Redirect to assigned position view
+	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetId)
+	// Redirect based on the claimed position.
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
@@ -89,44 +93,20 @@ func ClaimPosition(c *gin.Context) {
 	}
 }
 
-// SetConfig updates global configuration
-func SetConfig(appURL, wsURL string) {
-	ApplicationURL = appURL
-	WebsocketURL = wsURL
-	logger.Info.Printf("SetConfig: Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
-}
-
-// PerformLogin redirects to Google OAuth login
-func PerformLogin(c *gin.Context) {
-	logger.Info.Println("PerformLogin: Redirecting to Google OAuth login")
-	c.Redirect(http.StatusFound, "/auth/google/login")
-}
-
-// Logout handles user logout
-func Logout(c *gin.Context) {
-	session := sessions.Default(c)
-	userEmail := session.Get("user")
-	refPosition := session.Get("refPosition")
-
-	if userEmail != nil && refPosition != nil {
-		logger.Info.Printf("Logout: Logging out user %s from position %s", userEmail, refPosition)
-		services.UnsetPosition(refPosition.(string), userEmail.(string))
-	}
-
-	session.Clear()
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("Logout: Error saving session during logout: %v", err)
-	} else {
-		logger.Info.Println("Logout: Session cleared successfully")
-	}
-
-	c.Redirect(http.StatusFound, "/login")
-}
-
-// Index renders the index page
+// Index renders the index page.
 func Index(c *gin.Context) {
-	logger.Info.Println("Index: Rendering index page")
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	session := sessions.Default(c)
+	meetId, ok := session.Get("meetId").(string)
+	if !ok || meetId == "" {
+		logger.Warn.Println("Index: No meet selected; redirecting to /meets")
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+	logger.Info.Printf("Rendering index page for meet %s", meetId)
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetId":       meetId,
+	}
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
@@ -185,4 +165,36 @@ func RefereeUpdates(c *gin.Context) {
 func Health(c *gin.Context) {
 	logger.Info.Println("Health: Health check requested")
 	c.String(http.StatusOK, "OK")
+}
+
+// SetConfig and Logout remain unchanged.
+func SetConfig(appURL, wsURL string) {
+	ApplicationURL = appURL
+	WebsocketURL = wsURL
+	logger.Info.Printf("SetConfig: Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
+}
+
+func PerformLogin(c *gin.Context) {
+	logger.Info.Println("PerformLogin: Redirecting to Google OAuth login")
+	c.Redirect(http.StatusFound, "/auth/google/login")
+}
+
+func Logout(c *gin.Context) {
+	session := sessions.Default(c)
+	userEmail := session.Get("user")
+	refPosition := session.Get("refPosition")
+
+	if userEmail != nil && refPosition != nil {
+		logger.Info.Printf("Logout: Logging out user %s from position %s", userEmail, refPosition)
+		services.UnsetPosition(refPosition.(string), userEmail.(string))
+	}
+
+	session.Clear()
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("Logout: Error saving session during logout: %v", err)
+	} else {
+		logger.Info.Println("Logout: Session cleared successfully")
+	}
+
+	c.Redirect(http.StatusFound, "/login")
 }

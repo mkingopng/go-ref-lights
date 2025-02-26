@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Choose Meet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+
+<body>
+
+<h1>Select a Meet</h1>
+
+<!--select meet container-->
+<div class="button-container">
+  <form action="/login" method="GET">
+    <label for="meetSelect">Choose your meet:</label>
+    <select name="meetId" id="meetSelect">
+      <option value="">-- Please select a meet --</option>
+      {{ range .Meets }}
+      <option value="{{ .ID }}">{{ .Name }} - {{ .Date }}</option>
+      {{ end }}
+    </select>
+    <div>
+      <input type="submit" value="Proceed" class="action-button" />
+    </div>
+  </form>
+</div>
+
+<!--APL logo container-->
+<div class="logo-container">
+  <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
+</div>
+
+</body>
+</html>
