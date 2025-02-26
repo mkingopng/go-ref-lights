@@ -14,22 +14,58 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go-ref-lights/controllers"
+	"go-ref-lights/logger"
 	"go-ref-lights/middleware"
 	"go-ref-lights/websocket"
 )
 
 func main() {
-	// Load environment variables from .env file
+	// initialize the centralized logger.
+	if err := logger.InitLogger(); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	router := gin.Default()
+
+	// add logging endpoint:
+	router.POST("/log", func(c *gin.Context) {
+		var payload struct {
+			Message string `json:"message"`
+			Level   string `json:"level"`
+		}
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			logger.Warn.Printf("Invalid log payload: %v", err)
+			c.Status(http.StatusBadRequest)
+			return
+		}
+
+		// depending on the level, log with the appropriate logger:
+		switch payload.Level {
+		case "error":
+			logger.Error.Println(payload.Message)
+		case "warn":
+			logger.Warn.Println(payload.Message)
+		case "debug":
+			logger.Debug.Println(payload.Message)
+		case "info":
+			fallthrough
+		default:
+			logger.Info.Println(payload.Message)
+		}
+		c.Status(http.StatusOK)
+	})
+
+	// use logger.Info, logger.Warn
+	logger.Info.Println("Application started successfully.")
+
+	// load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found. Using system environment variables.")
 	}
 
-	// Set Gin to release mode for production (optional but recommended)
+	// set Gin to release mode for production (optional but recommended)
 	gin.SetMode(gin.ReleaseMode)
-
-	// Initialize the router
-	router := gin.Default()
 
 	// Read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
@@ -42,10 +78,10 @@ func main() {
 		websocketURL = "ws://localhost:8080/referee-updates"
 	}
 
-	// Pass these values to controllers
+	// pass these values to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
-	// Set security headers
+	// set security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set(
 			"X-Frame-Options",
@@ -53,10 +89,10 @@ func main() {
 		c.Next()
 	})
 
-	// Add health check route
+	// add health check route
 	router.GET("/health", controllers.Health)
 
-	// Initialize session store
+	// initialize session store
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
@@ -67,12 +103,12 @@ func main() {
 	})
 	router.Use(sessions.Sessions("mysession", store))
 
-	// Determine absolute path for templates
+	// determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 	templatesDir := filepath.Join(basepath, "templates")
 
-	// Validate that the templates directory exists
+	// validate that the templates directory exists
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		log.Fatalf("Templates directory does not exist: %s", templatesDir)
 	}

@@ -1,5 +1,7 @@
 // static/js/lights.js
 document.addEventListener('DOMContentLoaded', () => {
+    log("DOM fully loaded and parsed");
+
     // cache references to DOM elements
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
@@ -19,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // check for the global websocketUrl
     if (typeof websocketUrl === 'undefined') {
-        console.error("websocketUrl is not defined");
+        log("websocketUrl is not defined", "error");
         return;
     }
 
@@ -27,13 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const socket = new WebSocket(websocketUrl);
 
     socket.onopen = () => {
-        console.log("WebSocket connection established (Lights).");
+        log("WebSocket connection established (Lights).");
     };
     socket.onerror = (error) => {
-        console.error("WebSocket error (Lights):", error);
+        log(`WebSocket error (Lights): ${error}`, "error");
     };
     socket.onclose = (event) => {
-        console.log("WebSocket connection closed (Lights):", event);
+        log(`WebSocket connection closed (Lights): ${event.code} - ${event.reason}`);
     };
 
     // listen for messages from the server
@@ -41,8 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let data;
         try {
             data = JSON.parse(event.data);
+            log(`Received Websocket message: ${JSON.stringify(data)}`, 'debug');
         } catch (e) {
-            console.error("Invalid JSON from server:", event.data);
+            log(`Invalid JSON from server:, ${event.data}`, 'error');
             return;
         }
 
@@ -50,24 +53,29 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (data.action) {
             // server-driven timer updates
             case "updatePlatformReadyTime":
+                log(`Updating platform ready timer: ${data.timeLeft}s`);
                 updatePlatformReadyTimerOnUI(data.timeLeft);
                 break;
             case "platformReadyExpired":
+                log(`Platform ready timer expired`);
                 handlePlatformReadyExpired();
                 break;
             case "updateNextAttemptTime":
+                log(`Updating next attempt timer: ${data.timeLeft}s for index: ${data.index}`);
                 updateNextAttemptTimerOnUI(data.timeLeft, data.index);
                 break;
             case "nextAttemptExpired":
-                console.log(`Received nextAttemptExpired event for index: ${data.index}`);
+                log(`Received nextAttemptExpired event for index: ${data.index}`);
                 handleNextAttemptExpired(data.index);
                 break;
 
             // judge decision Handling
             case "judgeSubmitted":
+                log(`Judge ${data.judgeId} submitted a decision`);
                 showJudgeSubmissionIndicator(data.judgeId);
                 break;
             case "displayResults":
+                log(`Displaying results: ${JSON.stringify(data)}`);
                 displayResults(data);
                 break;
             case "clearResults":
@@ -76,21 +84,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // health check
             case "refereeHealth":
+                log(`Referee health update: ${data.connectedReferees}/${data.requiredReferees} connected`);
                 updateHealthStatus(data.connectedReferees, data.requiredReferees);
                 break;
 
             case "healthError":
                 // if user tried to start timer but not all refs connected
+                log(`Health Error: ${data.message}`, "error");
                 displayMessage(data.message, "red");
                 break;
 
             default:
-                console.warn("Unknown action:", data.action);
+                log(`Unknown action: ${data.action}`, "warn");
         }
     };
 
+    //utility function for logging
+    function log(message, level = 'debug') {
+        const timestamp = new Date().toISOString();
+        const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+
+        // Log to console
+        switch (level) {
+            case 'error':
+                console.error(logMessage);
+                break;
+            case 'warn':
+                console.warn(logMessage);
+                break;
+            case 'debug':
+                console.debug(logMessage);
+                break;
+            default:
+                console.log(logMessage);
+        }
+
+        // Send logs to a server for saving to a file
+        fetch('/log', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: logMessage, level: level }),
+        }).catch(error => {
+            console.error('Failed to send log to server:', error);
+        });
+    }
+
     //  timer UI Handling (Server-Driven)
     function updatePlatformReadyTimerOnUI(timeLeft) {
+        log(`Updating platform ready timer UI: ${timeLeft}s`);
         if (platformReadyTimerContainer) {
             platformReadyTimerContainer.classList.remove('hidden');
         }
@@ -100,23 +143,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handlePlatformReadyExpired() {
+        log("Platform Ready timer expired");
         if (timerDisplay) timerDisplay.innerText = '0s';
-        // displayMessage('Time Up', 'yellow');
+        // todo: delay, clear
     }
 
     // store a reference to container for all next-attempt timers:
     const multiTimerContainer = document.getElementById('multiNextAttemptTimers');
 
-// keep track of DOM elements for each timer row in a dictionary:
+    // keep track of DOM elements for each timer row in a dictionary:
     const nextAttemptRows = {};
 
-// called when we see "updateNextAttemptTime" from the server
+    // called when we see "updateNextAttemptTime" from the server
     function updateNextAttemptTimerOnUI(timeLeft, timerIndex) {
+        log(`update next attempt timer UI: ${timeLeft}s for index ${timerIndex}`);
         // make sure we have a container for all timers
         if (!multiTimerContainer) return;
 
         // if we don't yet have a row for this index, create one
         if (!nextAttemptRows[timerIndex]) {
+            log(`Creating new timer row for index ${timerIndex}`);
             // create a new <div> for the row
             const rowDiv = document.createElement('div');
             rowDiv.classList.add('timer-container');
@@ -125,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // create a label
             const label = document.createElement('div');
             label.innerText = `Next Attempt #${timerIndex + 1}:`;
-            label.classList.add('timer');  // so it picks up big font if you like
+            label.classList.add('timer');
             rowDiv.appendChild(label);
 
             // create a time display
@@ -135,19 +181,18 @@ document.addEventListener('DOMContentLoaded', () => {
             rowDiv.appendChild(timeSpan);
 
             multiTimerContainer.appendChild(rowDiv);
-            // store references
             nextAttemptRows[timerIndex] = { rowDiv, label, timeSpan };
         } else {
-            // update existing next attempt timer rows
+            log(`Updating existing timer row for index ${timerIndex}`);
             nextAttemptRows[timerIndex].timeSpan.innerText = `${timeLeft}s`;
         }
     }
 
     function handleNextAttemptExpired(timerIndex) {
-        console.log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
+        log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
 
         if (nextAttemptRows[timerIndex]) {
-            console.log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
+            log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
 
             // Fade out the element before removing it
             const rowDiv = nextAttemptRows[timerIndex].rowDiv;
@@ -159,29 +204,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 delete nextAttemptRows[timerIndex]; // Remove from memory
             }, 500); // Wait for animation to complete
         } else {
-            console.warn(`Timer #${timerIndex + 1} not found in nextAttemptRows!`);
+            log(`Timer #${timerIndex + 1} not found in nextAttemptRows!`, 'warn');
         }
     }
 
 
     //  decision handling
     function showJudgeSubmissionIndicator(judgeId) {
+        log(`Showing judge submission indicator for judgeId "${judgeId}"`);
         const indicator = document.getElementById(`${judgeId}Indicator`);
         if (!indicator) {
-            console.error(`Indicator for judgeId "${judgeId}" not found`);
+            log(`Indicator for judgeId "${judgeId}" not found`, 'error');
             return;
         }
         indicator.style.backgroundColor = "green";
     }
 
     function displayResults(data) {
+        log(`Displaying results: ${JSON.stringify(data)}`);
         const { leftDecision, centreDecision, rightDecision } = data;
         paintCircle('leftCircle', leftDecision);
         paintCircle('centreCircle', centreDecision);
         paintCircle('rightCircle', rightDecision);
-        judgeDecisions.left   = leftDecision;
+        judgeDecisions.left = leftDecision;
         judgeDecisions.centre = centreDecision;
-        judgeDecisions.right  = rightDecision;
+        judgeDecisions.right = rightDecision;
         const decisions = [leftDecision, centreDecision, rightDecision];
         const whiteCount = decisions.filter(d => d === "white").length;
         const redCount   = decisions.filter(d => d === "red").length;
@@ -193,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearResultsUI() {
+        log("Clearing results UI");
         paintCircle('leftCircle', null);
         paintCircle('centreCircle', null);
         paintCircle('rightCircle', null);
@@ -202,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //  UI helper functions
     function paintCircle(circleId, decision) {
+        log(`Painting circle ${circleId} with decision: ${decision}`);
         const circle = document.getElementById(circleId);
         if (!circle) return;
         switch (decision) {
@@ -217,30 +266,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Reset all judge indicators to grey
+    // reset all judge indicators to grey
     function resetJudgeIndicators() {
+        log("Resetting judge indicators");
         const indicators = document.querySelectorAll('.indicator');
         indicators.forEach(indicator => {
             indicator.style.backgroundColor = 'grey';
         });
     }
 
-    // Display a message on the screen
+    // display a message on the screen
     function displayMessage(text, color) {
+        log(`Displaying message: ${text} with colour ${color}`);
         if (!messageElement) return;
         messageElement.innerText = text;
         messageElement.style.color = color;
 
         // if "Time Up" => flash  // fix_me: redundant
-        if (text.includes("Time Up")) {
-            messageElement.classList.add('flash');
-        } else {
-            messageElement.classList.remove('flash');
-        }
+        // if (text.includes("Time Up")) {
+        //     messageElement.classList.add('flash');
+        // } else {
+        //     messageElement.classList.remove('flash');
+        // }
     }
 
     //  health check UI
     function updateHealthStatus(connected, required) {
+        log(`Updating health status: ${connected}/${required} connected`);
         connectedReferees = connected;
         if (connectionStatusElement) {
             connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
@@ -249,7 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // disable the "Platform Ready" button if not all refs
         if (platformReadyButton) {
-            platformReadyButton.disabled = (connected < required);
+            log(`Platform not ready: ${connected}/${required} connected`);
+            // platformReadyButton.disabled = (connected < required); // fix_me: disabled for now. Not required per Daniel
         }
     }
 
@@ -259,16 +312,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // current code toggles local container visibility:
             const isHidden = platformReadyTimerContainer.classList.contains('hidden');
             if (isHidden) {
-                // request server to "startTimer" (server will check if all refs connected)
+                log("Starting platform ready timer");
                 socket.send(JSON.stringify({ action: "startTimer" }));
             } else {
-                // if it's visible, we request to stop
+                log("Stopping platform ready timer");
                 socket.send(JSON.stringify({ action: "stopTimer" }));
             }
             // toggle local display
             platformReadyTimerContainer.classList.toggle('hidden');
         });
     } else {
-        console.warn("Platform Ready button or container not found.");
+        log("Platform Ready button or container not found.", 'warn');
     }
 });

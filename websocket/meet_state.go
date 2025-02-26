@@ -8,12 +8,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// NextAttemptTimer structure (moved here from handler.go to be used by MeetState)
-type NextAttemptTimer struct {
-	TimeLeft int
-	Active   bool
-}
-
 // MeetState holds per-meet, in-memory data.
 type MeetState struct {
 	// judgeID -> WebSocket connection (e.g. "left" -> conn)
