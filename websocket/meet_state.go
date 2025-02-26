@@ -2,14 +2,15 @@
 package websocket
 
 import (
-	"log"
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"go-ref-lights/logger"
 )
 
-// NextAttemptTimer structure (moved here from handler.go to be used by MeetState)
+// NextAttemptTimer structure used to track next attempt timers.
 type NextAttemptTimer struct {
+	ID       int // Unique identifier for this timer.
 	TimeLeft int
 	Active   bool
 }
@@ -18,15 +19,13 @@ type NextAttemptTimer struct {
 type MeetState struct {
 	// judgeID -> WebSocket connection (e.g. "left" -> conn)
 	RefereeSessions map[string]*websocket.Conn
-
 	// judgeID -> decision string (e.g. "left" -> "white")
 	JudgeDecisions map[string]string
-
 	// whether the Platform Ready timer is active, and the time left
 	PlatformReadyActive   bool
 	PlatformReadyTimeLeft int
 
-	// nextAttempt timers, if multiple can run concurrently
+	// nextAttempt timers, multiple can run concurrently
 	NextAttemptTimers []NextAttemptTimer
 }
 
@@ -38,12 +37,18 @@ var (
 
 // getMeetState fetches or creates a MeetState for the given meetName.
 func getMeetState(meetName string) *MeetState {
+	// If meetName is empty, log an error and default to "DEFAULT_MEET"
+	if meetName == "" {
+		logger.Error.Println("Empty meetName provided to getMeetState. Defaulting to 'DEFAULT_MEET'.")
+		meetName = "DEFAULT_MEET"
+	}
+
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
 
 	state, exists := meets[meetName]
 	if !exists {
-		log.Printf("Creating new MeetState for meet: %s", meetName)
+		logger.Info.Printf("Creating new MeetState for meet: %s", meetName)
 		state = &MeetState{
 			RefereeSessions:       make(map[string]*websocket.Conn),
 			JudgeDecisions:        make(map[string]string),
@@ -52,8 +57,25 @@ func getMeetState(meetName string) *MeetState {
 			NextAttemptTimers:     []NextAttemptTimer{},
 		}
 		meets[meetName] = state
+	} else {
+		logger.Debug.Printf("Retrieved existing MeetState for meet: %s", meetName)
 	}
 	return state
+}
+
+// ClearMeetState removes the MeetState for the given meetName.
+// This can be used when a meet is finished or if an error condition warrants
+// cleanup.  // todo: where should i use this?
+func ClearMeetState(meetName string) {
+	meetsMutex.Lock()
+	defer meetsMutex.Unlock()
+
+	if _, exists := meets[meetName]; exists {
+		delete(meets, meetName)
+		logger.Info.Printf("Cleared MeetState for meet: %s", meetName)
+	} else {
+		logger.Warn.Printf("Attempted to clear non-existent MeetState for meet: %s", meetName)
+	}
 }
 
 // DecisionMessage now includes MeetName so we can handle multiple meets.

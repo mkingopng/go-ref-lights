@@ -1,12 +1,56 @@
 // static/js/referee-common.js
 document.addEventListener('DOMContentLoaded', function() {
+    // custom logger for standardised logging
+    const Logger = (function() {
+        const isDebug = true;  // set to false in production to diable debug logging
 
+        // helper function to send log messages to the server's /log endpoint.
+        function sendLog(level, message) {
+            fetch('/log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message, level: level })
+            }).catch(err => {
+                // if sending the log fails, output a warning in the console.
+                console.warn(`[WARN ${new Date().toISOString()}] Failed to send ${level} log to server:`, err);
+            });
+        }
+
+        return {
+            info: function(...args) {
+                const message = `[INFO ${new Date().toISOString()}] ${args.join(" ")}`;
+                console.info(message);
+                sendLog("info", message);
+            },
+            warn: function(...args) {
+                const message = `[WARN ${new Date().toISOString()}] ${args.join(" ")}`;
+                console.warn(message);
+                sendLog("warn", message);
+            },
+            error: function(...args) {
+                const message = `[ERROR ${new Date().toISOString()}] ${args.join(" ")}`;
+                console.error(message);
+                sendLog("error", message);
+            },
+            debug: function(...args) {
+                if (isDebug) {
+                    const message = `[DEBUG ${new Date().toISOString()}] ${args.join(" ")}`;
+                    console.debug(message);
+                    sendLog("debug", message);
+                }
+            }
+        };
+    })();
+
+    // validate required globals
     if (typeof websocketUrl === 'undefined') {
-        console.error("websocketUrl is not defined");
+        Logger.error("websocketUrl is not defined");
         return;
     }
     if (typeof judgeId === 'undefined') {
-        console.error("judgeId is not defined");
+        Logger.error("judgeId is not defined");
         return;
     }
 
@@ -23,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // WebSocket event: opened
     socket.onopen = function() {
-        console.log(`WebSocket connected for judgeId: ${judgeId}`);
+        Logger.info(`WebSocket connected for judgeId: ${judgeId}`);
 
         // immediately register as connected
         const registerMsg = {
@@ -40,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             data = JSON.parse(event.data);
         } catch (e) {
-            console.error("Invalid JSON from server:", event.data);
+            Logger.error("Invalid JSON from server:", event.data);
             return;
         }
 
@@ -54,22 +98,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             case "healthError":
-                // example: "Cannot start timer: Not all referees are connected!"
+                // for critical errors we alert the user
                 alert(data.message);
                 break;
             default:
-                console.log("Unhandled action:", data.action);
+                Logger.debug("Unhandled action:", data.action);
         }
     };
 
     // webSocket event: error
     socket.onerror = function(error) {
-        console.error(`WebSocket error (${judgeId}):`, error);
+        Logger.error(`WebSocket error (${judgeId}):`, error);
     };
 
     // webSocket event: close
     socket.onclose = function(event) {
-        console.log(`WebSocket closed (${judgeId}):`, event);
+        Logger.info(`WebSocket closed (${judgeId}):`, event);
         if (healthEl) {
             healthEl.innerText = "Disconnected";
             healthEl.style.color = "red";
@@ -80,9 +124,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(obj));
-            console.log("Sent message:", obj);
+            Logger.info("Sent message:", obj);
         } else {
-            console.warn(`Cannot send message; socket not open (readyState = ${socket.readyState})`);
+            Logger.warn(`Cannot send message; socket not open (readyState = ${socket.readyState})`);
         }
     }
 

@@ -55,3 +55,4 @@ config.yaml
 /repomix-output.txt
 
 /reflights_client_secret_apps.googleusercontent.com.json
+/logs/
