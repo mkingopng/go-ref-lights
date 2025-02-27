@@ -3,6 +3,7 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     log("DOM fully loaded and parsed");
+    console.log("Lights.js loaded.");
 
     const meetIdElement = document.getElementById('meetId');
     const meetId = meetIdElement ? meetIdElement.dataset.meetid : null;
