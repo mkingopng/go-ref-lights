@@ -172,7 +172,7 @@ func main() {
 	})
 	protected.Use(middleware.PositionRequired()) // Then check position
 	{
-		protected.GET("/", controllers.ChooseMeet)
+		protected.GET("/dashboard", controllers.Index)
 		protected.GET("/positions", controllers.ShowPositionsPage)
 		protected.POST("/position/claim", controllers.ClaimPosition)
 		protected.GET("/left", controllers.Left)

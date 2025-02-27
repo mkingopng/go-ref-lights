@@ -20,7 +20,7 @@
     <select name="meetId" id="meetSelect">
       <option value="">-- Please select a meet --</option>
       {{range .availableMeets}}
-      <option value="{{.}}">{{.}}</option>
+      <option value="{{.ID}}">{{.Name}} ({{.Date}})</option>
       {{end}}
     </select>
     <div>

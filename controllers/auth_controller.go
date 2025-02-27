@@ -112,5 +112,5 @@ func GoogleCallback(c *gin.Context) {
 		logger.Info.Printf("Session saved for user: %s", userInfo.Email)
 	}
 	logger.Info.Printf("User %s successfully authenticated. Redirecting to home page.", userInfo.Email)
-	c.Redirect(http.StatusFound, "/") // Redirect to home page after login
+	c.Redirect(http.StatusFound, "/dashboard") // Redirect to dashbaord after login
 }

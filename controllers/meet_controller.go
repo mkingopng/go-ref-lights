@@ -1,12 +1,12 @@
+// Package controllers config/meets.json
 package controllers
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"go-ref-lights/logger"
 	"net/http"
 	"os"
-
-	"go-ref-lights/logger"
 )
 
 // Meet represents a single meet entry.
@@ -21,29 +21,9 @@ type Meets struct {
 	Meets []Meet `json:"meets"`
 }
 
-// ShowMeets renders the meeting selection page.
-func ShowMeets(c *gin.Context) {
-	data, err := os.ReadFile("config/meets.json")
-	if err != nil {
-		logger.Error.Printf("ShowMeets: failed to read config file: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to load meets")
-		return
-	}
-
-	var meets Meets
-	if err := json.Unmarshal(data, &meets); err != nil {
-		logger.Error.Printf("ShowMeets: failed to parse config file: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to parse meets")
-		return
-	}
-
-	// Render the choose_meet.html template with the meets data.
-	c.HTML(http.StatusOK, "choose_meet.html", meets)
-}
-
-// LoadMeets loads the meets configuration from config/meets.json.
+// LoadMeets loads the meets configuration from ./config/meets.json.
 func LoadMeets() (*Meets, error) {
-	data, err := os.ReadFile("config/meets.json")
+	data, err := os.ReadFile("./config/meets.json")
 	if err != nil {
 		return nil, err
 	}
@@ -52,4 +32,17 @@ func LoadMeets() (*Meets, error) {
 		return nil, err
 	}
 	return &meets, nil
+}
+
+// ShowMeets renders the meeting selection page.
+func ShowMeets(c *gin.Context) {
+	meetsData, err := LoadMeets()
+	if err != nil {
+		logger.Error.Printf("ShowMeets: failed to load meets: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meets")
+		return
+	}
+	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+		"availableMeets": meetsData.Meets,
+	})
 }

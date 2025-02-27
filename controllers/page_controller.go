@@ -16,7 +16,6 @@ var (
 	WebsocketURL   string
 )
 
-// SetMeet sets the meetId in the session.
 // SetMeet sets the selected meetId in the session.
 func SetMeet(c *gin.Context) {
 	meetId := c.PostForm("meetId")
