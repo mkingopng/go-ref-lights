@@ -153,7 +153,7 @@ func main() {
 		}
 
 		session := sessions.Default(c)
-		if _, ok := session.Get("meetId").(string); !ok {
+		if _, ok := session.Get("meetName").(string); !ok {
 			c.Redirect(http.StatusFound, "/meets")
 			c.Abort()
 		}
@@ -162,9 +162,9 @@ func main() {
 	// protected routes
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired) // Check auth first
-	protected.Use(func(c *gin.Context) {   // Custom middleware to check meetId
+	protected.Use(func(c *gin.Context) {   // Custom middleware to check meetName
 		session := sessions.Default(c)
-		if _, ok := session.Get("meetId").(string); !ok {
+		if _, ok := session.Get("meetName").(string); !ok {
 			c.Redirect(http.StatusFound, "/meets")
 			c.Abort()
 			return

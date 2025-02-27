@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const registerMsg = {
             action: "registerRef",
             judgeId: judgeId,
-            meetName: meetId
+            meetName: meetName
         };
         socket.send(JSON.stringify(registerMsg));
     };
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         whiteButton.addEventListener('click', function() {
             sendMessage({
                 action: "submitDecision",
-                meetName: meetId,
+                meetName: meetName,
                 judgeId: judgeId,
                 decision: "white"
             });
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         redButton.addEventListener('click', function() {
             sendMessage({
                 action: "submitDecision",
-                meetName: meetId,
+                meetName: meetName,
                 judgeId: judgeId,
                 decision: "red"
             });
@@ -155,17 +155,17 @@ document.addEventListener('DOMContentLoaded', function() {
         startTimerButton.addEventListener('click', function() {
             sendMessage({
                 action: "resetLights",
-                meetName: meetId,
+                meetName: meetName,
                 judgeId: judgeId,
             });
             sendMessage({
                 action: "resetTimer",
-                meetName: meetId,
+                meetName: meetName,
                 judgeId: judgeId,
             });
             sendMessage({
                 action: "startTimer",
-                meetName: meetId,
+                meetName: meetName,
                 judgeId: judgeId,
             });
         });

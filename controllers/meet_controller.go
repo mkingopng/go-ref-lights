@@ -11,7 +11,6 @@ import (
 
 // Meet represents a single meet entry.
 type Meet struct {
-	ID   string `json:"id"`
 	Name string `json:"name"`
 	Date string `json:"date"`
 }

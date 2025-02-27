@@ -99,9 +99,9 @@ func GoogleCallback(c *gin.Context) {
 	session := sessions.Default(c)
 
 	// Store user info in session
-	meetVal := session.Get("meetId")
-	meetId, ok := meetVal.(string)
-	if !ok || meetId == "" {
+	meetVal := session.Get("meetName")
+	meetName, ok := meetVal.(string)
+	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}

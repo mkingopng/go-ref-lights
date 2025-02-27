@@ -16,20 +16,20 @@ var (
 	WebsocketURL   string
 )
 
-// SetMeet sets the selected meetId in the session.
+// SetMeet sets the selected meetName in the session.
 func SetMeet(c *gin.Context) {
-	meetId := c.PostForm("meetId")
-	if meetId == "" {
+	meetName := c.PostForm("meetName")
+	if meetName == "" {
 		// If no meet is selected, redirect back to the selection page.
 		c.Redirect(http.StatusFound, "/")
 		return
 	}
 	session := sessions.Default(c)
-	session.Set("meetId", meetId)
+	session.Set("meetName", meetName)
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("SetMeet: Failed to save meetId: %v", err)
+		logger.Error.Printf("SetMeet: Failed to save meetName: %v", err)
 	}
-	logger.Info.Printf("SetMeet: Stored meetId %s in session", meetId)
+	logger.Info.Printf("SetMeet: Stored meetName %s in session", meetName)
 	// Redirect to log in (or the next step in your flow)
 	c.Redirect(http.StatusFound, "/login")
 }
@@ -53,16 +53,16 @@ func SetMeet(c *gin.Context) {
 func ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	meetId, ok := session.Get("meetId").(string)
-	if user == nil || !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if user == nil || !ok || meetName == "" {
 		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /login or /meets")
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 
 	svc := services.OccupancyService{}
-	occ := svc.GetOccupancy(meetId)
-	logger.Debug.Printf("ShowPositionsPage: Occupancy state for meet %s: %+v", meetId, occ)
+	occ := svc.GetOccupancy(meetName)
+	logger.Debug.Printf("ShowPositionsPage: Occupancy state for meet %s: %+v", meetName, occ)
 
 	data := gin.H{
 		"ApplicationURL": ApplicationURL,
@@ -75,7 +75,7 @@ func ShowPositionsPage(c *gin.Context) {
 			"RightOccupied":  occ.RightUser != "",
 			"RightUser":      occ.RightUser,
 		},
-		"meetId": meetId,
+		"meetName": meetName,
 	}
 
 	logger.Info.Println("ShowPositionsPage: Rendering positions page")
@@ -86,8 +86,8 @@ func ShowPositionsPage(c *gin.Context) {
 func ClaimPosition(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	meetId, ok := session.Get("meetId").(string)
-	if user == nil || !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if user == nil || !ok || meetName == "" {
 		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
@@ -97,9 +97,9 @@ func ClaimPosition(c *gin.Context) {
 	userEmail := user.(string)
 	svc := &services.OccupancyService{}
 
-	err := svc.SetPosition(meetId, position, userEmail)
+	err := svc.SetPosition(meetName, position, userEmail)
 	if err != nil {
-		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s in meet %s: %v", position, userEmail, meetId, err)
+		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s in meet %s: %v", position, userEmail, meetName, err)
 		c.String(http.StatusForbidden, "Error: %s", err.Error())
 		return
 	}
@@ -110,7 +110,7 @@ func ClaimPosition(c *gin.Context) {
 		// Optionally handle the error
 	}
 
-	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetId)
+	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetName)
 	// Redirect based on the claimed position.
 	switch position {
 	case "left":
@@ -127,19 +127,19 @@ func ClaimPosition(c *gin.Context) {
 // ShowLoginPage redirects users to Google OAuth login
 func ShowLoginPage(c *gin.Context) {
 	session := sessions.Default(c)
-	if session.Get("meetId") == nil {
+	if session.Get("meetName") == nil {
 		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
 		return
 	}
-	// Capture meetId from the query string (e.g., /login?meetId=meet1)
-	meetId := c.Query("meetId")
-	if meetId != "" {
+	// Capture meetName from the query string (e.g., /login?meetName=meet1)
+	meetName := c.Query("meetName")
+	if meetName != "" {
 		session := sessions.Default(c)
-		session.Set("meetId", meetId)
+		session.Set("meetName", meetName)
 		if err := session.Save(); err != nil { // Ensure the session is saved here
 			logger.Error.Printf("❌ Failed to save session: %v", err)
 		} else {
-			logger.Info.Printf("Stored meetId %s in session", meetId)
+			logger.Info.Printf("Stored meetName %s in session", meetName)
 		}
 	}
 	logger.Info.Println("Redirecting to Google OAuth login page (ShowLoginPage)")
@@ -149,16 +149,16 @@ func ShowLoginPage(c *gin.Context) {
 // Index renders the index page.
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
-	meetId, ok := session.Get("meetId").(string)
-	if !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
 		logger.Warn.Println("Index: No meet selected; redirecting to /meets")
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Printf("Rendering index page for meet %s", meetId)
+	logger.Info.Printf("Rendering index page for meet %s", meetName)
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
-		"meetId":       meetId,
+		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "index.html", data)
 }
@@ -166,15 +166,15 @@ func Index(c *gin.Context) {
 // Left renders the left referee view
 func Left(c *gin.Context) {
 	session := sessions.Default(c)
-	meetId, ok := session.Get("meetId").(string)
-	if !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 	logger.Info.Println("Left: Rendering left referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
-		"meetId":       meetId,
+		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "left.html", data)
 }
@@ -182,15 +182,15 @@ func Left(c *gin.Context) {
 // Centre renders the centre referee view
 func Centre(c *gin.Context) {
 	session := sessions.Default(c)
-	meetId, ok := session.Get("meetId").(string)
-	if !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 	logger.Info.Println("Centre: Rendering centre referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
-		"meetId":       meetId,
+		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "centre.html", data)
 }
@@ -198,15 +198,15 @@ func Centre(c *gin.Context) {
 // Right renders the right referee view
 func Right(c *gin.Context) {
 	session := sessions.Default(c)
-	meetId, ok := session.Get("meetId").(string)
-	if !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 	logger.Info.Println("Right: Rendering right referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
-		"meetId":       meetId,
+		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "right.html", data)
 }
@@ -214,15 +214,15 @@ func Right(c *gin.Context) {
 // Lights renders the light control panel
 func Lights(c *gin.Context) {
 	session := sessions.Default(c)
-	meetId, ok := session.Get("meetId").(string)
-	if !ok || meetId == "" {
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 	logger.Info.Println("Lights: Rendering lights page")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
-		"meetId":       meetId,
+		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "lights.html", data)
 }
@@ -273,11 +273,11 @@ func Logout(c *gin.Context) {
 	session := sessions.Default(c)
 	userEmail := session.Get("user")
 	refPosition := session.Get("refPosition")
-	meetId, ok := session.Get("meetId").(string)
+	meetName, ok := session.Get("meetName").(string)
 
-	if userEmail != nil && refPosition != nil && ok && meetId != "" {
+	if userEmail != nil && refPosition != nil && ok && meetName != "" {
 		logger.Info.Printf("Logout: Logging out user %s from position %s", userEmail, refPosition)
-		services.UnsetPosition(meetId, refPosition.(string), userEmail.(string))
+		services.UnsetPosition(meetName, refPosition.(string), userEmail.(string))
 	}
 
 	session.Clear()
