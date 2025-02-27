@@ -24,7 +24,7 @@
 </div>
 
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
+  var websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetId }}";
   var judgeId = "right";
   var meetId = "{{ .meetId }}";
 </script>
