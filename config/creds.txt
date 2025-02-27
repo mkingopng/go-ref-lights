@@ -1,4 +1,6 @@
-meets
+URL: https://referee-lights.michaelkingston.com.au
+
+Login details for meets:
 - name: Complete Strength Open
 - date: March 1,
 - users:

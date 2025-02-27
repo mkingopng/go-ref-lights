@@ -3,7 +3,6 @@ package websocket
 
 import (
 	"github.com/gorilla/websocket"
-	"go-ref-lights/logger"
 	"time"
 )
 
@@ -16,9 +15,9 @@ func startHeartbeat(conn *websocket.Conn) {
 	for range ticker.C {
 		if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 			failedPings++
-			logger.Warn.Printf("⚠️ WebSocket ping failed (%d/3): %v", failedPings, err)
+			//logger.Warn.Printf("⚠️ WebSocket ping failed (%d/3): %v", failedPings, err)
 			if failedPings >= 5 {
-				logger.Error.Println("❌ Connection lost due to repeated ping failures.")
+				//logger.Error.Println("❌ Connection lost due to repeated ping failures.")
 				_ = conn.Close()
 				delete(clients, conn)
 

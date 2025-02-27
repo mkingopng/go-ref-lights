@@ -1,6 +1,37 @@
 // static/js/lights.js
 "use strict";
 
+let socket;
+
+window.addEventListener("DOMContentLoaded", function () {
+    let meetNameElement = document.getElementById("meetName");
+    let meetName = meetNameElement ? meetNameElement.dataset.meetName : "";
+
+    if (!meetName) {
+        console.error("⚠️ Meet name not found. WebSocket will not be initialized.");
+        return;
+    }
+
+    let websocketUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`;
+    socket = new WebSocket(websocketUrl);
+
+    socket.onopen = function () {
+        console.log("✅ WebSocket connection established (Lights).");
+    };
+
+    socket.onclose = function (event) {
+        console.warn("⚠️ WebSocket connection closed (Lights):", event.code, event.reason);
+    };
+
+    socket.onerror = function (error) {
+        console.error("⚠️ WebSocket error:", error);
+    };
+
+    socket.onmessage = function (event) {
+        console.log("📩 Raw WebSocket message received (Lights):", event.data);
+    };
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     log("DOM fully loaded and parsed");
     console.log("Lights.js loaded.");
@@ -28,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const meetName = getmeetName();
 
     const wsUrl = `ws://${window.location.host}/referee-updates?meetName=${encodeURIComponent(meetName)}`;
-    let socket = new WebSocket(wsUrl);
+    socket = new WebSocket(wsUrl);
 
     console.log("Lights page loaded");
     console.log("meetName:", meetName);
@@ -52,13 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Platform Ready Button Logic
     if (platformReadyButton) {
         platformReadyButton.addEventListener("click", () => {
-            const action = platformReadyTimerContainer.classList.contains("hidden") ? "startTimer" : "stopTimer";
-            log(`Platform Ready button clicked: ${action}`);
-            socket.send(JSON.stringify({action, meetName: meetName}));
-            platformReadyTimerContainer.classList.toggle("hidden");
+            if (socket.readyState === WebSocket.OPEN) {
+                log(`🟢 Platform Ready button clicked, sending startTimer action`);
+                socket.send(JSON.stringify({action: "startTimer", meetName: meetName}));
+                platformReadyTimerContainer.classList.remove("hidden");
+            } else {
+                log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
+            }
         });
-    } else {
-        log("⚠️ Platform Ready button not found.", "warn");
     }
 
     // store judge decisions in an object
@@ -283,7 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // listen for messages from the server
 socket.onmessage = (event) => {
+    console.log("📩 WebSocket Message:", data);
     let data;
+
     try {
         data = JSON.parse(event.data);
         log(`Received Websocket message: ${JSON.stringify(data)}`, 'debug');
@@ -294,6 +328,9 @@ socket.onmessage = (event) => {
 
     // process websocket messages
     switch (data.action) {
+        case "startTimer":
+            log("🔵 Received startTimer event from WebSocket");
+            break;
         case "updatePlatformReadyTime":
             log(`Updating platform ready timer: ${data.timeLeft}s`);
             updatePlatformReadyTimerOnUI(data.timeLeft);

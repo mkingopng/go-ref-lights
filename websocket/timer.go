@@ -10,8 +10,11 @@ import (
 // handleTimerAction processes timer-related actions
 func handleTimerAction(action, meetName string) {
 	meetState := getMeetState(meetName)
+	logger.Info.Printf("🟡 Processing timer action: %s for meet: %s", action, meetName)
+
 	switch action {
 	case "startTimer":
+		logger.Info.Printf("🟠 Processing startTimer action for meet: %s", meetName)
 
 		// 1) clear old decision
 		meetState.JudgeDecisions = make(map[string]string)
@@ -23,8 +26,10 @@ func handleTimerAction(action, meetName string) {
 
 		// 3) start the Platform Ready timer
 		startPlatformReadyTimer(meetState)
+		logger.Info.Printf("🟢 Called startPlatformReadyTimer for meet: %s", meetName)
 
 	case "resetTimer":
+		logger.Info.Printf("🔄 Processing resetTimer action for meet: %s", meetName)
 		resetPlatformReadyTimer(meetState)
 		// clear judge decisions on reset if you want
 		meetState.JudgeDecisions = make(map[string]string)
@@ -34,6 +39,7 @@ func handleTimerAction(action, meetName string) {
 		broadcast <- clearJSON
 
 	case "startNextAttemptTimer":
+		logger.Info.Printf("🔜 Processing startNextAttemptTimer action for meet: %s", meetName)
 		startNextAttemptTimer(meetState)
 
 	case "updatePlatformReadyTime":
@@ -50,12 +56,19 @@ func startPlatformReadyTimer(meetState *MeetState) {
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
 
+	logger.Info.Println("🚦 Attempting to start Platform Ready Timer for meet: %s", meetState.MeetName)
+
 	if meetState.PlatformReadyActive {
 		logger.Warn.Println("⚠️ Platform Ready Timer already running.")
 		return
 	}
+
 	meetState.PlatformReadyActive = true
 	meetState.PlatformReadyTimeLeft = 60
+	logger.Info.Printf("🚦 Platform Ready Timer started for meet: %s", meetState.MeetName)
+
+	// Debugging check - ensuring no duplicate goroutines
+	logger.Debug.Printf("🛠️ Starting Platform Ready Timer loop for meet: %s", meetState.MeetName)
 
 	ticker := time.NewTicker(time.Second)
 	go func() {
@@ -67,8 +80,10 @@ func startPlatformReadyTimer(meetState *MeetState) {
 				return
 			}
 			meetState.PlatformReadyTimeLeft--
+			logger.Debug.Printf("⏰ Platform Ready Time Left: %d seconds left in meet %s", meetState.PlatformReadyTimeLeft, meetState.MeetName)
 			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0, meetState.MeetName)
 			if meetState.PlatformReadyTimeLeft <= 0 {
+				logger.Info.Printf("🚦 Platform Ready Timer expired for meet: %s", meetState.MeetName)
 				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
 				meetState.PlatformReadyActive = false
 				meetState.PlatformReadyTimeLeft = 60

@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"go-ref-lights/services"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -21,6 +22,11 @@ import (
 )
 
 func main() {
+	// Set Gin to release mode and disable logging
+	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = io.Discard
+	gin.DefaultErrorWriter = io.Discard
+
 	creds, err := controllers.LoadMeetCreds()
 	if err != nil {
 		fmt.Println("Error loading credentials:", err)
@@ -54,7 +60,7 @@ func main() {
 		case "warn":
 			logger.Warn.Println(payload.Message)
 		case "debug":
-			logger.Debug.Println(payload.Message)
+			//logger.Debug.Println(payload.Message)
 		case "info":
 			fallthrough
 		default:

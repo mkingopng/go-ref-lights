@@ -56,6 +56,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	go startHeartbeat(conn)
 
 	// start reading messages from this connection
+	logger.Info.Printf("🌐 Starting WebSocket message reading for: %s", meetName)
 	go handleReads(conn)
 }
 
@@ -149,7 +150,7 @@ func handleReads(conn *websocket.Conn) {
 			return
 		}
 
-		logger.Debug.Printf("Received raw message from %v: %s", conn.RemoteAddr(), string(msg))
+		logger.Debug.Printf("📥 Received raw message from %v: %s", conn.RemoteAddr(), string(msg))
 
 		var decisionMsg DecisionMessage
 		if err := json.Unmarshal(msg, &decisionMsg); err != nil {
@@ -157,10 +158,12 @@ func handleReads(conn *websocket.Conn) {
 			continue
 		}
 
+		logger.Info.Printf("📌 Processing WebSocket action: %s from %s (meet: %s)", decisionMsg.Action, decisionMsg.JudgeID, decisionMsg.MeetName)
+
 		// if the JSON has no meetName, log a warning
 		switch decisionMsg.Action {
 		case "registerRef":
-			logger.Info.Println("Registering referee connection", decisionMsg.JudgeID)
+			logger.Info.Printf("🟢 startTimer action received from %s for meet: %s", decisionMsg.JudgeID, decisionMsg.MeetName)
 			registerRef(decisionMsg, conn)
 
 		case "startTimer", "startNextAttemptTimer", "resetTimer", "updatePlatformReadyTime":
