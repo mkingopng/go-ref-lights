@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // custom logger for standardised logging
     const Logger = (function() {
-        const isDebug = true;  // set to false in production to diable debug logging
+        const isDebug = true;  // set to false in production to disable debug logging
 
         // helper function to send log messages to the server's /log endpoint.
         function sendLog(level, message) {
@@ -90,7 +90,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (data.action) {
             case "refereeHealth":
-                // the server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -98,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             case "healthError":
-                // for critical errors we alert the user
+                // for critical errors, we alert the user
                 alert(data.message);
                 break;
             default:

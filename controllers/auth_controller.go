@@ -62,7 +62,7 @@ func GoogleLogin(c *gin.Context) {
 func GoogleCallback(c *gin.Context) {
 	code := c.Query("code")
 
-	// Exchange authorization code for access token
+	// Exchange authorisation code for access token
 	token, err := oauthConfig.Exchange(context.Background(), code)
 	if err != nil {
 		logger.Error.Printf("❌ OAuth Exchange failed: %v", err)
@@ -84,7 +84,7 @@ func GoogleCallback(c *gin.Context) {
 		}
 	}(resp.Body)
 
-	// Parse user info (e.g., email and name)
+	// parse user info (e.g. email and name)
 	userInfo := struct {
 		Email string `json:"email"`
 		Name  string `json:"name"`
@@ -112,5 +112,5 @@ func GoogleCallback(c *gin.Context) {
 		logger.Info.Printf("Session saved for user: %s", userInfo.Email)
 	}
 	logger.Info.Printf("User %s successfully authenticated. Redirecting to home page.", userInfo.Email)
-	c.Redirect(http.StatusFound, "/dashboard") // Redirect to dashbaord after login
+	c.Redirect(http.StatusFound, "/dashboard") // Redirect to dashboard after login
 }

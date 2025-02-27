@@ -1,4 +1,4 @@
-// logger/logger.go
+// Package logger logger/logger.go
 package logger
 
 import (
@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	// Global loggers accessible throughout your application.
+	// Info Global loggers accessible throughout your application.
 	Info  *log.Logger
 	Warn  *log.Logger
 	Error *log.Logger
@@ -35,10 +35,10 @@ func InitLogger() error {
 	return nil
 }
 
-// Ensure the logger is initialized as soon as the package is imported.
+// Ensure the logger is initialised as soon as the package is imported.
 func init() {
 	if err := InitLogger(); err != nil {
 		// Use the standard logger here since our custom one isn't set up.
-		log.Fatalf("Failed to initialize custom logger: %v", err)
+		log.Fatalf("Failed to initialise custom logger: %v", err)
 	}
 }

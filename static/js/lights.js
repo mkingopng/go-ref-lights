@@ -1,17 +1,21 @@
 // static/js/lights.js
+"use strict";
+
 document.addEventListener('DOMContentLoaded', () => {
     log("DOM fully loaded and parsed");
 
-    var meetIdElement = document.getElementById('meetId');
-    var meetId = meetIdElement ? meetIdElemnt.dataset.meetid : null;
+    const meetIdElement = document.getElementById('meetId');
+    const meetId = meetIdElement ? meetIdElement.dataset.meetid : null;
+    const wsUrl = `ws://${window.location.host}/referee-updates?meetName=${encodeURIComponent(meetId)}`;
+
+    let connectedReferees = 0; // ✅ Define globally
+    let requiredReferees = 3; // ✅ Add a default value or get from server
+    let socket = new WebSocket(wsUrl);
 
     if (!meetId) {
         log("⚠️ meetId is missing! WebSocket will not work properly.", "error");
         return;
     }
-
-    var wsUrl = `ws://${window.location.host}/referee-updates?meetName=${encodeURIComponent(meetId)}`;
-    var socket;
 
     console.log("Lights page loaded");
     console.log("meetId:", meetId);
@@ -31,13 +35,15 @@ document.addEventListener('DOMContentLoaded', () => {
         right: null
     };
 
-    // Assume your template renders a variable 'meetId'
-    var meetId = "{{.meetId}}"; // This should come from your server-side template data.
-    var wsUrl = "ws://" + window.location.host + "/referee-updates?meetName=" + encodeURIComponent(meetId);
-    var socket = new WebSocket(wsUrl);
-
-    // track how many refs are connected (0..3)
-    let connectedReferees = 0;
+    function updatePlatformReadyTimerOnUI(timeLeft) {
+        log(`Updating platform ready timer UI: ${timeLeft}s`);
+        if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.remove('hidden');
+        }
+        if (timerDisplay) {
+            timerDisplay.innerText = `${timeLeft}s`;
+        }
+    }
 
     // attach event listeners
     socket.onopen = () => {
@@ -144,16 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     //  timer UI Handling (Server-Driven)
-    function updatePlatformReadyTimerOnUI(timeLeft) {
-        log(`Updating platform ready timer UI: ${timeLeft}s`);
-        if (platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.remove('hidden');
-        }
-        if (timerDisplay) {
-            timerDisplay.innerText = `${timeLeft}s`;
-        }
-    }
-
     function handlePlatformReadyExpired() {
         log("Platform Ready timer expired");
         if (timerDisplay) timerDisplay.innerText = '0s';
@@ -317,6 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateHealthStatus(connected, required) {
         log(`Updating health status: ${connected}/${required} connected`);
         connectedReferees = connected;
+        requiredReferees = required;
+
         if (connectionStatusElement) {
             connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
             connectionStatusElement.style.color = (connected < required) ? "red" : "green";

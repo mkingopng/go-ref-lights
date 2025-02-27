@@ -101,12 +101,12 @@ func main() {
 		Secure:   false, // Set to false for development (true in production)
 		SameSite: http.SameSiteLaxMode,
 	})
-	router.Use(sessions.Sessions("mysession", store))
+	router.Use(sessions.Sessions("mySession", store))
 
 	// determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates")
+	basePath := filepath.Dir(b)
+	templatesDir := filepath.Join(basePath, "templates")
 
 	// validate that the templates directory exists
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
@@ -120,7 +120,7 @@ func main() {
 	// Serve static files
 	router.Static("/static", "./static")
 	router.GET("/favicon.ico", func(c *gin.Context) {
-		faviconPath := filepath.Join(basepath, "static", "images", "favicon.ico")
+		faviconPath := filepath.Join(basePath, "static", "images", "favicon.ico")
 		c.File(faviconPath)
 	})
 

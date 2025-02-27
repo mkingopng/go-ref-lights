@@ -30,25 +30,24 @@ func SetMeet(c *gin.Context) {
 		logger.Error.Printf("SetMeet: Failed to save meetId: %v", err)
 	}
 	logger.Info.Printf("SetMeet: Stored meetId %s in session", meetId)
-	// Redirect to login (or the next step in your flow)
+	// Redirect to log in (or the next step in your flow)
 	c.Redirect(http.StatusFound, "/login")
 }
 
-// ChooseMeet renders the meet selection page.
-// ChooseMeet renders the meet selection page.
-func ChooseMeet(c *gin.Context) {
-	data, err := LoadMeets()
-	if err != nil {
-		// Log the error and show a message to the user
-		logger.Error.Printf("ChooseMeet: Failed to load meets: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to load meets")
-		return
-	}
-	// Pass the available meets to the template.
-	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
-		"availableMeets": data.Meets,
-	})
-}
+//// ChooseMeet renders the meet selection page.
+//func ChooseMeet(c *gin.Context) {
+//	data, err := LoadMeets()
+//	if err != nil {
+//		// Log the error and show a message to the user
+//		logger.Error.Printf("ChooseMeet: Failed to load meets: %v", err)
+//		c.String(http.StatusInternalServerError, "Failed to load meets")
+//		return
+//	}
+//	// Pass the available meets to the template.
+//	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+//		"availableMeets": data.Meets,
+//	})
+//}
 
 // ShowPositionsPage displays the referee position selection page.
 func ShowPositionsPage(c *gin.Context) {
@@ -94,7 +93,6 @@ func ClaimPosition(c *gin.Context) {
 		return
 	}
 
-	// Note: Fixed typo "postion" -> "position"
 	position := c.PostForm("position")
 	userEmail := user.(string)
 	svc := &services.OccupancyService{}
@@ -138,7 +136,7 @@ func ShowLoginPage(c *gin.Context) {
 	if meetId != "" {
 		session := sessions.Default(c)
 		session.Set("meetId", meetId)
-		if err := session.Save(); err != nil { // Ensure session is saved here
+		if err := session.Save(); err != nil { // Ensure the session is saved here
 			logger.Error.Printf("❌ Failed to save session: %v", err)
 		} else {
 			logger.Info.Printf("Stored meetId %s in session", meetId)

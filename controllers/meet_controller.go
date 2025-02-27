@@ -21,7 +21,7 @@ type Meets struct {
 	Meets []Meet `json:"meets"`
 }
 
-// LoadMeets loads the meets configuration from ./config/meets.json.
+// LoadMeets loads the meet configuration from ./config/meets.json.
 func LoadMeets() (*Meets, error) {
 	data, err := os.ReadFile("./config/meets.json")
 	if err != nil {
