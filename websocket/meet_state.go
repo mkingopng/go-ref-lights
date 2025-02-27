@@ -1,4 +1,4 @@
-// Package websocket: This file contains the MeetState struct, which holds per-meet, in-memory data
+// Package websocket: websocket/meet_state.go
 package websocket
 
 import (

@@ -1,3 +1,4 @@
+// Package websocket - websocket/connection.go
 package websocket
 
 import (

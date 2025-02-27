@@ -1,3 +1,4 @@
+// Package websocket websocket/timer.go
 package websocket
 
 import (
@@ -11,17 +12,6 @@ func handleTimerAction(action, meetName string) {
 	meetState := getMeetState(meetName)
 	switch action {
 	case "startTimer":
-		// only allow "Platform Ready" if all refs are connected // fix_me
-		//if !isAllRefsConnected(meetState) {
-		//	errMsg := map[string]string{
-		//		"action":  "healthError",
-		//		"message": "Cannot start timer: Not all referees are connected!",
-		//	}
-		//	msg, _ := json.Marshal(errMsg)
-		//	broadcast <- msg
-		//	logger.Error.Println("❌ Timer not started: All referees not connected.")
-		//	return
-		//}
 
 		// 1) clear old decision
 		meetState.JudgeDecisions = make(map[string]string)
@@ -34,10 +24,6 @@ func handleTimerAction(action, meetName string) {
 		// 3) start the Platform Ready timer
 		startPlatformReadyTimer(meetState)
 
-	// not required per Daniel
-	//case "stopTimer":
-	//	stopPlatformReadyTimer(meetState)
-
 	case "resetTimer":
 		resetPlatformReadyTimer(meetState)
 		// clear judge decisions on reset if you want
@@ -49,6 +35,11 @@ func handleTimerAction(action, meetName string) {
 
 	case "startNextAttemptTimer":
 		startNextAttemptTimer(meetState)
+
+	case "updatePlatformReadyTime":
+		// Do nothing, or log and ignore, since these updates are meant for clients
+		logger.Debug.Printf("Ignoring timer update echo from client for meet: %s", meetName)
+		return
 	}
 
 	logger.Info.Printf("✅ Timer action processed: %s (meet: %s)", action, meetName)

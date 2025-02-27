@@ -1,116 +1,116 @@
-// Package controllers: controllers/auth_controller.go
+// Package controllers controllers/auth_controller.go
 package controllers
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"io"
+	"go-ref-lights/logger"
+	"go-ref-lights/models"
 	"net/http"
 	"os"
-
-	"go-ref-lights/logger"
+	"runtime"
 )
 
-// OAuth2 configuration
-var oauthConfig *oauth2.Config
-
-func init() {
-	// Load .env file if it exists
-	err := godotenv.Load()
-	if err != nil {
-		logger.Warn.Println("⚠️ Warning: No .env file found. Using system environment variables.")
-	}
-
-	clientID := os.Getenv("GOOGLE_CLIENT_ID")
-	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
-	applicationURL := os.Getenv("APPLICATION_URL")
-
-	if clientID == "" || clientSecret == "" || applicationURL == "" {
-		logger.Error.Fatal("❌ Missing required Google OAuth environment variables (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLICATION_URL). Check your .env file.")
-	}
-
-	redirectURL := applicationURL + "/auth/google/callback"
-
-	oauthConfig = &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
-	}
-
-	logger.Info.Println("OAuth configuration initialized successfully.")
-}
-
-// GoogleLogin redirects users to Google's OAuth login page
-func GoogleLogin(c *gin.Context) {
-	state := "randomstate" // Ideally, generate a random secure state
-	url := oauthConfig.AuthCodeURL(state)
-	logger.Info.Printf("Redirecting user to Google OAuth login page: %s", url)
-	c.Redirect(http.StatusFound, url)
-}
-
-// GoogleCallback handles the OAuth callback and stores user session
-func GoogleCallback(c *gin.Context) {
-	code := c.Query("code")
-
-	// Exchange authorisation code for access token
-	token, err := oauthConfig.Exchange(context.Background(), code)
-	if err != nil {
-		logger.Error.Printf("❌ OAuth Exchange failed: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to exchange token")
-		return
-	}
-
-	// Use the token to get user info
-	client := oauthConfig.Client(context.Background(), token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
-	if err != nil {
-		logger.Error.Printf("❌ Failed to retrieve user info: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to get user info")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		if err := Body.Close(); err != nil {
-			logger.Warn.Printf("Warning: Failed to close response body: %v", err)
-		}
-	}(resp.Body)
-
-	// parse user info (e.g. email and name)
-	userInfo := struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}{}
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		logger.Error.Printf("❌ Failed to parse user info: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to parse user info")
-		return
-	}
-
-	// Retrieve session from the Gin context
+// SetMeetHandler saves the selected meetName in session
+func SetMeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// Store user info in session
-	meetVal := session.Get("meetName")
-	meetName, ok := meetVal.(string)
-	if !ok || meetName == "" {
-		c.Redirect(http.StatusFound, "/meets")
+	// Prevent selecting a different meet after already setting one
+	if session.Get("meetName") != nil {
+		c.Redirect(http.StatusFound, "/login")
 		return
 	}
-	session.Set("user", userInfo.Email)
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("❌ Failed to save session: %v", err)
-	} else {
-		logger.Info.Printf("Session saved for user: %s", userInfo.Email)
+
+	meetName := c.PostForm("meetName")
+	if meetName == "" {
+		c.HTML(http.StatusBadRequest, "choose_meet.html", gin.H{"Error": "Please select a meet."})
+		return
 	}
-	logger.Info.Printf("User %s successfully authenticated. Redirecting to home page.", userInfo.Email)
-	c.Redirect(http.StatusFound, "/dashboard") // Redirect to dashboard after login
+
+	session.Set("meetName", meetName)
+	if err := session.Save(); err != nil {
+		logger.Error.Println("Failed to save meet session:", err)
+		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error, please try again."})
+		return
+	}
+
+	logger.Info.Printf("Meet %s selected, redirecting to login.", meetName)
+	c.Redirect(http.StatusFound, "/login")
+}
+
+// LoadMeetCreds loads meet credentials from JSON file
+func LoadMeetCreds() (*models.MeetCreds, error) {
+	_, _, _, _ = runtime.Caller(0) // Unused variable fix
+	credPath := "./config/meet_creds.json"
+
+	data, err := os.ReadFile(credPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var creds models.MeetCreds
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return nil, err
+	}
+
+	// Debug print to confirm meets are loaded correctly
+	fmt.Println("Loaded meets:", creds.Meets)
+
+	return &creds, nil
+}
+
+// LoginHandler verifies the username and password
+func LoginHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	meetNameRaw := session.Get("meetName")
+	meetName, ok := meetNameRaw.(string)
+	if !ok || meetName == "" {
+		c.Redirect(http.StatusFound, "/choose-meet")
+		return
+	}
+
+	username := c.PostForm("username")
+	password := c.PostForm("password")
+
+	if username == "" || password == "" {
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{"MeetName": meetName, "Error": "Please fill in all fields."})
+		return
+	}
+
+	creds, err := LoadMeetCreds()
+	if err != nil {
+		logger.Error.Println("Failed to load meet credentials:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again later."})
+		return
+	}
+
+	var valid bool
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			for _, user := range m.Users {
+				if user.Username == username && user.Password == password {
+					valid = true
+					break
+				}
+			}
+		}
+	}
+
+	if !valid {
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "Invalid username or password."})
+		return
+	}
+
+	// Save user info in session
+	session.Set("user", username)
+	if err := session.Save(); err != nil {
+		logger.Error.Println("Failed to save session:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again."})
+		return
+	}
+
+	logger.Info.Printf("User %s authenticated for meet %s", username, meetName)
+	c.Redirect(http.StatusFound, "/dashboard")
 }

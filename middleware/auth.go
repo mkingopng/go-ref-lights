@@ -9,15 +9,18 @@ import (
 	"go-ref-lights/logger"
 )
 
-// AuthRequired is a middleware that checks if the user is authenticated
+// AuthRequired middleware to ensure user is logged in
 func AuthRequired(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
-	if user == nil {
-		logger.Warn.Printf("Unauthenticated access attempt to %s. Redirecting to /meets", c.Request.URL.Path)
-		c.Redirect(http.StatusFound, "/meets")
+	meetName := session.Get("meetName")
+
+	if user == nil || meetName == nil {
+		logger.Warn.Printf("Unauthorized access attempt to %s. Redirecting to /choose-meet", c.Request.URL.Path)
+		c.Redirect(http.StatusFound, "/choose-meet")
 		c.Abort()
 		return
 	}
+
 	c.Next()
 }

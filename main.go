@@ -20,11 +20,19 @@ import (
 )
 
 func main() {
-	// initialize the centralized logger.
+	creds, err := controllers.LoadMeetCreds()
+	if err != nil {
+		fmt.Println("Error loading credentials:", err)
+	} else {
+		fmt.Println("Loaded meets:", creds.Meets)
+	}
+
+	// initialise the centralised logger.
 	if err := logger.InitLogger(); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
+	// initialise router
 	router := gin.Default()
 
 	// add logging endpoint:
@@ -38,7 +46,6 @@ func main() {
 			c.Status(http.StatusBadRequest)
 			return
 		}
-
 		// depending on the level, log with the appropriate logger:
 		switch payload.Level {
 		case "error":
@@ -59,7 +66,7 @@ func main() {
 	logger.Info.Println("Application started successfully.")
 
 	// load environment variables from .env file
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found. Using system environment variables.")
 	}
@@ -67,12 +74,11 @@ func main() {
 	// set Gin to release mode for production (optional but recommended)
 	gin.SetMode(gin.ReleaseMode)
 
-	// Read environment variables
+	// read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
 		applicationURL = "http://localhost:8080"
 	}
-
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
 		websocketURL = "ws://localhost:8080/referee-updates"
@@ -113,48 +119,33 @@ func main() {
 		log.Fatalf("Templates directory does not exist: %s", templatesDir)
 	}
 
-	// Load HTML templates
+	// load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
 
-	// Serve static files
+	// serve static files
 	router.Static("/static", "./static")
 	router.GET("/favicon.ico", func(c *gin.Context) {
 		faviconPath := filepath.Join(basePath, "static", "images", "favicon.ico")
 		c.File(faviconPath)
 	})
 
-	// Public routes
-	router.GET("/", controllers.ShowMeets)        // Home page: choose meet
-	router.POST("/set-meet", controllers.SetMeet) // (see next section)
-	router.GET("/login", controllers.ShowLoginPage)
+	// public routes
+	router.GET("/", controllers.ShowMeets)
+	router.POST("/set-meet", controllers.SetMeetHandler)
+	router.GET("/login", controllers.LoginHandler)
 	router.POST("/login", controllers.PerformLogin)
 	router.GET("/logout", controllers.Logout)
 
-	// Admin route for clearing a meet's state.
-	router.GET("/admin/clear-meet", func(c *gin.Context) {
-		meetName := c.Query("meetName")
-		if meetName == "" {
-			c.String(http.StatusBadRequest, "meetName query parameter is required")
-			return
-		}
-		websocket.ClearMeetState(meetName)
-		c.String(http.StatusOK, "Cleared MeetState for meet: %s", meetName)
-	})
-
-	// Google Auth routes
-	router.GET("/auth/google/login", controllers.GoogleLogin)
-	router.GET("/auth/google/callback", controllers.GoogleCallback)
-
-	// Add this middleware before protected routes
+	// middleware: Ensure meetName is set before login
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
-			return // Skip for meet selection and login
+			return // Allow meet selection and login pages
 		}
 
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
-			c.Redirect(http.StatusFound, "/meets")
+			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 		}
 	})

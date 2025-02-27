@@ -56,3 +56,4 @@ config.yaml
 
 /reflights_client_secret_apps.googleusercontent.com.json
 /logs/
+/authentication_notes.txt

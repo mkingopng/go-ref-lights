@@ -1,32 +1,22 @@
-// Package controllers config/meets.json
+// Package controllers: controllers/meet_controller.go
 package controllers
 
 import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
+	"go-ref-lights/models"
 	"net/http"
 	"os"
 )
 
-// Meet represents a single meet entry.
-type Meet struct {
-	Name string `json:"name"`
-	Date string `json:"date"`
-}
-
-// Meets is a wrapper for multiple meets.
-type Meets struct {
-	Meets []Meet `json:"meets"`
-}
-
 // LoadMeets loads the meet configuration from ./config/meets.json.
-func LoadMeets() (*Meets, error) {
+func LoadMeets() (*models.MeetCreds, error) {
 	data, err := os.ReadFile("./config/meets.json")
 	if err != nil {
 		return nil, err
 	}
-	var meets Meets
+	var meets models.MeetCreds
 	if err := json.Unmarshal(data, &meets); err != nil {
 		return nil, err
 	}

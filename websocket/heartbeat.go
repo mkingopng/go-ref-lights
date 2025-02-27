@@ -1,3 +1,4 @@
+// Package websocket websocket/heartbeat.go
 package websocket
 
 import (

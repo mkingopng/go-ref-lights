@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     log("DOM fully loaded and parsed");
     console.log("Lights.js loaded.");
 
-    // Retrieve meetName from multiple sources
+    // retrieve meetName from multiple sources
     function getmeetName() {
         const meetNameElement = document.getElementById("meetName");
         let meetName = meetNameElement ? meetNameElement.dataset.meetName : null;
@@ -25,9 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return meetName;
     }
 
-    const meetNameElement = document.getElementById('meetName');
-    if (!meetName) return; // Prevent further execution if meetName is missing
-    const meetName = meetNameElement ? meetNameElement.dataset.meetName : null;
+    const meetName = getmeetName();
+
     const wsUrl = `ws://${window.location.host}/referee-updates?meetName=${encodeURIComponent(meetName)}`;
     let socket = new WebSocket(wsUrl);
 
@@ -43,16 +42,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    console.log("Lights page loaded");
-    console.log("meetName:", meetName);
-    console.log("WebSocket URL:", wsUrl);
-
     // cache references to DOM elements
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const timerDisplay = document.getElementById('timer');
     const messageElement = document.getElementById('message');
     const connectionStatusElement = document.getElementById('connectionStatus');
+
+    // Platform Ready Button Logic
+    if (platformReadyButton) {
+        platformReadyButton.addEventListener("click", () => {
+            const action = platformReadyTimerContainer.classList.contains("hidden") ? "startTimer" : "stopTimer";
+            log(`Platform Ready button clicked: ${action}`);
+            socket.send(JSON.stringify({action, meetName: meetName}));
+            platformReadyTimerContainer.classList.toggle("hidden");
+        });
+    } else {
+        log("⚠️ Platform Ready button not found.", "warn");
+    }
 
     // store judge decisions in an object
     const judgeDecisions = {
@@ -87,8 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.onclose = (event) => {
         log(`WebSocket connection closed (Lights): ${event.code} - ${event.reason}`);
     };
-
-
 
     //utility function for logging
     function log(message, level = 'debug') {
@@ -176,6 +181,21 @@ document.addEventListener('DOMContentLoaded', () => {
         circle.style.backgroundColor = decision === "white" ? "white" : decision === "red" ? "red" : "black";
     }
 
+    //  health check UI
+    function updateHealthStatus(connected, required) {
+        log(`Updating health status: ${connected}/${required} connected`);
+        connectedReferees = connected;
+        requiredReferees = required;
+
+        if (connectionStatusElement) {
+            connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
+            connectionStatusElement.style.color = (connected < required) ? "red" : "green";
+        }
+        if (platformReadyButton) {
+            log(`Platform not ready: ${connected}/${required} connected`);
+        }
+    }
+
     // reset all judge indicators to grey
     function resetJudgeIndicators() {
         log("Resetting judge indicators");
@@ -191,36 +211,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!messageElement) return;
         messageElement.innerText = text;
         messageElement.style.color = color;
-
-        //  health check UI
-        function updateHealthStatus(connected, required) {
-            log(`Updating health status: ${connected}/${required} connected`);
-            connectedReferees = connected;
-            requiredReferees = required;
-
-            if (connectionStatusElement) {
-                connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
-                connectionStatusElement.style.color = (connected < required) ? "red" : "green";
-            }
-            if (platformReadyButton) {
-                log(`Platform not ready: ${connected}/${required} connected`);
-            }
-        }
-
-        // Platform Ready Button Logic
-        if (platformReadyButton) {
-            platformReadyButton.addEventListener("click", () => {
-                const action = platformReadyTimerContainer.classList.contains("hidden") ? "startTimer" : "stopTimer";
-                log(`Platform Ready button clicked: ${action}`);
-                socket.send(JSON.stringify({action, meetName: meetName}));
-                platformReadyTimerContainer.classList.toggle("hidden");
-            });
-        } else {
-            log("⚠️ Platform Ready button not found.", "warn");
-        }
     }
 
-    //  Next Attempt Timer Handling  // fix_me
+    //  Next Attempt Timer Handling
     function handleNextAttemptExpired(timerIndex) {
         log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
         if (nextAttemptRows[timerIndex]) {
@@ -347,11 +340,3 @@ socket.onmessage = (event) => {
             log(`Unknown action: ${data.action}`, "warn");
     }
 };
-
-        // if "Time Up" => flash  // fix_me: redundant
-        // if (text.includes("Time Up")) {
-        //     messageElement.classList.add('flash');
-        // } else {
-        //     messageElement.classList.remove('flash');
-        // }
-    // }
