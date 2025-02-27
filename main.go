@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"go-ref-lights/services"
 	"log"
 	"net/http"
 	"os"
@@ -123,6 +124,8 @@ func main() {
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
 
+	pc := controllers.NewPositionController(&services.OccupancyService{})
+
 	// serve static files
 	router.Static("/static", "./static")
 	router.GET("/favicon.ico", func(c *gin.Context) {
@@ -133,8 +136,8 @@ func main() {
 	// public routes
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
-	router.GET("/login", controllers.LoginHandler)
-	router.POST("/login", controllers.PerformLogin)
+	router.GET("/login", controllers.PerformLogin)
+	router.POST("/login", controllers.LoginHandler)
 	router.GET("/logout", controllers.Logout)
 
 	// middleware: Ensure meetName is set before login
@@ -165,7 +168,7 @@ func main() {
 	{
 		protected.GET("/dashboard", controllers.Index)
 		protected.GET("/positions", controllers.ShowPositionsPage)
-		protected.POST("/position/claim", controllers.ClaimPosition)
+		protected.POST("/position/claim", pc.ClaimPosition)
 		protected.GET("/left", controllers.Left)
 		protected.GET("/centre", controllers.Centre)
 		protected.GET("/right", controllers.Right)

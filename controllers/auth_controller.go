@@ -8,10 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/models"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
 	"runtime"
 )
+
+// ComparePasswords checks if the given password matches the hashed password
+func ComparePasswords(hashedPassword, plainPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
+	return err == nil
+}
 
 // SetMeetHandler saves the selected meetName in session
 func SetMeetHandler(c *gin.Context) {
@@ -64,9 +71,11 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 // LoginHandler verifies the username and password
 func LoginHandler(c *gin.Context) {
 	session := sessions.Default(c)
+
 	meetNameRaw := session.Get("meetName")
 	meetName, ok := meetNameRaw.(string)
 	if !ok || meetName == "" {
+		logger.Warn.Println("LoginHandler: No meet selected, redirecting to /choose-meet")
 		c.Redirect(http.StatusFound, "/choose-meet")
 		return
 	}
@@ -75,22 +84,31 @@ func LoginHandler(c *gin.Context) {
 	password := c.PostForm("password")
 
 	if username == "" || password == "" {
-		c.HTML(http.StatusBadRequest, "login.html", gin.H{"MeetName": meetName, "Error": "Please fill in all fields."})
+		logger.Warn.Println("LoginHandler: Missing username or password")
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Please fill in all fields.",
+		})
 		return
 	}
 
+	// Load credentials
 	creds, err := LoadMeetCreds()
 	if err != nil {
-		logger.Error.Println("Failed to load meet credentials:", err)
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again later."})
+		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again later.",
+		})
 		return
 	}
 
+	// Validate user credentials
 	var valid bool
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
 			for _, user := range m.Users {
-				if user.Username == username && user.Password == password {
+				if user.Username == username && ComparePasswords(user.Password, password) {
 					valid = true
 					break
 				}
@@ -99,18 +117,25 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	if !valid {
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "Invalid username or password."})
+		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Invalid username or password.",
+		})
 		return
 	}
 
 	// Save user info in session
 	session.Set("user", username)
 	if err := session.Save(); err != nil {
-		logger.Error.Println("Failed to save session:", err)
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again."})
+		logger.Error.Println("LoginHandler: Failed to save session:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again.",
+		})
 		return
 	}
 
-	logger.Info.Printf("User %s authenticated for meet %s", username, meetName)
+	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s", username, meetName)
 	c.Redirect(http.StatusFound, "/dashboard")
 }

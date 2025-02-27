@@ -54,6 +54,5 @@ config.yaml
 # Exclude generated files from Repomix or other tools
 /repomix-output.txt
 
-/reflights_client_secret_apps.googleusercontent.com.json
 /logs/
-/authentication_notes.txt
+
