@@ -2,6 +2,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     log("DOM fully loaded and parsed");
 
+    var meetIdElement = document.getElementById('meetId');
+    var meetId = meetIdElement ? meetIdElemnt.dataset.meetid : null;
+
+    if (!meetId) {
+        log("⚠️ meetId is missing! WebSocket will not work properly.", "error");
+        return;
+    }
+
+    var wsUrl = `ws://${window.location.host}/referee-updates?meetName=${encodeURIComponent(meetId)}`;
+    var socket;
+
+    console.log("Lights page loaded");
+    console.log("meetId:", meetId);
+    console.log("WebSocket URL:", wsUrl);
+
     // cache references to DOM elements
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
@@ -20,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
     var meetId = "{{.meetId}}"; // This should come from your server-side template data.
     var wsUrl = "ws://" + window.location.host + "/referee-updates?meetName=" + encodeURIComponent(meetId);
     var socket = new WebSocket(wsUrl);
-
 
     // track how many refs are connected (0..3)
     let connectedReferees = 0;
@@ -217,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             log(`Timer #${timerIndex + 1} not found in nextAttemptRows!`, 'warn');
         }
     }
-    
+
     //  decision handling
     function showJudgeSubmissionIndicator(judgeId) {
         log(`Showing judge submission indicator for judgeId "${judgeId}"`);
@@ -318,18 +332,23 @@ document.addEventListener('DOMContentLoaded', () => {
     //  Platform Ready button logic
     if (platformReadyButton && platformReadyTimerContainer) {
         platformReadyButton.addEventListener('click', () => {
-            // current code toggles local container visibility:
             const isHidden = platformReadyTimerContainer.classList.contains('hidden');
             if (isHidden) {
                 log("Starting platform ready timer");
-                socket.send(JSON.stringify({ action: "startTimer" }));
+                socket.send(JSON.stringify({
+                    action: "startTimer",
+                    meetName: meetId
+                })); // ✅ Add meetName
             } else {
                 log("Stopping platform ready timer");
-                socket.send(JSON.stringify({ action: "stopTimer" }));
+                socket.send(JSON.stringify({
+                    action: "stopTimer",
+                    meetName: meetId
+                })); // ✅ Add meetName
             }
-            // toggle local display
             platformReadyTimerContainer.classList.toggle('hidden');
         });
+
     } else {
         log("Platform Ready button or container not found.", 'warn');
     }

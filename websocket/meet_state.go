@@ -75,8 +75,11 @@ func ClearMeetState(meetName string) {
 
 // DecisionMessage now includes MeetName so we can handle multiple meets.
 type DecisionMessage struct {
-	MeetName string `json:"meetName,omitempty"` // e.g. "STATE_CHAMPS_2025"
-	JudgeID  string `json:"judgeId,omitempty"`
-	Decision string `json:"decision,omitempty"`
-	Action   string `json:"action,omitempty"`
+	Action         string `json:"action"`
+	MeetName       string `json:"meetName"`
+	JudgeID        string `json:"judgeId"`
+	Decision       string `json:"decision"`
+	LeftDecision   string `json:"leftDecision"`
+	CentreDecision string `json:"centreDecision"`
+	RightDecision  string `json:"rightDecision"`
 }

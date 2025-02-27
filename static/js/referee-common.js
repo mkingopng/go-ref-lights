@@ -123,8 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // utility to send JSON
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(obj));
-            Logger.info("Sent message:", obj);
+            const messageString = JSON.stringify(obj)
+            socket.send(messageString);
+            Logger.info("Sent message:", messageString);
         } else {
             Logger.warn(`Cannot send message; socket not open (readyState = ${socket.readyState})`);
         }
@@ -133,19 +134,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // if these buttons exist, wire them up
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
-            sendMessage({ judgeId: judgeId, decision: "white" });
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetId,
+                judgeId: judgeId,
+                decision: "white"
+            });
         });
     }
     if (redButton) {
         redButton.addEventListener('click', function() {
-            sendMessage({ judgeId: judgeId, decision: "red" });
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetId,
+                judgeId: judgeId,
+                decision: "red"
+            });
         });
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "resetLights" });
-            sendMessage({ action: "resetTimer" });
-            sendMessage({ action: "startTimer" });
+            sendMessage({
+                action: "resetLights",
+                meetName: meetId,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "resetTimer",
+                meetName: meetId,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "startTimer",
+                meetName: meetId,
+                judgeId: judgeId,
+            });
         });
     }
 });

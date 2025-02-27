@@ -70,3 +70,47 @@ go test -v ./...
        - You have a Dockerfile and some AWS CDK scripts.
        - If your goal is to set up a fully automated CI/CD pipeline and run in ECS, you can finalise your build pipeline, environment configs, and domain (like `referee-lights.michaelkingston.com.au`).
 
+--
+
+The logs indicate that the lights page’s WebSocket connection is still 
+using the literal string `"{{ .meetId }}"` instead of the actual meet 
+identifier. That means when you click “Platform Ready” (or other actions) 
+from the lights page, the outgoing messages do not include the required 
+meetName, so the server rejects them.
+
+Two things to check:
+
+1. In your `lights.html` template, verify that the template variables are 
+being substituted. It should look like this:
+
+```javascript
+<script>
+    var meetId = "{{ .meetId }}";
+    const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetId }}";
+</script>
+```
+
+If the rendered HTML still shows `“{{ .meetId }}”` literally (as your log shows: 
+`GET /referee-updates?meetName=%7B%7B.meetId%7D%7D)`, then the template isn’t 
+being processed correctly. 
+
+Ensure that:
+- The file is indeed located in your templates directory.
+- Your Lights controller function is passing a valid, non‐empty meetId 
+  (which appears to be the case).
+- There’s no caching or override preventing proper template processing.
+- Also, in your lights.js (or the code that sends messages from the lights 
+  page), ensure that every outgoing message includes the meetName property. 
+  For example, before sending a message like `{"action":"startTimer"}`, you 
+  should add: `message.meetName = meetId;`
+
+This guarantees that when the server (in handler.go) does `r.URL.Query().Get
+("meetName")` and later inspects incoming JSON messages for the meetName 
+field, it finds the proper value.
+
+By confirming that your lights.html template is processed properly and 
+updating your client-side code to attach meetName in outgoing messages, 
+your “Platform Ready” command should trigger the expected response on the 
+lights page.
+
+These adjustments should resolve the issue. Let me know if you need further clarification!
