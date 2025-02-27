@@ -17,6 +17,7 @@ type NextAttemptTimer struct {
 
 // MeetState holds per-meet, in-memory data.
 type MeetState struct {
+	MeetName string
 	// judgeID -> WebSocket connection (e.g. "left" -> conn)
 	RefereeSessions map[string]*websocket.Conn
 	// judgeID -> decision string (e.g. "left" -> "white")
@@ -37,12 +38,6 @@ var (
 
 // getMeetState fetches or creates a MeetState for the given meetName.
 func getMeetState(meetName string) *MeetState {
-	// If meetName is empty, log an error and default to "DEFAULT_MEET"
-	if meetName == "" {
-		logger.Error.Println("Empty meetName provided to getMeetState. Defaulting to 'DEFAULT_MEET'.")
-		meetName = "DEFAULT_MEET"
-	}
-
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
 

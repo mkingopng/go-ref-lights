@@ -63,13 +63,10 @@ go test -v ./...
        - Increase green dot size, keep text messages for 15 seconds, and do any other styling improvements.
        - These are quick adjustments in your CSS and JavaScript.
 
-8. Upgrade to Full OAuth 2.0
-   - Status: You do have a basic Google OAuth flow, so you’re partway there.
-       - If you need advanced OAuth scenarios, like offline tokens, refresh tokens, or a custom OAuth provider, that could be the next step.
+8. downgrade to manually defined auth
 
 9. Deploy to Cloud
    - Status: Possibly partial or planned.
        - You have a Dockerfile and some AWS CDK scripts.
        - If your goal is to set up a fully automated CI/CD pipeline and run in ECS, you can finalise your build pipeline, environment configs, and domain (like `referee-lights.michaelkingston.com.au`).
 
----

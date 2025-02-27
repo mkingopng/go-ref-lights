@@ -14,11 +14,10 @@ func AuthRequired(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
 	if user == nil {
-		logger.Warn.Printf("Unauthenticated access attempt to %s. Redirecting to /login", c.Request.URL.Path)
-		c.Redirect(http.StatusFound, "/login")
+		logger.Warn.Printf("Unauthenticated access attempt to %s. Redirecting to /meets", c.Request.URL.Path)
+		c.Redirect(http.StatusFound, "/meets")
 		c.Abort()
 		return
 	}
-	logger.Debug.Printf("Authenticated user %v accessing %s", user, c.Request.URL.Path)
 	c.Next()
 }

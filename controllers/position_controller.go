@@ -27,8 +27,8 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 	user := session.Get("user")
 	meetId, ok := session.Get("meetId").(string)
 	if user == nil || !ok || meetId == "" {
-		logger.Warn.Println("ShowPositionsPage: User not logged in or not meet selected; redirecting to /login")
-		c.Redirect(http.StatusFound, "/login")
+		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /meets")
+		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 

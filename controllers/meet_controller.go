@@ -1,12 +1,11 @@
-// Package controllers controllers/meet_controller.go
 package controllers
 
 import (
 	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 )
 
@@ -24,7 +23,6 @@ type Meets struct {
 
 // ShowMeets renders the meeting selection page.
 func ShowMeets(c *gin.Context) {
-	// Adjust the path as necessary. Here we assume the config file is in "config/meets.json"
 	data, err := os.ReadFile("config/meets.json")
 	if err != nil {
 		logger.Error.Printf("ShowMeets: failed to read config file: %v", err)
@@ -41,4 +39,17 @@ func ShowMeets(c *gin.Context) {
 
 	// Render the choose_meet.html template with the meets data.
 	c.HTML(http.StatusOK, "choose_meet.html", meets)
+}
+
+// LoadMeets loads the meets configuration from config/meets.json.
+func LoadMeets() (*Meets, error) {
+	data, err := os.ReadFile("config/meets.json")
+	if err != nil {
+		return nil, err
+	}
+	var meets Meets
+	if err := json.Unmarshal(data, &meets); err != nil {
+		return nil, err
+	}
+	return &meets, nil
 }

@@ -66,6 +66,12 @@ func safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error 
 
 // ServeWs is the main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
+	meetName := r.URL.Query().Get("meetName")
+	if meetName == "" {
+		logger.Error.Println("No meet selected; rejecting WebSocket connection")
+		http.Error(w, "No meet selected", http.StatusBadRequest)
+		return
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error.Printf("⚠️ Recovered from panic: %v", err)
@@ -82,17 +88,19 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	// track globally
 	clients[conn] = true
 
-	// if there's no meetName query param, fall back to "DEFAULT_MEET"
-	meetName := r.URL.Query().Get("meetName")
+	// if there's no meetName query param, force user to select a meet
+	meetName = r.URL.Query().Get("meetName")
 	if meetName == "" {
-		meetName = "DEFAULT_MEET"
+		logger.Error.Println("No meet selected; rejecting WebSocket connection")
+		http.Error(w, "No meet selected. Please choose a valid meet.", http.StatusBadRequest)
+		return
 	}
 
 	// start the heartbeat (pings) in the background
 	go startHeartbeat(conn)
 
 	// start reading messages from this connection
-	go handleReads(conn, meetName)
+	go handleReads(conn)
 }
 
 // GLOBAL BROADCAST LOOP
@@ -101,14 +109,38 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 func HandleMessages() {
 	for {
 		msg := <-broadcast
+		// attempt to decode the message to see if it contains a "meetName" field
+		var msgMap map[string]interface{}
+		err := json.Unmarshal(msg, &msgMap)
+		// if the message isn't JSON or doesn't have a meetName, then we assume its global // fix_me
+		meetFilter := ""
+		if err == nil {
+			if m, ok := msgMap["meetName"].(string); ok {
+				meetFilter = m
+			}
+		}
+
+		// copy clients under lock
 		clientsCopy := make(map[*websocket.Conn]bool)
 		writeMutex.Lock()
-		for k, v := range clients {
-			clientsCopy[k] = v
+		for conn, v := range clients {
+			clientsCopy[conn] = v
 		}
 		writeMutex.Unlock()
 
+		// send message only to connections with matching meetName (if meetFiler is set)
 		for conn := range clientsCopy {
+			if meetFilter != "" {
+				if info, exists := connectionMapping[conn]; exists {
+					if info.meetName != meetFilter {
+						// skip connections that are not in the target meet
+						continue
+					}
+				} else {
+					// no connection info? skip it
+					continue
+				}
+			}
 			// Use safeWriteMessage
 			if err := safeWriteMessage(conn, websocket.TextMessage, msg); err != nil {
 				logger.Error.Printf("❌ Failed to send broadcast message to %v: %v", conn.RemoteAddr(), err)
@@ -120,7 +152,7 @@ func HandleMessages() {
 // MESSAGE READING & DISCONNECTION HANDLING
 
 // handleReads reads messages from a connection and processes them
-func handleReads(conn *websocket.Conn, defaultMeetName string) {
+func handleReads(conn *websocket.Conn) {
 	defer func() {
 		// On disconnection, remove from global clients map
 		logger.Warn.Printf("⚠️ WebSocket disconnected: %v", conn.RemoteAddr())
@@ -154,9 +186,10 @@ func handleReads(conn *websocket.Conn, defaultMeetName string) {
 			continue
 		}
 
-		// if the JSON has no meetName, fallback to the default
+		// if the JSON has no meetName, log a warning
 		if decisionMsg.MeetName == "" {
-			decisionMsg.MeetName = defaultMeetName
+			logger.Error.Println("Received message with no meetName; ignoring message.")
+			continue
 		}
 
 		// distinguish between "actions" vs. "decisions"
@@ -409,7 +442,7 @@ func startPlatformReadyTimer(meetState *MeetState) {
 				return
 			}
 			meetState.PlatformReadyTimeLeft--
-			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0)
+			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0, meetState.MeetName)
 			if meetState.PlatformReadyTimeLeft <= 0 {
 				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
 				meetState.PlatformReadyActive = false
@@ -488,7 +521,7 @@ func startNextAttemptTimer(meetState *MeetState) {
 			// 4) re-broadcast indexes. We compute a fresh "display index" for each timer:
 			//    e.g., if we have 3 timers left, they become #1, #2, #3 in the order they appear.
 			//    So we do a separate function to broadcast them all after each second.
-			broadcastAllNextAttemptTimers(meetState.NextAttemptTimers)
+			broadcastAllNextAttemptTimers(meetState.NextAttemptTimers, meetState.MeetName)
 
 			// 5) check if it reached 0
 			if meetState.NextAttemptTimers[idx].TimeLeft <= 0 {
@@ -498,13 +531,13 @@ func startNextAttemptTimer(meetState *MeetState) {
 				// Calculate display index for the expired timer (array index + 1)
 				expiredDisplayIndex := idx + 1
 				// Broadcast an expiration message with the correct display index
-				broadcastTimeUpdateWithIndex("nextAttemptExpired", 0, expiredDisplayIndex)
+				broadcastTimeUpdateWithIndex("nextAttemptExpired", 0, expiredDisplayIndex, meetState.MeetName)
 
 				// remove this timer from the slice
 				meetState.NextAttemptTimers = removeTimerByIndex(meetState.NextAttemptTimers, idx)
 
 				// re-broadcast again so the display indexes reset now that this timer is gone
-				broadcastAllNextAttemptTimers(meetState.NextAttemptTimers)
+				broadcastAllNextAttemptTimers(meetState.NextAttemptTimers, meetState.MeetName)
 
 				nextAttemptMutex.Unlock()
 				return
@@ -530,22 +563,23 @@ func removeTimerByIndex(timers []NextAttemptTimer, idx int) []NextAttemptTimer {
 }
 
 // broadcastAllNextAttemptTimers re-broadcasts the TimeLeft for every active timer, computing a fresh "display index" for each in ascending order.
-func broadcastAllNextAttemptTimers(timers []NextAttemptTimer) {
+func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	for i, t := range timers {
 		// i is zero-based, so for display we do i+1
 		if t.Active {
-			broadcastTimeUpdateWithIndex("updateNextAttemptTime", t.TimeLeft, i+1)
+			broadcastTimeUpdateWithIndex("updateNextAttemptTime", t.TimeLeft, i+1, meetName)
 		}
 	}
 }
 
 // broadcastTimeUpdateWithIndex sends a message to all clients with a time update,
 // including a display index so the client can map the update to the correct timer.
-func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int) {
+func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) {
 	msg, _ := json.Marshal(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
 		"index":    index, // Used by the client to update the correct timer row
+		"meetName": meetName,
 	})
 	broadcast <- msg
 }

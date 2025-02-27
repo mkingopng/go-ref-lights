@@ -98,7 +98,7 @@ func main() {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   os.Getenv("GIN_MODE") == "release", // Secure in production
+		Secure:   false, // Set to false for development (true in production)
 		SameSite: http.SameSiteLaxMode,
 	})
 	router.Use(sessions.Sessions("mysession", store))
@@ -125,12 +125,11 @@ func main() {
 	})
 
 	// Public routes
-	router.GET("/meets", controllers.ShowMeets)
+	router.GET("/", controllers.ShowMeets)        // Home page: choose meet
+	router.POST("/set-meet", controllers.SetMeet) // (see next section)
 	router.GET("/login", controllers.ShowLoginPage)
 	router.POST("/login", controllers.PerformLogin)
 	router.GET("/logout", controllers.Logout)
-	router.GET("/positions", controllers.ShowPositionsPage)
-	router.POST("/position/claim", controllers.ClaimPosition)
 
 	// Admin route for clearing a meet's state.
 	router.GET("/admin/clear-meet", func(c *gin.Context) {
@@ -147,10 +146,35 @@ func main() {
 	router.GET("/auth/google/login", controllers.GoogleLogin)
 	router.GET("/auth/google/callback", controllers.GoogleCallback)
 
+	// Add this middleware before protected routes
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
+			return // Skip for meet selection and login
+		}
+
+		session := sessions.Default(c)
+		if _, ok := session.Get("meetId").(string); !ok {
+			c.Redirect(http.StatusFound, "/meets")
+			c.Abort()
+		}
+	})
+
 	// protected routes
-	protected := router.Group("/", middleware.AuthRequired, middleware.PositionRequired())
+	protected := router.Group("/")
+	protected.Use(middleware.AuthRequired) // Check auth first
+	protected.Use(func(c *gin.Context) {   // Custom middleware to check meetId
+		session := sessions.Default(c)
+		if _, ok := session.Get("meetId").(string); !ok {
+			c.Redirect(http.StatusFound, "/meets")
+			c.Abort()
+			return
+		}
+	})
+	protected.Use(middleware.PositionRequired()) // Then check position
 	{
-		protected.GET("/", controllers.Index)
+		protected.GET("/", controllers.ChooseMeet)
+		protected.GET("/positions", controllers.ShowPositionsPage)
+		protected.POST("/position/claim", controllers.ClaimPosition)
 		protected.GET("/left", controllers.Left)
 		protected.GET("/centre", controllers.Centre)
 		protected.GET("/right", controllers.Right)

@@ -15,13 +15,13 @@
 
 <!--select meet container-->
 <div class="button-container">
-  <form action="/login" method="GET">
+  <form action="/set-meet" method="POST">
     <label for="meetSelect">Choose your meet:</label>
     <select name="meetId" id="meetSelect">
       <option value="">-- Please select a meet --</option>
-      {{ range .Meets }}
-      <option value="{{ .ID }}">{{ .Name }} - {{ .Date }}</option>
-      {{ end }}
+      {{range .availableMeets}}
+      <option value="{{.}}">{{.}}</option>
+      {{end}}
     </select>
     <div>
       <input type="submit" value="Proceed" class="action-button" />

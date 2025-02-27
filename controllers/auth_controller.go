@@ -95,32 +95,22 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Store user info in session
+	// Retrieve session from the Gin context
 	session := sessions.Default(c)
+
+	// Store user info in session
+	meetVal := session.Get("meetId")
+	meetId, ok := meetVal.(string)
+	if !ok || meetId == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
 	session.Set("user", userInfo.Email)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("❌ Failed to save session: %v", err)
 	} else {
 		logger.Info.Printf("Session saved for user: %s", userInfo.Email)
 	}
-
 	logger.Info.Printf("User %s successfully authenticated. Redirecting to home page.", userInfo.Email)
 	c.Redirect(http.StatusFound, "/") // Redirect to home page after login
-}
-
-// ShowLoginPage redirects users to Google OAuth login
-func ShowLoginPage(c *gin.Context) {
-	// capture meetId from the query string (eg /login?meetId=meet1)
-	meetId := c.Query("meetId")
-	if meetId != "" {
-		session := sessions.Default(c)
-		session.Set("meetId", meetId)
-		if err := session.Save(); err != nil {
-			logger.Error.Printf("❌ Failed to save session: %v", err)
-		} else {
-			logger.Info.Printf("Stored meetId %s in session", meetId)
-		}
-	}
-	logger.Info.Println("Redirecting to Google OAuth login page (ShowLoginPage)")
-	c.Redirect(http.StatusFound, "/auth/google/login")
 }

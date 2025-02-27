@@ -9,13 +9,47 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
-	"go-ref-lights/websocket"
 )
 
 var (
 	ApplicationURL string
 	WebsocketURL   string
 )
+
+// SetMeet sets the meetId in the session.
+// SetMeet sets the selected meetId in the session.
+func SetMeet(c *gin.Context) {
+	meetId := c.PostForm("meetId")
+	if meetId == "" {
+		// If no meet is selected, redirect back to the selection page.
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+	session := sessions.Default(c)
+	session.Set("meetId", meetId)
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("SetMeet: Failed to save meetId: %v", err)
+	}
+	logger.Info.Printf("SetMeet: Stored meetId %s in session", meetId)
+	// Redirect to login (or the next step in your flow)
+	c.Redirect(http.StatusFound, "/login")
+}
+
+// ChooseMeet renders the meet selection page.
+// ChooseMeet renders the meet selection page.
+func ChooseMeet(c *gin.Context) {
+	data, err := LoadMeets()
+	if err != nil {
+		// Log the error and show a message to the user
+		logger.Error.Printf("ChooseMeet: Failed to load meets: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meets")
+		return
+	}
+	// Pass the available meets to the template.
+	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+		"availableMeets": data.Meets,
+	})
+}
 
 // ShowPositionsPage displays the referee position selection page.
 func ShowPositionsPage(c *gin.Context) {
@@ -93,6 +127,28 @@ func ClaimPosition(c *gin.Context) {
 	}
 }
 
+// ShowLoginPage redirects users to Google OAuth login
+func ShowLoginPage(c *gin.Context) {
+	session := sessions.Default(c)
+	if session.Get("meetId") == nil {
+		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
+		return
+	}
+	// Capture meetId from the query string (e.g., /login?meetId=meet1)
+	meetId := c.Query("meetId")
+	if meetId != "" {
+		session := sessions.Default(c)
+		session.Set("meetId", meetId)
+		if err := session.Save(); err != nil { // Ensure session is saved here
+			logger.Error.Printf("❌ Failed to save session: %v", err)
+		} else {
+			logger.Info.Printf("Stored meetId %s in session", meetId)
+		}
+	}
+	logger.Info.Println("Redirecting to Google OAuth login page (ShowLoginPage)")
+	c.Redirect(http.StatusFound, "/auth/google/login")
+}
+
 // Index renders the index page.
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
@@ -112,29 +168,65 @@ func Index(c *gin.Context) {
 
 // Left renders the left referee view
 func Left(c *gin.Context) {
+	session := sessions.Default(c)
+	meetId, ok := session.Get("meetId").(string)
+	if !ok || meetId == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
 	logger.Info.Println("Left: Rendering left referee view")
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetId":       meetId,
+	}
 	c.HTML(http.StatusOK, "left.html", data)
 }
 
 // Centre renders the centre referee view
 func Centre(c *gin.Context) {
+	session := sessions.Default(c)
+	meetId, ok := session.Get("meetId").(string)
+	if !ok || meetId == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
 	logger.Info.Println("Centre: Rendering centre referee view")
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetId":       meetId,
+	}
 	c.HTML(http.StatusOK, "centre.html", data)
 }
 
 // Right renders the right referee view
 func Right(c *gin.Context) {
+	session := sessions.Default(c)
+	meetId, ok := session.Get("meetId").(string)
+	if !ok || meetId == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
 	logger.Info.Println("Right: Rendering right referee view")
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetId":       meetId,
+	}
 	c.HTML(http.StatusOK, "right.html", data)
 }
 
 // Lights renders the light control panel
 func Lights(c *gin.Context) {
+	session := sessions.Default(c)
+	meetId, ok := session.Get("meetId").(string)
+	if !ok || meetId == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
 	logger.Info.Println("Lights: Rendering lights page")
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetId":       meetId,
+	}
 	c.HTML(http.StatusOK, "lights.html", data)
 }
 
@@ -156,10 +248,11 @@ func GetQRCode(c *gin.Context) {
 }
 
 // RefereeUpdates handles WebSocket connections for live referee updates
-func RefereeUpdates(c *gin.Context) {
-	logger.Info.Println("RefereeUpdates: Establishing WebSocket connection for referee updates")
-	websocket.ServeWs(c.Writer, c.Request)
-}
+// todo: need to add feature to allow referees to change position
+//func RefereeUpdates(c *gin.Context) {
+//	logger.Info.Println("RefereeUpdates: Establishing WebSocket connection for referee updates")
+//	websocket.ServeWs(c.Writer, c.Request)
+//}
 
 // Health returns OK for health checks
 func Health(c *gin.Context) {

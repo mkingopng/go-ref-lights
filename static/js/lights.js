@@ -16,18 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
         right: null
     };
 
+    // Assume your template renders a variable 'meetId'
+    var meetId = "{{.meetId}}"; // This should come from your server-side template data.
+    var wsUrl = "ws://" + window.location.host + "/referee-updates?meetName=" + encodeURIComponent(meetId);
+    var socket = new WebSocket(wsUrl);
+
+
     // track how many refs are connected (0..3)
     let connectedReferees = 0;
 
-    // check for the global websocketUrl
-    if (typeof websocketUrl === 'undefined') {
-        log("websocketUrl is not defined", "error");
-        return;
-    }
-
-    // initialize the WebSocket connection
-    const socket = new WebSocket(websocketUrl);
-
+    // attach event listeners
     socket.onopen = () => {
         log("WebSocket connection established (Lights).");
     };

@@ -72,8 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // immediately register as connected
         const registerMsg = {
             action: "registerRef",
-            judgeId: judgeId
-            // When i have multi-meet, I might also add "meetName":"STATE_CHAMPS" or something
+            judgeId: judgeId,
+            meetName: meetId
         };
         socket.send(JSON.stringify(registerMsg));
     };

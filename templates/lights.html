@@ -51,7 +51,8 @@
 <div id="connectionStatus" class="connection-status"></div>
 
 <script>
-  const websocketUrl = "{{ .WebsocketURL }}";
+  var meetId = "{{ .meetId }}";
+  const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetId }}"; // Add meetName
 </script>
 
 <script src="/static/js/lights.js"></script>
