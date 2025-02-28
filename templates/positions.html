@@ -61,10 +61,11 @@
             console.warn("Invalid JSON from server:", evt.data);
             return;
         }
-
         if (data.action === "occupancyChanged") {
-            // Update the DOM with data.leftUser, data.centreUser, data.rightUser
-            const leftOption = document.getElementById("leftOption");
+            const leftOption   = document.getElementById("leftOption");
+            const centerOption = document.getElementById("centerOption");
+            const rightOption  = document.getElementById("rightOption");
+
             if (data.leftUser) {
                 leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
                 leftOption.disabled = true;
@@ -72,7 +73,7 @@
                 leftOption.textContent = `Left (Available)`;
                 leftOption.disabled = false;
             }
-            const rightOption = document.getElementById("rightOption");
+
             if (data.rightUser) {
                 rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
                 rightOption.disabled = true;
@@ -80,7 +81,7 @@
                 rightOption.textContent = `Right (Available)`;
                 rightOption.disabled = false;
             }
-            const centerOption = document.getElementById("centerOption");
+
             if (data.centerUser) {
                 centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
                 centerOption.disabled = true;

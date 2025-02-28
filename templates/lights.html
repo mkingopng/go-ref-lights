@@ -18,7 +18,7 @@
 <p id="visibleMeetName">{{ .meetName }}</p>
 
 <!-- Platform Ready Timer -->
-<div id="platformReadyTimerContainer" class="timer-container">
+<div id="platformReadyTimerContainer" class="timer-container hidden">
   <div class="timer" id="title">Platform Ready:</div>
   <div id="timer" class="timer">60s</div>
 </div>
@@ -40,11 +40,7 @@
 <div id="message" class="message"></div>
 
 <!-- next attempt timer -->
-<div id="multiNextAttemptTimers" style="margin-top: 20px;"></div>
-<div id="nextAttemptTimerContainer" class="timer-container">
-  <div class="timer" id="title-2">Submit next attempt:</div>
-  <div id="secondTimer" class="second-timer">60s</div>
-</div>
+<div id="multiNextAttemptTimers" class="hidden" style="margin-top: 20px;"></div>
 
 <!--APL logo-->
 <div class="logo-container">

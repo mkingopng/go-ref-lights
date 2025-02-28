@@ -63,7 +63,7 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 func broadcastFinalResults(meetName string) {
 	meetState := getMeetState(meetName)
 
-	// 1) broadcast the final decisions
+	// broadcast the final decisions
 	submission := map[string]string{
 		"action":         "displayResults",
 		"leftDecision":   meetState.JudgeDecisions["left"],
@@ -75,10 +75,10 @@ func broadcastFinalResults(meetName string) {
 		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 	broadcast <- resultMsg
 
-	// 2) immediately start the next-lifter timer
+	// immediately start the next-lifter timer
 	startNextAttemptTimer(meetState)
 
-	// 3) clear results after set duration
+	// clear results after set duration
 	go func() {
 		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
@@ -86,7 +86,7 @@ func broadcastFinalResults(meetName string) {
 		broadcast <- clearJSON
 	}()
 
-	// 4) reset for next lift
+	// reset for next lift
 	meetState.JudgeDecisions = make(map[string]string)
 }
 
@@ -96,7 +96,7 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 	msg, _ := json.Marshal(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
-		"index":    index, // Used by the client to update the correct timer row
+		"index":    index,
 		"meetName": meetName,
 	})
 	broadcast <- msg
@@ -106,7 +106,6 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 // timer, computing a fresh "display index" for each in ascending order.
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	for i, t := range timers {
-		// i=index is zero-based, so for display we do i+1
 		if t.Active {
 			broadcastTimeUpdateWithIndex("updateNextAttemptTime", t.TimeLeft, i+1, meetName)
 		}
@@ -116,3 +115,4 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 // todo: where does this go?
 // logger.Debug.Printf("[broadcast] Sending judgeSubmitted for judgeId=%s in meet=%s",
 // decisionMsg.JudgeID, decisionMsg.MeetName)
+// broadcastTimeUpdateWithIndex("nextAttemptExpired", 0, expiredDisplayIndex, meetState.MeetName)

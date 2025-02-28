@@ -29,7 +29,10 @@ function log(message, level = 'debug') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: logMessage, level: level }),
     }).catch(error => console.error('Failed to send log to server:', error));
-}  //todo: where does this log go? can we have it print to console? I'm only seeing go logs in console and saving
+}
+
+let nextAttemptTimers = {};
+const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
 
 window.addEventListener("DOMContentLoaded", function () {
     // validate required globals
@@ -64,7 +67,6 @@ window.addEventListener("DOMContentLoaded", function () {
     //constants
     const meetName = getMeetName();  // use the verified meet name for later actions
     if (!meetName) return;
-
     const judgeId = "lights";
 
     // initialise the global WebSocket object (do not shadow the global 'socket')
@@ -74,6 +76,8 @@ window.addEventListener("DOMContentLoaded", function () {
     // grab common DOM elements
     const timerDisplay = document.getElementById('timer');
     const healthEl = document.getElementById("healthStatus");
+    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+    const multiNextAttemptTimers = document.getElementById('multiNextAttemptTimers');
 
     // set up WebSocket event handlers
     socket.onopen = function () {
@@ -104,7 +108,6 @@ window.addEventListener("DOMContentLoaded", function () {
 
     socket.onerror = function (error) {
         log(`⚠️ WebSocket error: ${error}`, "error");
-        // todo: update status
     };
 
     log("DOM fully loaded and parsed");
@@ -129,24 +132,21 @@ window.addEventListener("DOMContentLoaded", function () {
                     healthEl.style.color = isConnected ? "green" : "red";
                 }
                 break;
+
             case "healthError":
                 alert(data.message);
                 break;
+
             case "startTimer":
-                log("🔵 Received startTimer event from WebSocket");
-                // todo: add code here to show/hide a timer (eg Platform ready timer or next attempt timer)
-                break;
-            case "updatePlatformReadyTime":
-                log(`Updating platform ready timer: ${data.timeLeft}s`);
-                if (timerDisplay) {
-                    timerDisplay.innerText = `${data.timeLeft}s`;
+                log("🔵 Received startTimer from server, showing Platform Ready Timer");
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.remove("hidden");
                 }
                 break;
-            case "platformReadyExpired":
-                log("⏰ Platform Ready Timer Expired!");
-                if (timerDisplay) {
-                    timerDisplay.innerText = "EXPIRED";  // todo:
-                                                         //  put back hidden parameter in lights.html
+
+            case "updatePlatformReadyTime":
+                log(`Updating platform ready timer: ${data.timeLeft}s`);
+                if (timerDisplay) {timerDisplay.innerText = `${data.timeLeft}s`;
                 }
                 break;
 
@@ -164,40 +164,64 @@ window.addEventListener("DOMContentLoaded", function () {
             case "displayResults":
                 log(`Final decisions: L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`);
                 log(`[lights.js] displayResults received: left=${data.leftDecision}, center=${data.centerDecision}, right=${data.rightDecision}`);
-                // todo: paint the big circles
-                const leftCircle   = document.getElementById("leftCircle");
-                const centerCircle = document.getElementById("centerCircle");
-                const rightCircle  = document.getElementById("rightCircle");
                 leftCircle.style.backgroundColor   = (data.leftDecision   === "white") ? "white" : "red";
                 centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
                 rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
                 break;
 
+            case "platformReadyExpired":
+                log("⏰ Platform Ready Timer Expired!");
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.add("hidden");
+                }
+                break;
+
+            case "clearResults":
+                log("Clearing results from Lights UI (white vs red circles, judge indicators).");
+                leftCircle.style.backgroundColor   = "black";
+                centerCircle.style.backgroundColor = "black";
+                rightCircle.style.backgroundColor  = "black";
+                leftIndicator.style.backgroundColor   = "grey";
+                centerIndicator.style.backgroundColor = "grey";
+                rightIndicator.style.backgroundColor  = "grey";
+                break;
+
+            case "resetLights":
+                log("🌀 Resetting lights to black");
+                leftCircle.style.backgroundColor   = "black";
+                centerCircle.style.backgroundColor = "black";
+                rightCircle.style.backgroundColor  = "black";
+                break;
+
             case "updateNextAttemptTime":
-                log(`Next Attempt Timer: ${data.timeLeft}s (Index: ${data.index || 1})`);
-                // todo: update second timer:
-                const secondTimer = document.getElementById("secondTimer");
-                if (secondTimer) {
-                    secondTimer.innerText = data.timeLeft + "s";
-                }  // todo:
-                   //  include an incrementing index
-                   //  to differentiate multiple next attempt timers,
-                   //  starting from 1 for each next attempt timer,
-                   //  and they need to stack line-on-line on the lights window,
-                   //  below the lights.
-                   //  They persist until they reach zero then disappear
+                if (!data.index) break; // guard
+                if (data.timeLeft <= 0) {
+                    let row = nextAttemptTimers[data.index];
+                    if (row) {
+                        multiNextAttemptTimers.removeChild(row);
+                        delete nextAttemptTimers[data.index];
+                    }
+                } else {
+                    if (!nextAttemptTimers[data.index]) {
+                        let newRow = document.createElement("div");
+                        newRow.classList.add("timer");
+                        multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
+                        nextAttemptTimers[data.index] = newRow;
+                    }
+                    nextAttemptTimers[data.index].textContent = `Next Attempt #${data.index}: ${data.timeLeft}s`;
+                    multiNextAttemptTimers.classList.remove("hidden");
+                }
                 break;
 
             case "nextAttemptExpired":
-                log("Next attempt timer has expired; clearing or resetting UI");
-                // todo: hide the next attempt timer after it reaches 0s
+                if (data.index && nextAttemptTimers[data.index]) {
+                    multiNextAttemptTimers.removeChild(nextAttemptTimers[data.index]);
+                    delete nextAttemptTimers[data.index];
+                }
                 break;
-
 
             default:
                 log(`⚠️ Unknown action: ${data.action}`, "warn");
         }
     };
 });
-
-// todo: add back functions for next attempt timers, judge decision UI updates, health status updates

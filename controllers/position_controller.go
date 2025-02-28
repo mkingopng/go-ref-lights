@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -98,14 +99,20 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	go pc.broadcastOccupancy(meetName)
 }
 
+// Suppose in your position_controller.go, after user claims a seat:
 func (pc *PositionController) broadcastOccupancy(meetName string) {
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	websocket.BroadcastMessage(meetName, map[string]interface{}{
+	// We'll form a JSON object like this:
+	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
 		"leftUser":   occ.LeftUser,
-		"centreUser": occ.CenterUser,
+		"centerUser": occ.CenterUser,
 		"rightUser":  occ.RightUser,
-	})
+	}
+	// Convert to []byte
+	jsonBytes, _ := json.Marshal(msg)
+	// Send it to broadcast channel
+	broadcast <- jsonBytes
 }
 
 // GetOccupancyAPI in position_controller.go (or a new file):
