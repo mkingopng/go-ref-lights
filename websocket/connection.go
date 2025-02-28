@@ -181,7 +181,7 @@ func handleReads(conn *websocket.Conn) {
 		switch decisionMsg.Action {
 		case "registerRef":
 			logger.Info.Printf(
-				"🟢 startTimer action received from %s for meet: %s",
+				"🟢 registerRef action received from %s for meet: %s",
 				decisionMsg.JudgeID,
 				decisionMsg.MeetName,
 			)

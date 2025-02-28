@@ -70,47 +70,54 @@ go test -v ./...
        - You have a Dockerfile and some AWS CDK scripts.
        - If your goal is to set up a fully automated CI/CD pipeline and run in ECS, you can finalise your build pipeline, environment configs, and domain (like `referee-lights.michaelkingston.com.au`).
 
---
+---
+Lets trace where the functions come from in GO from the beginning:
 
-The logs indicate that the lights page’s WebSocket connection is still 
-using the literal string `"{{ .meetName }}"` instead of the actual meet 
-identifier. That means when you click “Platform Ready” (or other actions) 
-from the lights page, the outgoing messages do not include the required 
-meetName, so the server rejects them.
+step 1: lets start with the startPlatformReadyTimer() function which lives in websocket/timer.go This is the timer that should be triggered by the center referee pressing the "Platform Ready" button. Lets start by adding logging to to this function. First, we should log when the timer starts running.
 
-Two things to check:
+step 2) the startPlatformReadyTimer() function is called in a second function in the same file:
 
-1. In your `lights.html` template, verify that the template variables are 
-being substituted. It should look like this:
+we should add a logging call at the end of the second function handleTimerAction() when the startPlatformReadyTimer(meetState) is is called
 
-```javascript
-<script>
-    var meetName = "{{ .meetName }}";
-    const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
-</script>
-```
+step 3: handleTimerAction() is then called in handleReads() which is in websocket/connection.go
 
-If the rendered HTML still shows `“{{ .meetName }}”` literally (as your log shows: 
-`GET /referee-updates?meetName=%7B%7B.meetName%7D%7D)`, then the template isn’t 
-being processed correctly. 
+step 4: handleReads() is then called in the ServeWs() function which is in websocket/connection.go:
 
-Ensure that:
-- The file is indeed located in your templates directory.
-- Your Lights controller function is passing a valid, non‐empty meetName 
-  (which appears to be the case).
-- There’s no caching or override preventing proper template processing.
-- Also, in your lights.js (or the code that sends messages from the lights 
-  page), ensure that every outgoing message includes the meetName property. 
-  For example, before sending a message like `{"action":"startTimer"}`, you 
-  should add: `message.meetName = meetName;`
+step 5: then, ServeWs() is called by the main() function in main.go.
 
-This guarantees that when the server (in handler.go) does `r.URL.Query().Get
-("meetName")` and later inspects incoming JSON messages for the meetName 
-field, it finds the proper value.
+step 6 & 7: i'm not yet clear on how the timer related function is then passed to centre.html, referee-common.js, lights.js and lights.html, however I'm there must me a listener that "hears" messages from this cascade of functions.
 
-By confirming that your lights.html template is processed properly and 
-updating your client-side code to attach meetName in outgoing messages, 
-your “Platform Ready” command should trigger the expected response on the 
-lights page.
+I think that we can add logging to each of these steps to trace what happens when the button "Platform Ready" is pressed by the centre referee
 
-These adjustments should resolve the issue. Let me know if you need further clarification!
+what do you think? I've attached the files I've mentioned. I think that if we can get the logging right, we can trace what happens once the button is pressed, then where the problem arises.
+
+I do not beleive that it is because the 4 pages don't have the same meetName. I've put a visual cue (variable at the top of each page (html) and its really clear that they are all using "Complete Strength Open" for these tests. So i disagree with your hypothesis
+
+---
+
+OK i just did a test and i got this log:
+(go-ref-lights-LCSWSeQ9-py3.10)(base) ~/Documents/GitHub/go-ref-lights git:[multi-meet-features]
+go run main.go
+Loaded meets: [{Complete Strength Open March 1 [{complete_strength_open_1 $2b$12$lLFqMi8aPNIpF5.xA1PQ1.RTn56hExurXtTGZR167M.zNra./kjfe} {complete_strength_open_2 $2b$12$tG.GjVTKkp7z44QfeAD2Xe9AMjqgNrWrLYQ3.gC/wFF1Tux8P9gCK} {complete_strength_open_3 $2b$12$oKfdxuJaM7eJyRnrE3WHteeonP4T6N5O7jbSazzNok03ccjgjXk32} {complete_strength_open_4 $2b$12$nYqPV4/I8cJIjtNSBdO8OOjpl77z1eqsihDvCJree3RosAqoLLg8i}]} {South Australian State Championships March 2 [{south_australian_state_championships_1 $2b$12$kW0eQLSnhgW9bIC2SRJ1BeWhMk5jbCcnuwcDwkZm89on6i9b0B/Pe} {south_australian_state_championships_2 $2b$12$MsgVifJgmirgeUwbOX4GquzZ/C85DUctn1G2J48K.AF.i2Y3EWyD2} {south_australian_state_championships_3 $2b$12$PXmPCe1QTVTjinecFi9KjOcmhniENrQ.NKE1fZUc7ELsr3M4Mk5z.} {south_australian_state_championships_4 $2b$12$/3XCbsLd8DNEBz1BgUaXsO6uWEABtt5xmaHG7P674z99WvQ4iRvra}]} {Metal Mayham March 2 [{metal_mayham_1 $2b$12$jWq5JdKc2wVnx8sIBoTlsOYdqnDs9cYrKLdzDcKQ11Oovzmte6O26} {metal_mayham_2 $2b$12$EgTYx26aTc20Yd1oAeQ4XuRjqHZO7fegjVWbzDPRBuRZWDbi0H9Cu} {metal_mayham_3 $2b$12$NlsnmlADDpfEEn2pbFCr0u8LYg7ARsV262eIKmNCqfuh5V5e3N6pa} {metal_mayham_4 $2b$12$leXL9jm/czzFJiTjYlgMaO0U4oyw1ZBc2qIhlW.007j9HklIG542C}]}]
+Loaded meets: [{Complete Strength Open March 1 [{complete_strength_open_1 $2b$12$lLFqMi8aPNIpF5.xA1PQ1.RTn56hExurXtTGZR167M.zNra./kjfe} {complete_strength_open_2 $2b$12$tG.GjVTKkp7z44QfeAD2Xe9AMjqgNrWrLYQ3.gC/wFF1Tux8P9gCK} {complete_strength_open_3 $2b$12$oKfdxuJaM7eJyRnrE3WHteeonP4T6N5O7jbSazzNok03ccjgjXk32} {complete_strength_open_4 $2b$12$nYqPV4/I8cJIjtNSBdO8OOjpl77z1eqsihDvCJree3RosAqoLLg8i}]} {South Australian State Championships March 2 [{south_australian_state_championships_1 $2b$12$kW0eQLSnhgW9bIC2SRJ1BeWhMk5jbCcnuwcDwkZm89on6i9b0B/Pe} {south_australian_state_championships_2 $2b$12$MsgVifJgmirgeUwbOX4GquzZ/C85DUctn1G2J48K.AF.i2Y3EWyD2} {south_australian_state_championships_3 $2b$12$PXmPCe1QTVTjinecFi9KjOcmhniENrQ.NKE1fZUc7ELsr3M4Mk5z.} {south_australian_state_championships_4 $2b$12$/3XCbsLd8DNEBz1BgUaXsO6uWEABtt5xmaHG7P674z99WvQ4iRvra}]} {Metal Mayham March 2 [{metal_mayham_1 $2b$12$jWq5JdKc2wVnx8sIBoTlsOYdqnDs9cYrKLdzDcKQ11Oovzmte6O26} {metal_mayham_2 $2b$12$EgTYx26aTc20Yd1oAeQ4XuRjqHZO7fegjVWbzDPRBuRZWDbi0H9Cu} {metal_mayham_3 $2b$12$NlsnmlADDpfEEn2pbFCr0u8LYg7ARsV262eIKmNCqfuh5V5e3N6pa} {metal_mayham_4 $2b$12$leXL9jm/czzFJiTjYlgMaO0U4oyw1ZBc2qIhlW.007j9HklIG542C}]}]
+INFO: 2025/02/28 18:08:09 main.go:41: [main] Starting application on port :8080
+INFO: 2025/02/28 18:08:09 main.go:45: [main] Setting up routes & sessions...
+INFO: 2025/02/28 18:08:09 main.go:75: Application started successfully.
+INFO: 2025/02/28 18:08:09 page_controller.go:133: SetConfig: Global config updated: ApplicationURL=http://localhost:8080, WebsocketURL=ws://localhost:8080/referee-updates
+Templates Path: /home/noone/Documents/GitHub/go-ref-lights/templates
+DEBUG: 2025/02/28 18:08:09 position_controller.go:20: NewPositionController: Initializing PositionController
+INFO: 2025/02/28 18:08:09 main.go:196: [main] About to run gin server on :8080
+Loaded meets: [{Complete Strength Open March 1 [{complete_strength_open_1 $2b$12$lLFqMi8aPNIpF5.xA1PQ1.RTn56hExurXtTGZR167M.zNra./kjfe} {complete_strength_open_2 $2b$12$tG.GjVTKkp7z44QfeAD2Xe9AMjqgNrWrLYQ3.gC/wFF1Tux8P9gCK} {complete_strength_open_3 $2b$12$oKfdxuJaM7eJyRnrE3WHteeonP4T6N5O7jbSazzNok03ccjgjXk32} {complete_strength_open_4 $2b$12$nYqPV4/I8cJIjtNSBdO8OOjpl77z1eqsihDvCJree3RosAqoLLg8i}]} {South Australian State Championships March 2 [{south_australian_state_championships_1 $2b$12$kW0eQLSnhgW9bIC2SRJ1BeWhMk5jbCcnuwcDwkZm89on6i9b0B/Pe} {south_australian_state_championships_2 $2b$12$MsgVifJgmirgeUwbOX4GquzZ/C85DUctn1G2J48K.AF.i2Y3EWyD2} {south_australian_state_championships_3 $2b$12$PXmPCe1QTVTjinecFi9KjOcmhniENrQ.NKE1fZUc7ELsr3M4Mk5z.} {south_australian_state_championships_4 $2b$12$/3XCbsLd8DNEBz1BgUaXsO6uWEABtt5xmaHG7P674z99WvQ4iRvra}]} {Metal Mayham March 2 [{metal_mayham_1 $2b$12$jWq5JdKc2wVnx8sIBoTlsOYdqnDs9cYrKLdzDcKQ11Oovzmte6O26} {metal_mayham_2 $2b$12$EgTYx26aTc20Yd1oAeQ4XuRjqHZO7fegjVWbzDPRBuRZWDbi0H9Cu} {metal_mayham_3 $2b$12$NlsnmlADDpfEEn2pbFCr0u8LYg7ARsV262eIKmNCqfuh5V5e3N6pa} {metal_mayham_4 $2b$12$leXL9jm/czzFJiTjYlgMaO0U4oyw1ZBc2qIhlW.007j9HklIG542C}]}]
+INFO: 2025/02/28 18:08:37 auth_controller.go:139: LoginHandler: User complete_strength_open_4 authenticated for meet Complete Strength Open
+DEBUG: 2025/02/28 18:08:37 role.go:35: No specific role required for path: /dashboard
+DEBUG: 2025/02/28 18:08:37 role.go:46: User complete_strength_open_4 authorized for position  on path /dashboard
+INFO: 2025/02/28 18:08:37 page_controller.go:55: Rendering index page for meet Complete Strength Open
+DEBUG: 2025/02/28 18:08:37 role.go:35: No specific role required for path: /qrcode
+DEBUG: 2025/02/28 18:08:37 role.go:46: User complete_strength_open_4 authorized for position  on path /qrcode
+INFO: 2025/02/28 18:08:37 page_controller.go:117: GetQRCode: Generating QR code
+DEBUG: 2025/02/28 18:08:42 role.go:35: No specific role required for path: /lights
+DEBUG: 2025/02/28 18:08:42 role.go:46: User complete_strength_open_4 authorized for position  on path /lights
+INFO: 2025/02/28 18:08:42 page_controller.go:202: Lights: Rendering lights page
+ERROR: 2025/02/28 18:08:42 main.go:61: [2025-02-28T08:08:42.810Z] ERROR: judgeId is not defined
+
+it seems like JudgeId is the issue

@@ -29,46 +29,21 @@ function log(message, level = 'debug') {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: logMessage, level: level }),
     }).catch(error => console.error('Failed to send log to server:', error));
-}
+}  //todo: where does this log go? can we have it print to console? I'm only seeing go logs in console and saving
 
 window.addEventListener("DOMContentLoaded", function () {
-    if (!meetName) {
-        log("⚠️ Meet name not found. WebSocket will not be initialized.", "error");
+    // validate required globals
+    if (typeof websocketUrl === 'undefined') {
+        log("websocketUrl is not defined", "error");
         return;
     }
-
-    // create the WebSocket URL using the initial meet name
-    let websocketUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`;  // fix_me for production
-    socket = new WebSocket(websocketUrl);
-
-    // set up WebSocket event handlers
-    socket.onopen = function () {
-        log("✅ WebSocket connection established (Lights).", "info");
-        const statusEl = document.getElementById("connectionStatus");
-        if (statusEl) {
-            statusEl.innerText = "Connected";
-            statusEl.style.color = "green";
-        }
-    };
-
-    socket.onclose = function (event) {
-        log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
-        const statusEl = document.getElementById("connectionStatus");
-        if (statusEl) {
-            statusEl.innerText = "Disconnected";
-            statusEl.style.color = "red";
-        }
-    };
-
-    socket.onerror = function (error) {
-        log(`⚠️ WebSocket error: ${error}`, "error");
-        // Optionally update status as well
-    };
-
-
-    log("DOM fully loaded and parsed");
-
-    // helper function to get a consistent meet name
+    // validate required globals
+    if (typeof websocketUrl === 'undefined') {
+        log("websocketUrl is not defined", "error");
+        return;
+    }
+    // 2) We still check meetName below, but we define judgeId ourselves
+    // helper function to get a consistent meet name from the DOM/URL/sessionStorage
     function getMeetName() {
         let elem = document.getElementById("meetName");
         let meetName = elem ? elem.dataset.meetName : null;
@@ -86,12 +61,53 @@ window.addEventListener("DOMContentLoaded", function () {
         return meetName;
     }
 
-    // use the verified meet name for later actions
-    const meetName = getMeetName();
+    //constants
+    const meetName = getMeetName();  // use the verified meet name for later actions
     if (!meetName) return;
 
-    // cache DOM elements
+    const judgeId = "lights";
+
+    // initialise the global WebSocket object (do not shadow the global 'socket')
+    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`; // fix_me
+    socket = new WebSocket(wsUrl);
+
+    // grab common DOM elements
     const timerDisplay = document.getElementById('timer');
+    const healthEl = document.getElementById("healthStatus");
+
+    // set up WebSocket event handlers
+    socket.onopen = function () {
+        log("✅ WebSocket connection established (Lights).", "info");
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Connected";
+            statusEl.style.color = "green";
+        }
+        // for sending registerRef, so the server knows we are "lights"
+        const registerMsg = {
+            action: "registerRef",
+            judgeId: judgeId,  // "lights"
+            meetName: meetName
+        };
+        socket.send(JSON.stringify(registerMsg));
+        log(`Sent registerRef for lights with meetName=${meetName}`, "info");
+    };
+
+    socket.onclose = function (event) {
+        log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Disconnected";
+            statusEl.style.color = "red";
+        }
+    };
+
+    socket.onerror = function (error) {
+        log(`⚠️ WebSocket error: ${error}`, "error");
+        // todo: update status
+    };
+
+    log("DOM fully loaded and parsed");
 
     // define a single onmessage handler for the WebSocket
     socket.onmessage = function (event) {
@@ -106,8 +122,19 @@ window.addEventListener("DOMContentLoaded", function () {
 
         // process messages based on their action
         switch (data.action) {
+            case "refereeHealth":
+                const isConnected = data.connectedRefIDs.includes(judgeId);
+                if (healthEl) {
+                    healthEl.innerText = isConnected ? "Connected" : "Disconnected";
+                    healthEl.style.color = isConnected ? "green" : "red";
+                }
+                break;
+            case "healthError":
+                alert(data.message);
+                break;
             case "startTimer":
                 log("🔵 Received startTimer event from WebSocket");
+                // todo: add code here to show/hide a timer (eg Platform ready timer or next attempt timer)
                 break;
             case "updatePlatformReadyTime":
                 log(`Updating platform ready timer: ${data.timeLeft}s`);
@@ -121,6 +148,10 @@ window.addEventListener("DOMContentLoaded", function () {
                     timerDisplay.innerText = "EXPIRED";
                 }
                 break;
+            case "RefereeDecision":
+                // todo: need to insert some logic to store the ref decision, when we have 3 we display the decision on the lights
+                break;
+
             default:
                 log(`⚠️ Unknown action: ${data.action}`, "warn");
         }

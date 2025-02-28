@@ -60,11 +60,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return meetName;
     }
 
+    // constants
     const meetName = getMeetName();  // CHANGE ME: Optionally rename to 'meetName' for consistency.
     if (!meetName) return;  // Stop if no meet name
 
     // Initialize the global WebSocket (do not shadow the global 'socket')
-    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // CHANGE ME: Use encodeURIComponent.
+    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // fix_me
     socket = new WebSocket(wsUrl);
 
     // grab common DOM elements
@@ -75,8 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    // platform Ready Button Logic
-    // CHANGE ME: Only attach Platform Ready button event for centre referee
+    // platform Ready Button Logic, only attach Platform Ready button event for centre referee
     if (judgeId === "centre") {
         const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on centre page only
         const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // WebSocket event: opened
+    // set up WebSocket event handlers
     socket.onopen = function() {
         log(`WebSocket connected for judgeId: ${judgeId}`, "info");
         // immediately register as connected
