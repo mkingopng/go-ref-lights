@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // platform Ready Button Logic
     if (platformReadyButton) {
         platformReadyButton.addEventListener("click", () => {
+            console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
             if (socket.readyState === WebSocket.OPEN) {
                 log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
                 // here, use the consistent meet name from getMeetName()
@@ -179,16 +180,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
             // Send multiple messages: reset lights, reset timer, then start timer
-            sendMessage({
-                action: "resetLights",
-                meetName: meetName,
-                judgeId: judgeId,
-            });
-            sendMessage({
-                action: "resetTimer",
-                meetName: meetName,
-                judgeId: judgeId,
-            });
+            // sendMessage({
+            //     action: "resetLights",
+            //     meetName: meetName,
+            //     judgeId: judgeId,
+            // });
+            // sendMessage({
+            //     action: "resetTimer",
+            //     meetName: meetName,
+            //     judgeId: judgeId,
+            // });
             sendMessage({
                 action: "startTimer",
                 meetName: meetName,

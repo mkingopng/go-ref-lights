@@ -42,8 +42,15 @@ window.addEventListener("DOMContentLoaded", function () {
     socket = new WebSocket(websocketUrl);
 
     // set up WebSocket event handlers
-    socket.onopen = function () {
-        log("✅ WebSocket connection established (Lights).");
+    socket.onopen = function() {
+        log("✅ WebSocket connection established (Lights).", "info");
+        // Send a 'registerLights' action (or reuse 'registerRef' if you like).
+        const registerMsg = {
+            action: "registerRef",   // or "registerLights" – your choice
+            judgeId: "lights",       // or "display"
+            meetName: meetName       // from your global or getMeetName()
+        };
+        socket.send(JSON.stringify(registerMsg));
     };
 
     socket.onclose = function (event) {
@@ -82,7 +89,7 @@ window.addEventListener("DOMContentLoaded", function () {
     const timerDisplay = document.getElementById('timer');
 
     // define a single onmessage handler for the WebSocket
-    socket.onmessage = (event) => {
+    socket.onmessage = function (event) {
         let data;
         try {
             data = JSON.parse(event.data);

@@ -38,9 +38,11 @@ func main() {
 	if err := logger.InitLogger(); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
+	logger.Info.Println("[main] Starting application on port :8080")
 
 	// initialise router
 	router := gin.Default()
+	logger.Info.Println("[main] Setting up routes & sessions...")
 
 	// add logging endpoint:
 	router.POST("/log", func(c *gin.Context) {
@@ -191,6 +193,7 @@ func main() {
 	go websocket.HandleMessages()
 
 	// start the server
+	logger.Info.Println("[main] About to run gin server on :8080")
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}

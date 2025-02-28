@@ -23,34 +23,32 @@ type connectionInfo struct {
 // ServeWs is the main WebSocket entry point
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	meetName := r.URL.Query().Get("meetName")
+	logger.Info.Printf("[ServeWs] HTTP upgrade for remoteAddr=%v, requested meet=%q", r.RemoteAddr, meetName)
+
 	if meetName == "" {
 		logger.Error.Println("No meet selected; rejecting WebSocket connection")
 		http.Error(w, "No meet selected", http.StatusBadRequest)
 		return
 	}
+
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error.Printf("⚠️ Recovered from panic: %v", err)
 		}
 	}()
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logger.Error.Printf("❌ WebSocket upgrade error: %v", err)
+		logger.Error.Printf("[ServeWs] WebSocket upgrade error: %v", err)
 		http.Error(w, "Failed to upgrade WebSocket", http.StatusBadRequest)
 		return
 	}
-	logger.Info.Printf("✅ WebSocket connected: %v", conn.RemoteAddr())
+
+	logger.Info.Printf("[ServeWs] Upgraded to WebSocket: %v", conn.RemoteAddr())
 
 	// track globally
 	clients[conn] = true
-
-	// if there's no meetName query param, force user to select a meet
-	meetName = r.URL.Query().Get("meetName")
-	if meetName == "" {
-		logger.Error.Println("No meet selected; rejecting WebSocket connection")
-		http.Error(w, "No meet selected. Please choose a valid meet.", http.StatusBadRequest)
-		return
-	}
+	logger.Info.Printf("[ServeWs] Now launching handleReads(...) for meet '%s' on conn '%v'", meetName, conn.RemoteAddr())
 
 	// start the heartbeat (pings) in the background
 	go startHeartbeat(conn)
@@ -125,9 +123,10 @@ func safeWriteMessage(conn *websocket.Conn, messageType int, data []byte) error 
 
 // handleReads reads messages from a connection and processes them
 func handleReads(conn *websocket.Conn) {
+	logger.Info.Printf("[handleReads] Starting read loop for client: %v", conn.RemoteAddr())
 	defer func() {
 		// On disconnection, remove from global clients map
-		logger.Warn.Printf("⚠️ WebSocket disconnected: %v", conn.RemoteAddr())
+		logger.Warn.Printf("[handleReads] Closing/cleanup for client: %v", conn.RemoteAddr())
 		_ = conn.Close()
 		delete(clients, conn)
 
@@ -144,36 +143,58 @@ func handleReads(conn *websocket.Conn) {
 	}()
 
 	for {
-		_, msg, err := conn.ReadMessage()
+		messageType, msg, err := conn.ReadMessage()
 		if err != nil {
-			logger.Warn.Printf("⚠️ WebSocket read error: %v", err)
+			logger.Warn.Printf(
+				"[handleReads] read error from %v: %v",
+				conn.RemoteAddr(),
+				err,
+			)
 			return
 		}
 
-		logger.Debug.Printf("📥 Received raw message from %v: %s", conn.RemoteAddr(), string(msg))
+		logger.Debug.Printf(
+			"[handleReads] Received messageType=%d from %v: %s",
+			messageType,
+			conn.RemoteAddr(),
+			string(msg),
+		)
 
 		var decisionMsg DecisionMessage
 		if err := json.Unmarshal(msg, &decisionMsg); err != nil {
-			logger.Warn.Printf("⚠️ Invalid JSON: %v", err)
+			logger.Warn.Printf(
+				"[handleReads] invalid JSON from %v: %v",
+				conn.RemoteAddr(),
+				err,
+			)
 			continue
 		}
 
-		logger.Info.Printf("📌 Processing WebSocket action: %s from %s (meet: %s)", decisionMsg.Action, decisionMsg.JudgeID, decisionMsg.MeetName)
+		logger.Info.Printf(
+			"[handleReads] Action=%s JudgeID=%s Meet=%s",
+			decisionMsg.Action,
+			decisionMsg.JudgeID,
+			decisionMsg.MeetName,
+		)
 
 		// if the JSON has no meetName, log a warning
 		switch decisionMsg.Action {
 		case "registerRef":
-			logger.Info.Printf("🟢 startTimer action received from %s for meet: %s", decisionMsg.JudgeID, decisionMsg.MeetName)
+			logger.Info.Printf(
+				"🟢 startTimer action received from %s for meet: %s",
+				decisionMsg.JudgeID,
+				decisionMsg.MeetName,
+			)
 			registerRef(decisionMsg, conn)
 
 		case "startTimer", "startNextAttemptTimer", "resetTimer", "updatePlatformReadyTime":
 			handleTimerAction(decisionMsg.Action, decisionMsg.MeetName)
 
-		//case "resetLights":
-		//	logger.Info.Println("Resetting lights")
-		//	broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
-		//		"action": "resetLights",
-		//	})
+		case "resetLights":
+			logger.Info.Println("Resetting lights")
+			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+				"action": "resetLights",
+			})
 
 		case "judgeSubmitted":
 			logger.Info.Printf("Judge %s submitted a decision", decisionMsg.JudgeID)
@@ -191,11 +212,11 @@ func handleReads(conn *websocket.Conn) {
 				"rightDecision":  decisionMsg.RightDecision,
 			})
 
-		//case "clearResults":
-		//	logger.Info.Println("Clearing results from UI")
-		//	broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
-		//		"action": "clearResults",
-		//	})
+		case "clearResults":
+			logger.Info.Println("Clearing results from UI")
+			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+				"action": "clearResults",
+			})
 
 		case "platformReadyExpired":
 			logger.Info.Println("Platform ready timer expired")
