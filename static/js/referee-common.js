@@ -76,23 +76,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
     // platform Ready Button Logic
-    if (platformReadyButton) {
-        platformReadyButton.addEventListener("click", () => {
-            console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
-            if (socket.readyState === WebSocket.OPEN) {
-                log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
-                // here, use the consistent meet name from getMeetName()
-                socket.send(JSON.stringify({ action: "startTimer", meetName: meetName }));
-                // Show the timer container
-                if (platformReadyTimerContainer) {
-                    platformReadyTimerContainer.classList.remove("hidden");
+    // CHANGE ME: Only attach Platform Ready button event for centre referee
+    if (judgeId === "centre") {
+        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on centre page only
+        const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyButton) {
+            platformReadyButton.addEventListener("click", () => {
+                console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
+                if (socket.readyState === WebSocket.OPEN) {
+                    log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
+                    socket.send(JSON.stringify({ action: "startTimer", meetName: meetName }));
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.remove("hidden");
+                    }
+                } else {
+                    log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
                 }
-            } else {
-                log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
-            }
-        });
-    } else {
-        log("⚠️ Platform Ready button not found.", "warn");
+            });
+        } else {
+            log("⚠️ Platform Ready button not found.", "warn");
+        }
     }
 
     // WebSocket event: opened

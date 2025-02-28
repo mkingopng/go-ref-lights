@@ -42,24 +42,29 @@ window.addEventListener("DOMContentLoaded", function () {
     socket = new WebSocket(websocketUrl);
 
     // set up WebSocket event handlers
-    socket.onopen = function() {
+    socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).", "info");
-        // Send a 'registerLights' action (or reuse 'registerRef' if you like).
-        const registerMsg = {
-            action: "registerRef",   // or "registerLights" – your choice
-            judgeId: "lights",       // or "display"
-            meetName: meetName       // from your global or getMeetName()
-        };
-        socket.send(JSON.stringify(registerMsg));
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Connected";
+            statusEl.style.color = "green";
+        }
     };
 
     socket.onclose = function (event) {
         log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Disconnected";
+            statusEl.style.color = "red";
+        }
     };
 
     socket.onerror = function (error) {
         log(`⚠️ WebSocket error: ${error}`, "error");
+        // Optionally update status as well
     };
+
 
     log("DOM fully loaded and parsed");
 
