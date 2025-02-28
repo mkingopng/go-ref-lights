@@ -20,10 +20,17 @@
 <!--connection Health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
-<!--Ref decision button container-->
+<!--referee decision button container-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
+</div>
+
+<!--vacate button form -->
+<div class="button-container">
+  <form action="/position/vacate" method="POST">
+    <button type="submit" class="action-button">Vacate Position</button>
+  </form>
 </div>
 
 <script>

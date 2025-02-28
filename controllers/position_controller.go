@@ -120,6 +120,54 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	go pc.broadcastOccupancy(meetName)
 }
 
+// VacatePosition function
+func (pc *PositionController) VacatePosition(c *gin.Context) {
+	session := sessions.Default(c)
+	userEmail, ok := session.Get("user").(string)
+	meetName, ok2 := session.Get("meetName").(string)
+	if !ok || !ok2 || userEmail == "" || meetName == "" {
+		logger.Warn.Println("VacatePosition: User not logged in or no meet selected; redirecting to /login")
+		c.Redirect(http.StatusFound, "/login")
+		return
+	}
+
+	// see which position they currently occupy from session
+	position, ok3 := session.Get("refPosition").(string)
+	if !ok3 || position == "" {
+		logger.Warn.Printf("VacatePosition: user %s not in any seat for meet %s; can't vacate", userEmail, meetName)
+		c.Redirect(http.StatusFound, "/positions")
+		return
+	}
+
+	// call UnsetPosition
+	err := pc.OccupancyService.UnsetPosition(meetName, position, userEmail)
+	if err != nil {
+		logger.Error.Printf("VacatePosition: error unsetting position for user %s: %v", userEmail, err)
+		// show an error or just do a redirect with a message
+		c.HTML(http.StatusInternalServerError, "positions.html", gin.H{
+			"Error":    "Unable to vacate your seat. " + err.Error(),
+			"meetName": meetName,
+		})
+		return
+	}
+
+	// remove the seat from session
+	session.Delete("refPosition")
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("VacatePosition: Error saving session for user %s: %v", userEmail, err)
+		c.String(http.StatusInternalServerError, "Error saving session")
+		return
+	}
+
+	logger.Info.Printf("VacatePosition: user %s vacated seat %s for meet %s", userEmail, position, meetName)
+
+	// broadcast updated occupancy so others see it’s free
+	go pc.broadcastOccupancy(meetName)
+
+	// redirect them back to /positions or choose_meet
+	c.Redirect(http.StatusFound, "/positions")
+}
+
 // broadcastOccupancy sends a JSON payload indicating which seats are occupied.
 // Any clients listening for "occupancyChanged" can update their UI accordingly.
 func (pc *PositionController) broadcastOccupancy(meetName string) {

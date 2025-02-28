@@ -183,7 +183,7 @@ func main() {
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
-
+		protected.POST("/position/vacate", pc.VacatePosition)
 	}
 
 	// webSocket Route for Live Updates

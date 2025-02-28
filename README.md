@@ -102,39 +102,41 @@ INFO: 2025/03/01 02:03:29 page_controller.go:117: GetQRCode: Generating QR code
   spending a lot of time writing one. Writing the code has been hard enough.
 
 - **problem 7)** how can a referee change positions mid-meet? It would be good 
-  to have an easy mechanism. I don't think we do once the referee has 
-  claimed a position.
+  to have an easy mechanism. I don't think we currently have a mechanism once 
+  the referee has claimed a position. I need to create a mechanism to 
+  allow a user to leave a position, and free it up for another user to take it.
+  i think this requires us to use `UnsetPosition` from occupancy_service.go
 
-- **Problem 8)** CDK deployment to my page.
-
-- **Problem 9)** long-term deployment to APL. Nick to advise on logo, style, 
-  domain, etc.
-- Fix NPM vulnerabilities
-- Optimise multi-threading
-- Improve appearance and formatting
-
-# 1s != 1s (Platform Timer Goes Too Fast)
-Ticker drift can happen due to:
-- The environment (a busy CPU / GC cycles might cause faster or slower 
+- **problem 8)** 1s != 1s (Platform Timer Goes Too Fast)
+  Ticker drift can happen due to:
+- The environment (a busy CPU / GC cycles might cause faster or slower
   intervals).
 - The front end might see events arrive slightly off.
-- If you have multiple tabs open with the same timer, each might show the 
+- If you have multiple tabs open with the same timer, each might show the
   timer differently.
-- If your system is under load, or the user’s OS clock is messed up, or you 
+- If your system is under load, or the user’s OS clock is messed up, or you
   do nested setIntervals in JavaScript.
 
 Possible solutions:
-- Use a “time-based” approach, e.g. store the “startTime = time.Now() + 60 
-  sec.” Then on each tick, you do timeLeft = endTime - time.Now(), so it 
+- Use a “time-based” approach, e.g. store the “startTime = time.Now() + 60
+  sec.” Then on each tick, you do timeLeft = endTime - time.Now(), so it
   can’t drift.
 - Make sure you only have one instance of the same timer running.
 - Tolerate small scheduling drift, which is normal with time.Ticker.
 
 Let's fix this ticker drift problem, and all the rest, one at a time
 
+- **Problem 9)** CDK deployment to my page.
 
-we need to create a mechanism to allow a user to leave a position, and free it up for another user to take it.
-i think this requires us to use `UnsetPosition` from occupancy_service.go
+- **Problem 10)** long-term deployment to APL. Nick to advise on logo, style, 
+  domain, etc.
+- Fix NPM vulnerabilities
+- Optimise multi-threading
+- Improve appearance and formatting
+
+
+
+
 
 ----
 

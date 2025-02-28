@@ -31,6 +31,13 @@
   <button id="startTimerButton" class="action-button">Platform Ready</button>
 </div>
 
+<!--vacate button form -->
+<div class="button-container">
+  <form action="/position/vacate" method="POST">
+    <button type="submit" class="action-button">Vacate Position</button>
+  </form>
+</div>
+
 <script>
   let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
   let judgeId = "center";
