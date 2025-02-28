@@ -11,8 +11,11 @@
 </head>
 
 <body>
+<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+<p id="visibleMeetName">{{ .meetName }}</p>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
-<h1 class="title">Right Referee</h1>
+
+  <h1 class="title">Right Referee</h1>
 
 <!--connection Health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
@@ -24,9 +27,8 @@
 </div>
 
 <script>
-  const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
-  const judgeId = "right";
-  const meetName = "{{ .meetName }}";
+  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
+  let judgeId = "right"
 </script>
 
 <script src="/static/js/referee-common.js"></script>

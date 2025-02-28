@@ -39,7 +39,7 @@
 
 <div id="message" class="message"></div>
 
-<!-- Next Attempt Timer -->
+<!-- next attempt timer -->
 <div id="multiNextAttemptTimers" style="margin-top: 20px;"></div>
 <div id="nextAttemptTimerContainer" class="timer-container">
   <div class="timer" id="title-2">Submit next attempt:</div>
@@ -51,11 +51,15 @@
   <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
 
-<!-- Connection Status -->
+<!--health status-->
+<div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
+
+<!-- connection Status -->
 <div id="connectionStatus" class="connection-status"></div>
 
+<!-- Global configuration variables (make sure these are set before lights.js loads) -->
 <script>
-  let meetName = "{{ .meetName }}";
+  let meetName = "{{ .meetName }}";  // Global meet name.
   const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
 </script>
 

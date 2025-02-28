@@ -55,7 +55,7 @@ h2 {
 /* Button container */
 .button-container {
     display: flex;
-    flex-direction: column; /* Ensure horizontal layout */
+    flex-direction: column;
     flex-wrap: nowrap;   /* Prevent wrapping to the next line */
     justify-content: center;
     gap: 20px;           /* Space between buttons */
@@ -369,8 +369,4 @@ input[type="submit"]:hover {
     left: 50%;
     transform: translateX(-50%);
     font-size: 14px;
-}
-
-.hidden{
-    display: none;
 }

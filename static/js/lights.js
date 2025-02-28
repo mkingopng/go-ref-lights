@@ -3,12 +3,12 @@
 
 let socket;
 
-// Utility function for logging
+// utility function for logging
 function log(message, level = 'debug') {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
 
-    // Log to console
+    // log to console
     switch (level) {
         case 'error':
             console.error(logMessage);
@@ -23,7 +23,7 @@ function log(message, level = 'debug') {
             console.log(logMessage);
     }
 
-    // Send logs to a server for saving to a file
+    // send logs to a server for saving to a file
     fetch('/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,17 +32,16 @@ function log(message, level = 'debug') {
 }
 
 window.addEventListener("DOMContentLoaded", function () {
-    let meetNameElement = document.getElementById("meetName");
-    let meetName = meetNameElement ? meetNameElement.dataset.meetName : "";
-
     if (!meetName) {
         log("⚠️ Meet name not found. WebSocket will not be initialized.", "error");
         return;
     }
 
-    let websocketUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`;
+    // create the WebSocket URL using the initial meet name
+    let websocketUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`;  // fix_me for production
     socket = new WebSocket(websocketUrl);
 
+    // set up WebSocket event handlers
     socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).");
     };
@@ -52,33 +51,21 @@ window.addEventListener("DOMContentLoaded", function () {
     };
 
     socket.onerror = function (error) {
-        log("⚠️ WebSocket error:", "error");
-    };
-
-    socket.onmessage = function (event) {
-        let data;
-        try {
-            data = JSON.parse(event.data);
-            log(`📩 Received WebSocket message: ${JSON.stringify(data)}`, 'debug');
-        } catch (e) {
-            log(`Invalid JSON from server: ${event.data}`, 'error');
-            return;
-        }
+        log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
     log("DOM fully loaded and parsed");
 
+    // helper function to get a consistent meet name
     function getMeetName() {
-        let meetNameElement = document.getElementById("meetName");
-        let meetName = meetNameElement ? meetNameElement.dataset.meetName : null;
-
+        let elem = document.getElementById("meetName");
+        let meetName = elem ? elem.dataset.meetName : null;
         if (!meetName) {
             meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
         }
-
         if (meetName) {
             sessionStorage.setItem("meetName", meetName);
-            log(`✅ Meet name set: ${meetName}`);
+            log(`✅ Meet name set: ${meetName}`, "info");
         } else {
             log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
             alert("Error: No meet selected. Redirecting.");
@@ -87,29 +74,14 @@ window.addEventListener("DOMContentLoaded", function () {
         return meetName;
     }
 
-    const meetNameCheck = getMeetName();
-    if (!meetNameCheck) return;
+    // use the verified meet name for later actions
+    const meetName = getMeetName();
+    if (!meetName) return;
 
-    // Cache DOM elements
-    const platformReadyButton = document.getElementById('platformReadyButton');
-    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+    // cache DOM elements
     const timerDisplay = document.getElementById('timer');
 
-    // Platform Ready Button Logic
-    if (platformReadyButton) {
-        platformReadyButton.addEventListener("click", () => {
-            if (socket.readyState === WebSocket.OPEN) {
-                log("🟢 Platform Ready button clicked, sending startTimer action.");
-                socket.send(JSON.stringify({ action: "startTimer", meetName: meetNameCheck }));
-                platformReadyTimerContainer.classList.remove("hidden");
-            } else {
-                log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
-            }
-        });
-    } else {
-        log("⚠️ Platform Ready button not found.", "warn");
-    }
-
+    // define a single onmessage handler for the WebSocket
     socket.onmessage = (event) => {
         let data;
         try {
@@ -120,17 +92,22 @@ window.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        // process messages based on their action
         switch (data.action) {
             case "startTimer":
                 log("🔵 Received startTimer event from WebSocket");
                 break;
             case "updatePlatformReadyTime":
                 log(`Updating platform ready timer: ${data.timeLeft}s`);
-                if (timerDisplay) timerDisplay.innerText = `${data.timeLeft}s`;
+                if (timerDisplay) {
+                    timerDisplay.innerText = `${data.timeLeft}s`;
+                }
                 break;
             case "platformReadyExpired":
                 log("⏰ Platform Ready Timer Expired!");
-                if (timerDisplay) timerDisplay.innerText = "EXPIRED";
+                if (timerDisplay) {
+                    timerDisplay.innerText = "EXPIRED";
+                }
                 break;
             default:
                 log(`⚠️ Unknown action: ${data.action}`, "warn");

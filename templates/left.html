@@ -12,7 +12,8 @@
 </head>
 
 <body>
-
+<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+<p id="visibleMeetName">{{ .meetName }}</p>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Left Referee</h1>
 
@@ -27,8 +28,7 @@
 
 <script>
   let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
-  let judgeId = "left";
-  let meetName = "{{ .meetName }}";
+  let judgeId = "left"
 </script>
 
 <script src="/static/js/referee-common.js"></script>
