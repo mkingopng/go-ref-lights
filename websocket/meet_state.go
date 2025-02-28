@@ -3,6 +3,7 @@ package websocket
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
@@ -17,17 +18,13 @@ type NextAttemptTimer struct {
 
 // MeetState holds per-meet, in-memory data.
 type MeetState struct {
-	MeetName string
-	// judgeID -> WebSocket connection (e.g. "left" -> conn)
-	RefereeSessions map[string]*websocket.Conn
-	// judgeID -> decision string (e.g. "left" -> "white")
-	JudgeDecisions map[string]string
-	// whether the Platform Ready timer is active, and the time left
+	MeetName              string
+	RefereeSessions       map[string]*websocket.Conn
+	JudgeDecisions        map[string]string
 	PlatformReadyActive   bool
 	PlatformReadyTimeLeft int
-
-	// nextAttempt timers, multiple can run concurrently
-	NextAttemptTimers []NextAttemptTimer
+	PlatformReadyEnd      time.Time
+	NextAttemptTimers     []NextAttemptTimer
 }
 
 // a global map storing meetName -> *MeetState

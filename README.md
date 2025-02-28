@@ -134,10 +134,6 @@ Let's fix this ticker drift problem, and all the rest, one at a time
 - Optimise multi-threading
 - Improve appearance and formatting
 
-
-
-
-
 ----
 
 # advanced tasks

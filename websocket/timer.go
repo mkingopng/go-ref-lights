@@ -56,13 +56,11 @@ func handleTimerAction(action, meetName string) {
 	logger.Info.Printf("[handleTimerAction] Finished processing action '%s' for meet '%s'", action, meetName)
 }
 
-// startPlatformReadyTimer the Platform Ready Timer calls the lifter to the platform
+// startPlatformReadyTimer uses a time-based approach to avoid ticker drift
 func startPlatformReadyTimer(meetState *MeetState) {
 	logger.Info.Printf("[startPlatformReadyTimer] called for meet: %s", meetState.MeetName)
 	platformReadyMutex.Lock()
 	defer platformReadyMutex.Unlock()
-
-	logger.Info.Println("🚦 Attempting to start Platform Ready Timer for meet: %s", meetState.MeetName)
 
 	if meetState.PlatformReadyActive {
 		logger.Warn.Printf("[startPlatformReadyTimer] Timer already active for meet: %s", meetState.MeetName)
@@ -70,12 +68,17 @@ func startPlatformReadyTimer(meetState *MeetState) {
 	}
 
 	meetState.PlatformReadyActive = true
-	meetState.PlatformReadyTimeLeft = 60
 
-	logger.Info.Printf("[startPlatformReadyTimer] Timer is set to 60s for meet: %s", meetState.MeetName)
-	logger.Debug.Printf("🛠️ Starting Platform Ready Timer loop for meet: %s", meetState.MeetName)
+	// MAJOR CHANGE: Instead of storing an integer countdown, store the end time
+	// e.g., 60 seconds from now
+	meetState.PlatformReadyEnd = time.Now().Add(60 * time.Second)
 
-	ticker := time.NewTicker(time.Second)
+	logger.Info.Printf("[startPlatformReadyTimer] Timer is set to 60s for meet: %s, endTime=%v",
+		meetState.MeetName,
+		meetState.PlatformReadyEnd,
+	)
+
+	ticker := time.NewTicker(1 * time.Second)
 	go func() {
 		defer ticker.Stop()
 		for range ticker.C {
@@ -89,22 +92,24 @@ func startPlatformReadyTimer(meetState *MeetState) {
 				return
 			}
 
-			meetState.PlatformReadyTimeLeft--
-			logger.Debug.Printf("⏰ Platform Ready Time Left: %d seconds left in meet %s",
-				meetState.PlatformReadyTimeLeft,
-				meetState.MeetName,
-			)
+			// Compute how many seconds remain
+			timeLeft := int(meetState.PlatformReadyEnd.Sub(time.Now()).Seconds())
 
-			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", meetState.PlatformReadyTimeLeft, 0, meetState.MeetName)
-
-			if meetState.PlatformReadyTimeLeft <= 0 {
+			if timeLeft <= 0 {
+				// Timer expired
 				logger.Info.Printf("[startPlatformReadyTimer] Timer reached 0; marking expired for meet: %s", meetState.MeetName)
 				broadcast <- []byte(`{"action":"platformReadyExpired"}`)
 				meetState.PlatformReadyActive = false
-				meetState.PlatformReadyTimeLeft = 60
+
+				// Reset or just keep the old end time if you like
+				meetState.PlatformReadyEnd = time.Time{}
+
 				platformReadyMutex.Unlock()
 				return
 			}
+
+			// Broadcast how many seconds remain
+			broadcastTimeUpdateWithIndex("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 			platformReadyMutex.Unlock()
 		}
 	}()
