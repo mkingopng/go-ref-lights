@@ -169,11 +169,11 @@ func handleReads(conn *websocket.Conn) {
 		case "startTimer", "startNextAttemptTimer", "resetTimer", "updatePlatformReadyTime":
 			handleTimerAction(decisionMsg.Action, decisionMsg.MeetName)
 
-		case "resetLights":
-			logger.Info.Println("Resetting lights")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
-				"action": "resetLights",
-			})
+		//case "resetLights":
+		//	logger.Info.Println("Resetting lights")
+		//	broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+		//		"action": "resetLights",
+		//	})
 
 		case "judgeSubmitted":
 			logger.Info.Printf("Judge %s submitted a decision", decisionMsg.JudgeID)
@@ -191,11 +191,11 @@ func handleReads(conn *websocket.Conn) {
 				"rightDecision":  decisionMsg.RightDecision,
 			})
 
-		case "clearResults":
-			logger.Info.Println("Clearing results from UI")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
-				"action": "clearResults",
-			})
+		//case "clearResults":
+		//	logger.Info.Println("Clearing results from UI")
+		//	broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+		//		"action": "clearResults",
+		//	})
 
 		case "platformReadyExpired":
 			logger.Info.Println("Platform ready timer expired")

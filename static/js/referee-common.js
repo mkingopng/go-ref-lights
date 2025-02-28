@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
             sendMessage({
-                action: "resetLights",
+                // action: "resetLights",
                 meetName: meetName,
                 judgeId: judgeId,
             });

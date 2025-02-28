@@ -28,15 +28,15 @@ func handleTimerAction(action, meetName string) {
 		startPlatformReadyTimer(meetState)
 		logger.Info.Printf("🟢 Called startPlatformReadyTimer for meet: %s", meetName)
 
-	case "resetTimer":
-		logger.Info.Printf("🔄 Processing resetTimer action for meet: %s", meetName)
-		resetPlatformReadyTimer(meetState)
-		// clear judge decisions on reset if you want
-		meetState.JudgeDecisions = make(map[string]string)
-		// broadcast 'clearResults' to reset visuals
-		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
-		broadcast <- clearJSON
+	//case "resetTimer":
+	//	logger.Info.Printf("🔄 Processing resetTimer action for meet: %s", meetName)
+	//	resetPlatformReadyTimer(meetState)
+	//	// clear judge decisions on reset if you want
+	//	meetState.JudgeDecisions = make(map[string]string)
+	//	// broadcast 'clearResults' to reset visuals
+	//	clearMsg := map[string]string{"action": "clearResults"}
+	//	clearJSON, _ := json.Marshal(clearMsg)
+	//	broadcast <- clearJSON
 
 	case "startNextAttemptTimer":
 		logger.Info.Printf("🔜 Processing startNextAttemptTimer action for meet: %s", meetName)

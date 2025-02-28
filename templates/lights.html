@@ -15,8 +15,10 @@
 
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
 
+<p id="visibleMeetName">{{ .meetName }}</p>
+
 <!-- Platform Ready Timer -->
-<div id="platformReadyTimerContainer" class="timer-container hidden">
+<div id="platformReadyTimerContainer" class="timer-container">
   <div class="timer" id="title">Platform Ready:</div>
   <div id="timer" class="timer">60s</div>
 </div>
@@ -39,7 +41,7 @@
 
 <!-- Next Attempt Timer -->
 <div id="multiNextAttemptTimers" style="margin-top: 20px;"></div>
-<div id="nextAttemptTimerContainer" class="timer-container hidden">
+<div id="nextAttemptTimerContainer" class="timer-container">
   <div class="timer" id="title-2">Submit next attempt:</div>
   <div id="secondTimer" class="second-timer">60s</div>
 </div>

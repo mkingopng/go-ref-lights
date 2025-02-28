@@ -45,6 +45,7 @@ func getMeetState(meetName string) *MeetState {
 	if !exists {
 		logger.Info.Printf("Creating new MeetState for meet: %s", meetName)
 		state = &MeetState{
+			MeetName:              meetName, // ← This is the added field!
 			RefereeSessions:       make(map[string]*websocket.Conn),
 			JudgeDecisions:        make(map[string]string),
 			PlatformReadyActive:   false,
