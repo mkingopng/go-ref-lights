@@ -81,6 +81,6 @@ type DecisionMessage struct {
 	JudgeID        string `json:"judgeId"`
 	Decision       string `json:"decision"`
 	LeftDecision   string `json:"leftDecision"`
-	CentreDecision string `json:"centreDecision"`
+	centerDecision string `json:"centerDecision"`
 	RightDecision  string `json:"rightDecision"`
 }

@@ -25,10 +25,10 @@
             <option value="left">Left (Available)</option>
             {{ end }}
 
-            {{ if .Positions.CentreOccupied }}
-            <option value="centre" disabled>Centre (Occupied by {{ .Positions.CentreUser }})</option>
+            {{ if .Positions.centerOccupied }}
+            <option value="center" disabled>center (Occupied by {{ .Positions.centerUser }})</option>
             {{ else }}
-            <option value="centre">Centre (Available)</option>
+            <option value="center">center (Available)</option>
             {{ end }}
 
             {{ if .Positions.RightOccupied }}
@@ -50,6 +50,47 @@
 <div class="logo-container">
     <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
+
+<script>
+    const ws = new WebSocket("ws://localhost:8080/referee-updates?meetName={{.meetName}}");
+    ws.onmessage = function(evt) {
+        let data;
+        try {
+            data = JSON.parse(evt.data);
+        } catch (e) {
+            console.warn("Invalid JSON from server:", evt.data);
+            return;
+        }
+
+        if (data.action === "occupancyChanged") {
+            // Update the DOM with data.leftUser, data.centreUser, data.rightUser
+            const leftOption = document.getElementById("leftOption");
+            if (data.leftUser) {
+                leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
+                leftOption.disabled = true;
+            } else {
+                leftOption.textContent = `Left (Available)`;
+                leftOption.disabled = false;
+            }
+            const rightOption = document.getElementById("rightOption");
+            if (data.rightUser) {
+                rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
+                rightOption.disabled = true;
+            } else {
+                rightOption.textContent = `Right (Available)`;
+                rightOption.disabled = false;
+            }
+            const centerOption = document.getElementById("centerOption");
+            if (data.centerUser) {
+                centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
+                centerOption.disabled = true;
+            } else {
+                centerOption.textContent = `Center (Available)`;
+                centerOption.disabled = false;
+            }
+        }
+    };
+</script>
 
 </body>
 </html>

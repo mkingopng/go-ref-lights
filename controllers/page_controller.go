@@ -77,8 +77,8 @@ func ShowPositionsPage(c *gin.Context) {
 		"Positions": map[string]interface{}{
 			"LeftOccupied":   false, // Example data, replace with actual occupancy logic
 			"LeftUser":       "",
-			"CentreOccupied": false,
-			"CentreUser":     "",
+			"centerOccupied": false,
+			"centerUser":     "",
 			"RightOccupied":  false,
 			"RightUser":      "",
 		},
@@ -115,9 +115,7 @@ func ClaimPosition(c *gin.Context) {
 // GetQRCode ✅ FIX for: Unresolved reference 'GetQRCode'
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
-
-	// Replace with actual QR code generation
-	qrCodeData := "Sample QR Code Data"
+	qrCodeData := "https://https://referee-lights.michaelkingston.com.au/"
 
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
@@ -159,20 +157,20 @@ func Left(c *gin.Context) {
 	c.HTML(http.StatusOK, "left.html", data)
 }
 
-// Centre renders the centre referee view
-func Centre(c *gin.Context) {
+// Center renders the center referee view
+func Center(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Println("Centre: Rendering centre referee view")
+	logger.Info.Println("center: Rendering center referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
 	}
-	c.HTML(http.StatusOK, "centre.html", data)
+	c.HTML(http.StatusOK, "center.html", data)
 }
 
 // Right renders the right referee view

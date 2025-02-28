@@ -83,6 +83,14 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 			}
 		}
 	}
+
+	// detect second submission from the same judge and reject
+	if _, alreadySubmitted := meetState.JudgeDecisions[decisionMsg.JudgeID]; alreadySubmitted {
+		logger.Warn.Printf("Ref '%s' at meet '%s' attempted second submission. Ignoring.",
+			decisionMsg.JudgeID, decisionMsg.MeetName)
+		return
+	} // fix_me: is this correct?
+
 	// store the new connection in meet state
 	meetState.RefereeSessions[decisionMsg.JudgeID] = conn
 	meetState.JudgeDecisions[decisionMsg.JudgeID] = decisionMsg.Decision
@@ -94,8 +102,10 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	}
 
 	logger.Info.Printf("✅ Decision from %s: %s (meet: %s)", decisionMsg.JudgeID, decisionMsg.Decision, decisionMsg.MeetName)
+	logger.Info.Printf("[processDecision] meet=%s judgeID=%s decision=%s -> storing, broadcasting judgeSubmitted",
+		decisionMsg.MeetName, decisionMsg.JudgeID, decisionMsg.Decision)
 
-	// let everyone know a judge submitted
+	// broadcast judge submitted decision
 	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": decisionMsg.JudgeID,
@@ -103,7 +113,7 @@ func processDecision(decisionMsg DecisionMessage, conn *websocket.Conn) {
 	subMsg, _ := json.Marshal(submission)
 	broadcast <- subMsg
 
-	// also broadcast updated health (who is connected) for this meet
+	// broadcast updated health (who is connected) for this meet
 	broadcastRefereeHealth(meetState)
 
 	// if we have decisions from all 3 judges, broadcast final results
@@ -140,7 +150,7 @@ func handleReads(conn *websocket.Conn) {
 			}
 			delete(connectionMapping, conn)
 		}
-	}()
+	}() // fix_me: i think this is incorrect. Need to check in detail
 
 	for {
 		messageType, msg, err := conn.ReadMessage()
@@ -192,41 +202,41 @@ func handleReads(conn *websocket.Conn) {
 
 		case "resetLights":
 			logger.Info.Println("Resetting lights")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action": "resetLights",
 			})
 
 		case "judgeSubmitted":
 			logger.Info.Printf("Judge %s submitted a decision", decisionMsg.JudgeID)
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action":  "judgeSubmitted",
 				"judgeId": decisionMsg.JudgeID,
 			})
 
 		case "displayResults":
 			logger.Info.Println("Displaying results to all clients")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action":         "displayResults",
 				"leftDecision":   decisionMsg.LeftDecision,
-				"centreDecision": decisionMsg.CentreDecision,
+				"centerDecision": decisionMsg.centerDecision,
 				"rightDecision":  decisionMsg.RightDecision,
 			})
 
 		case "clearResults":
 			logger.Info.Println("Clearing results from UI")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action": "clearResults",
 			})
 
 		case "platformReadyExpired":
 			logger.Info.Println("Platform ready timer expired")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action": "platformReadyExpired",
 			})
 
 		case "nextAttemptExpired":
 			logger.Info.Println("Next attempt timer expired")
-			broadcastMessage(decisionMsg.MeetName, map[string]interface{}{
+			BroadcastMessage(decisionMsg.MeetName, map[string]interface{}{
 				"action": "nextAttemptExpired",
 			})
 

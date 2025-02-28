@@ -11,7 +11,7 @@ import (
 // Occupancy defines the struct to track referee positions.
 type Occupancy struct {
 	LeftUser   string
-	CentreUser string
+	CenterUser string
 	RightUser  string
 }
 
@@ -54,7 +54,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	logger.Info.Printf("Attempting to assign position '%s' to user '%s' for meet %s", position, userEmail, meetName)
 
 	// validate position and check if already taken
-	validPositions := map[string]bool{"left": true, "centre": true, "right": true}
+	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
 		err := errors.New("invalid position selected")
 		logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
@@ -69,9 +69,9 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 			logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 			return err
 		}
-	case "centre":
-		if occ.CentreUser != "" {
-			err := errors.New("centre position is already taken")
+	case "center":
+		if occ.CenterUser != "" {
+			err := errors.New("center position is already taken")
 			logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 			return err
 		}
@@ -88,9 +88,9 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to left in meet %s", userEmail, meetName)
 		occ.LeftUser = ""
 	}
-	if occ.CentreUser == userEmail {
-		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to centre in meet %s", userEmail, meetName)
-		occ.CentreUser = ""
+	if occ.CenterUser == userEmail {
+		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to center in meet %s", userEmail, meetName)
+		occ.CenterUser = ""
 	}
 	if occ.RightUser == userEmail {
 		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to right in meet %s", userEmail, meetName)
@@ -101,8 +101,8 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	switch position {
 	case "left":
 		occ.LeftUser = userEmail
-	case "centre":
-		occ.CentreUser = userEmail
+	case "center":
+		occ.CenterUser = userEmail
 	case "right":
 		occ.RightUser = userEmail
 	}
@@ -133,10 +133,10 @@ func UnsetPosition(meetName, position, userEmail string) {
 			logger.Info.Printf("Unsetting left position for user '%s' in meet %s", userEmail, meetName)
 			occ.LeftUser = ""
 		}
-	case "centre":
-		if occ.CentreUser == userEmail {
-			logger.Info.Printf("Unsetting centre position for user '%s' in meet %s", userEmail, meetName)
-			occ.CentreUser = ""
+	case "center":
+		if occ.CenterUser == userEmail {
+			logger.Info.Printf("Unsetting center position for user '%s' in meet %s", userEmail, meetName)
+			occ.CenterUser = ""
 		}
 	case "right":
 		if occ.RightUser == userEmail {

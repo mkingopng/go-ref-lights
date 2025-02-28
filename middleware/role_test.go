@@ -27,8 +27,8 @@ func setupRoleTestRouter() *gin.Engine {
 		protected.GET("/left", func(c *gin.Context) {
 			c.String(http.StatusOK, "Welcome to the left referee panel")
 		})
-		protected.GET("/centre", func(c *gin.Context) {
-			c.String(http.StatusOK, "Welcome to the centre referee panel")
+		protected.GET("/center", func(c *gin.Context) {
+			c.String(http.StatusOK, "Welcome to the center referee panel")
 		})
 		protected.GET("/right", func(c *gin.Context) {
 			c.String(http.StatusOK, "Welcome to the right referee panel")
@@ -100,7 +100,7 @@ func TestPositionRequired_WrongPosition(t *testing.T) {
 	// ✅ Set user session with a mismatched position
 	session := sessions.Default(c)
 	session.Set("user", "testuser@example.com")
-	session.Set("refPosition", "centre") // ✅ Wrong position
+	session.Set("refPosition", "center") // ✅ Wrong position
 	err := session.Save()
 	if err != nil {
 		return

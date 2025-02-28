@@ -1,4 +1,4 @@
-// Package models models/meet.go
+// Package models - models/meet.go
 package models
 
 // User represents an individual user with a username and password

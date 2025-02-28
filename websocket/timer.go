@@ -1,4 +1,4 @@
-// Package websocket websocket/timer.go
+// Package websocket - websocket/timer.go
 package websocket
 
 import (

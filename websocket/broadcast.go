@@ -44,7 +44,7 @@ func HandleMessages() {
 					continue
 				}
 			}
-			// Use safeWriteMessage
+			// use safeWriteMessage
 			if err := safeWriteMessage(conn, websocket.TextMessage, msg); err != nil {
 				logger.Error.Printf("❌ Failed to send broadcast message to %v: %v", conn.RemoteAddr(), err)
 			}
@@ -52,7 +52,7 @@ func HandleMessages() {
 	}
 }
 
-func broadcastMessage(meetName string, message map[string]interface{}) {
+func BroadcastMessage(meetName string, message map[string]interface{}) {
 	// Add logging to use meetName
 	logger.Debug.Printf("Broadcasting next attempt timers for meet: %s", meetName)
 	msg, _ := json.Marshal(message)
@@ -64,13 +64,15 @@ func broadcastFinalResults(meetName string) {
 	meetState := getMeetState(meetName)
 
 	// 1) broadcast the final decisions
-	result := map[string]string{
+	submission := map[string]string{
 		"action":         "displayResults",
 		"leftDecision":   meetState.JudgeDecisions["left"],
-		"centreDecision": meetState.JudgeDecisions["centre"],
+		"centerDecision": meetState.JudgeDecisions["center"],
 		"rightDecision":  meetState.JudgeDecisions["right"],
 	}
-	resultMsg, _ := json.Marshal(result)
+	resultMsg, _ := json.Marshal(submission)
+	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' is being sent with Left=%s, center=%s, Right=%s",
+		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 	broadcast <- resultMsg
 
 	// 2) immediately start the next-lifter timer
@@ -100,7 +102,8 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 	broadcast <- msg
 }
 
-// broadcastAllNextAttemptTimers re-broadcasts the TimeLeft for every active timer, computing a fresh "display index" for each in ascending order.
+// broadcastAllNextAttemptTimers re-broadcasts the TimeLeft for every active
+// timer, computing a fresh "display index" for each in ascending order.
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	for i, t := range timers {
 		// i=index is zero-based, so for display we do i+1
@@ -109,3 +112,7 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 		}
 	}
 }
+
+// todo: where does this go?
+// logger.Debug.Printf("[broadcast] Sending judgeSubmitted for judgeId=%s in meet=%s",
+// decisionMsg.JudgeID, decisionMsg.MeetName)

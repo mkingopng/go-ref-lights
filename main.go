@@ -178,10 +178,12 @@ func main() {
 		protected.GET("/positions", controllers.ShowPositionsPage)
 		protected.POST("/position/claim", pc.ClaimPosition)
 		protected.GET("/left", controllers.Left)
-		protected.GET("/centre", controllers.Centre)
+		protected.GET("/center", controllers.Center)
 		protected.GET("/right", controllers.Right)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
+		protected.GET("/occupancy", pc.GetOccupancyAPI)
+
 	}
 
 	// webSocket Route for Live Updates

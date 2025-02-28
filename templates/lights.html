@@ -26,14 +26,14 @@
 <!--Lights container-->
 <div class="container">
   <div id="leftCircle" class="circle"></div>
-  <div id="centreCircle" class="circle"></div>
+  <div id="centerCircle" class="circle"></div>
   <div id="rightCircle" class="circle"></div>
 </div>
 
 <!--judge indicators-->
 <div class="judge-indicators">
   <div id="leftIndicator" class="indicator" title="Left Judge"></div>
-  <div id="centreIndicator" class="indicator" title="Centre Judge"></div>
+  <div id="centerIndicator" class="indicator" title="center Judge"></div>
   <div id="rightIndicator" class="indicator" title="Right Judge"></div>
 </div>
 
@@ -51,9 +51,6 @@
   <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
 
-<!--health status-->
-<div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
-
 <!-- connection Status -->
 <div id="connectionStatus" class="connection-status"></div>
 
@@ -62,6 +59,7 @@
   let meetName = "{{ .meetName }}";  // Global meet name.
   const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
 </script>
+
 <script src="/static/js/lights.js"></script>
 
 </body>

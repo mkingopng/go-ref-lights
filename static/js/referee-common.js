@@ -61,11 +61,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // constants
-    const meetName = getMeetName();  // CHANGE ME: Optionally rename to 'meetName' for consistency.
-    if (!meetName) return;  // Stop if no meet name
+    const meetName = getMeetName();
+    if (!meetName) return;
 
-    // Initialize the global WebSocket (do not shadow the global 'socket')
-    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // fix_me
+    // initialise the global WebSocket (do not shadow the global 'socket')
+    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // fix_me: not convinced this is correct
     socket = new WebSocket(wsUrl);
 
     // grab common DOM elements
@@ -76,9 +76,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    // platform Ready Button Logic, only attach Platform Ready button event for centre referee
-    if (judgeId === "centre") {
-        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on centre page only
+    // Platform Ready Button Logic:
+    // only attach Platform Ready button event for center referee
+    if (judgeId === "center") {
+        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on center page only
         const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
         if (platformReadyButton) {
             platformReadyButton.addEventListener("click", () => {
@@ -99,14 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // set up WebSocket event handlers
+    // WebSocket event: onopen
     socket.onopen = function() {
         log(`WebSocket connected for judgeId: ${judgeId}`, "info");
-        // immediately register as connected
-        const registerMsg = {
-            action: "registerRef",
-            judgeId: judgeId,
-            meetName: meetName
-        };
+        const registerMsg = { action: "registerRef", judgeId, meetName };
         socket.send(JSON.stringify(registerMsg));
     };
 
@@ -116,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             data = JSON.parse(event.data);
         } catch (e) {
-            log(`Invalid JSON from server: ${event.data}. Error: ${e.message}`, "error"); // CHANGE ME: Include error details.
+            log(`Invalid JSON: ${event.data} - ${e.message}`, "error");
         }
         switch (data.action) {
             case "refereeHealth":
@@ -159,15 +156,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // if these buttons exist, wire them up
+    // buttons
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
+            // CHANGE: we add a short guard log plus the actual send:
             sendMessage({
                 action: "submitDecision",
                 meetName: meetName,
                 judgeId: judgeId,
                 decision: "white"
-            });
+            })
+            log(`[RefereeCommon] Judge '${judgeId}' clicked GOOD LIFT (white).`, "info");
         });
     }
     if (redButton) {
@@ -178,21 +177,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 judgeId: judgeId,
                 decision: "red"
             });
+            log(`[RefereeCommon] Judge '${judgeId}' clicked NO LIFT (red).`, "info");
         });
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
-            // Send multiple messages: reset lights, reset timer, then start timer
-            // sendMessage({
-            //     action: "resetLights",
-            //     meetName: meetName,
-            //     judgeId: judgeId,
-            // });
-            // sendMessage({
-            //     action: "resetTimer",
-            //     meetName: meetName,
-            //     judgeId: judgeId,
-            // });
+            // send multiple messages: reset lights, reset timer, start timer
+            sendMessage({
+                action: "resetLights",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "resetTimer",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
             sendMessage({
                 action: "startTimer",
                 meetName: meetName,

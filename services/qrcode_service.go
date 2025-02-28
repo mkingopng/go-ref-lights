@@ -1,4 +1,4 @@
-// Package services services/qrcode_service.go
+// Package services - services/qrcode_service.go
 package services
 
 import (

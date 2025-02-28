@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
+	"go-ref-lights/websocket"
 )
 
 // PositionController struct with service dependency injection
@@ -39,8 +40,8 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 		"Positions": map[string]interface{}{
 			"LeftOccupied":   occ.LeftUser != "",
 			"LeftUser":       occ.LeftUser,
-			"CentreOccupied": occ.CentreUser != "",
-			"CentreUser":     occ.CentreUser,
+			"centerOccupied": occ.CenterUser != "",
+			"centerUser":     occ.CenterUser,
 			"RightOccupied":  occ.RightUser != "",
 			"RightUser":      occ.RightUser,
 		},
@@ -86,12 +87,41 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
-	case "centre":
-		c.Redirect(http.StatusFound, "/centre")
+	case "center":
+		c.Redirect(http.StatusFound, "/center")
 	case "right":
 		c.Redirect(http.StatusFound, "/right")
 	default:
 		logger.Warn.Printf("ClaimPosition: Unknown position %s; redirecting to /positions", position)
 		c.Redirect(http.StatusFound, "/positions")
 	}
+	go pc.broadcastOccupancy(meetName)
+}
+
+func (pc *PositionController) broadcastOccupancy(meetName string) {
+	occ := pc.OccupancyService.GetOccupancy(meetName)
+	websocket.BroadcastMessage(meetName, map[string]interface{}{
+		"action":     "occupancyChanged",
+		"leftUser":   occ.LeftUser,
+		"centreUser": occ.CenterUser,
+		"rightUser":  occ.RightUser,
+	})
+}
+
+// GetOccupancyAPI in position_controller.go (or a new file):
+func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
+	session := sessions.Default(c)
+	meetNameRaw := session.Get("meetName")
+	meetName, ok := meetNameRaw.(string)
+	if !ok || meetName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No meet selected"})
+		return
+	}
+
+	occ := pc.OccupancyService.GetOccupancy(meetName)
+	c.JSON(http.StatusOK, gin.H{
+		"leftUser":   occ.LeftUser,
+		"centreUser": occ.CenterUser,
+		"rightUser":  occ.RightUser,
+	})
 }

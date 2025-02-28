@@ -145,12 +145,54 @@ window.addEventListener("DOMContentLoaded", function () {
             case "platformReadyExpired":
                 log("⏰ Platform Ready Timer Expired!");
                 if (timerDisplay) {
-                    timerDisplay.innerText = "EXPIRED";
+                    timerDisplay.innerText = "EXPIRED";  // todo:
+                                                         //  put back hidden parameter in lights.html
                 }
                 break;
-            case "RefereeDecision":
-                // todo: need to insert some logic to store the ref decision, when we have 3 we display the decision on the lights
+
+            case "judgeSubmitted":
+                log(`[lights.js] Judge ${data.judgeId} has submitted a decision.`);
+                if (data.judgeId === "left") {
+                    leftIndicator.style.backgroundColor = "green";
+                } else if (data.judgeId === "center") {
+                    centerIndicator.style.backgroundColor = "green";
+                } else if (data.judgeId === "right") {
+                    rightIndicator.style.backgroundColor = "green";
+                }
                 break;
+
+            case "displayResults":
+                log(`Final decisions: L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`);
+                log(`[lights.js] displayResults received: left=${data.leftDecision}, center=${data.centerDecision}, right=${data.rightDecision}`);
+                // todo: paint the big circles
+                const leftCircle   = document.getElementById("leftCircle");
+                const centerCircle = document.getElementById("centerCircle");
+                const rightCircle  = document.getElementById("rightCircle");
+                leftCircle.style.backgroundColor   = (data.leftDecision   === "white") ? "white" : "red";
+                centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
+                rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
+                break;
+
+            case "updateNextAttemptTime":
+                log(`Next Attempt Timer: ${data.timeLeft}s (Index: ${data.index || 1})`);
+                // todo: update second timer:
+                const secondTimer = document.getElementById("secondTimer");
+                if (secondTimer) {
+                    secondTimer.innerText = data.timeLeft + "s";
+                }  // todo:
+                   //  include an incrementing index
+                   //  to differentiate multiple next attempt timers,
+                   //  starting from 1 for each next attempt timer,
+                   //  and they need to stack line-on-line on the lights window,
+                   //  below the lights.
+                   //  They persist until they reach zero then disappear
+                break;
+
+            case "nextAttemptExpired":
+                log("Next attempt timer has expired; clearing or resetting UI");
+                // todo: hide the next attempt timer after it reaches 0s
+                break;
+
 
             default:
                 log(`⚠️ Unknown action: ${data.action}`, "warn");
