@@ -46,6 +46,7 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
+
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		occ = &Occupancy{}
@@ -56,12 +57,12 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	// validate position and check if already taken
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
-		err := errors.New("invalid position selected")
+		err := errors.New("sorry that position is already taken, please choose another")
 		logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 		return err
 	}
 
-	// prevent multiple assignments of the same position.
+	// check if already taken to prevent multiple assignments of the same position.
 	switch position {
 	case "left":
 		if occ.LeftUser != "" {
@@ -83,7 +84,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		}
 	}
 
-	// clear any previous position assigned to this user
+	// clear any old position assigned to this user
 	if occ.LeftUser == userEmail {
 		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to left in meet %s", userEmail, meetName)
 		occ.LeftUser = ""
@@ -106,8 +107,8 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	case "right":
 		occ.RightUser = userEmail
 	}
-
-	logger.Info.Printf("Position '%s' assigned to user '%s' for meet %s. Current occupancy: %+v", position, userEmail, meetName, occ)
+	logger.Info.Printf("Position '%s' assigned to user '%s' for meet %s. Current occupancy: %+v",
+		position, userEmail, meetName, occ)
 	return nil
 }
 

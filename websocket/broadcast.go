@@ -53,7 +53,6 @@ func HandleMessages() {
 }
 
 func BroadcastMessage(meetName string, message map[string]interface{}) {
-	// Add logging to use meetName
 	logger.Debug.Printf("Broadcasting next attempt timers for meet: %s", meetName)
 	msg, _ := json.Marshal(message)
 	broadcast <- msg

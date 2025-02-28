@@ -26,19 +26,19 @@
         <label for="positionSelect" style="margin-right:10px;">Choose Position:</label>
         <select id="positionSelect" name="position" style="padding:8px; border-radius:5px; margin-right:10px;">
             {{ if .Positions.LeftOccupied }}
-            <option value="left" disabled>Left (Occupied by {{ .Positions.LeftUser }})</option>
+            <option value="left" disabled id="leftOption">Left (Occupied by {{ .Positions.leftUser }})</option>
             {{ else }}
             <option value="left">Left (Available)</option>
             {{ end }}
 
             {{ if .Positions.centerOccupied }}
-            <option value="center" disabled>center (Occupied by {{ .Positions.centerUser }})</option>
+            <option value="center" disabled id="centerOption">center (Occupied by {{ .Positions.centerUser }})</option>
             {{ else }}
             <option value="center">center (Available)</option>
             {{ end }}
 
             {{ if .Positions.RightOccupied }}
-            <option value="right" disabled>Right (Occupied by {{ .Positions.RightUser }})</option>
+            <option value="right" disabled id="rightOption">Right (Occupied by {{ .Positions.rightUser }})</option>
             {{ else }}
             <option value="right">Right (Available)</option>
             {{ end }}
@@ -72,6 +72,7 @@
             const centerOption = document.getElementById("centerOption");
             const rightOption  = document.getElementById("rightOption");
 
+            // Left
             if (data.leftUser) {
                 leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
                 leftOption.disabled = true;
@@ -80,6 +81,7 @@
                 leftOption.disabled = false;
             }
 
+            // Right
             if (data.rightUser) {
                 rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
                 rightOption.disabled = true;
@@ -88,6 +90,7 @@
                 rightOption.disabled = false;
             }
 
+            // Center
             if (data.centerUser) {
                 centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
                 centerOption.disabled = true;

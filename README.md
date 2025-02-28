@@ -132,6 +132,10 @@ Possible solutions:
 
 Let's fix this ticker drift problem, and all the rest, one at a time
 
+
+we need to create a mechanism to allow a user to leave a position, and free it up for another user to take it.
+i think this requires us to use `UnsetPosition` from occupancy_service.go
+
 ----
 
 # advanced tasks

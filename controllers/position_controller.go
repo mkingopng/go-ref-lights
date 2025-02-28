@@ -76,16 +76,10 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	// Attempt to set position in the OccupancyService
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
-		// If SetPosition fails, the seat is either taken or the position is invalid.
 		logger.Error.Printf("ClaimPosition: Position is taken or invalid. %v", err)
-
-		// ADD: Re-fetch occupancy to render the page again properly
 		occ := pc.OccupancyService.GetOccupancy(meetName)
-
-		// Re-render the positions page with an error message at the top (or wherever you place it in the template).
-		// We’ll use HTTP 403 (Forbidden) to indicate user can’t claim that seat.
 		c.HTML(http.StatusForbidden, "positions.html", gin.H{
-			"Error":    err.Error(), // The error text (e.g. "left position is already taken")
+			"Error":    "Sorry, that referee position is already occupied. Please choose a different one.",
 			"meetName": meetName,
 			"Positions": map[string]interface{}{
 				"LeftOccupied":   occ.LeftUser != "",
@@ -135,13 +129,13 @@ func (pc *PositionController) broadcastOccupancy(meetName string) {
 		"leftUser":   occ.LeftUser,
 		"centerUser": occ.CenterUser,
 		"rightUser":  occ.RightUser,
+		"meetName":   meetName,
 	}
 	jsonBytes, _ := json.Marshal(msg)
-	websocket.SendBroadcastMessage(jsonBytes) // fix_me
+	websocket.SendBroadcastMessage(jsonBytes)
 }
 
 // GetOccupancyAPI provides a JSON endpoint to retrieve the current occupancy.
-// This is optional, used for dynamic front-end updates if you want an AJAX approach.
 func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	session := sessions.Default(c)
 	meetNameRaw := session.Get("meetName")
