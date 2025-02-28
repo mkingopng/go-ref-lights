@@ -1,115 +1,191 @@
-// Package controllers: controllers/auth_controller.go
+// Package controllers controllers/auth_controller.go
 package controllers
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"io"
+	"go-ref-lights/logger"
+	"go-ref-lights/models"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
-
-	"go-ref-lights/logger"
+	"runtime"
 )
 
-// OAuth2 configuration
-var oauthConfig *oauth2.Config
+var activeUsers = make(map[string]bool)
 
-func init() {
-	// Load .env file if it exists
-	err := godotenv.Load()
-	if err != nil {
-		logger.Warn.Println("⚠️ Warning: No .env file found. Using system environment variables.")
-	}
-
-	clientID := os.Getenv("GOOGLE_CLIENT_ID")
-	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
-	applicationURL := os.Getenv("APPLICATION_URL")
-
-	if clientID == "" || clientSecret == "" || applicationURL == "" {
-		logger.Error.Fatal("❌ Missing required Google OAuth environment variables (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APPLICATION_URL). Check your .env file.")
-	}
-
-	redirectURL := applicationURL + "/auth/google/callback"
-
-	oauthConfig = &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		RedirectURL:  redirectURL,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
-	}
-
-	logger.Info.Println("OAuth configuration initialized successfully.")
+// ComparePasswords checks if the given password matches the hashed password
+func ComparePasswords(hashedPassword, plainPassword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
+	return err == nil
 }
 
-// GoogleLogin redirects users to Google's OAuth login page
-func GoogleLogin(c *gin.Context) {
-	state := "randomstate" // Ideally, generate a random secure state
-	url := oauthConfig.AuthCodeURL(state)
-	logger.Info.Printf("Redirecting user to Google OAuth login page: %s", url)
-	c.Redirect(http.StatusFound, url)
-}
-
-// GoogleCallback handles the OAuth callback and stores user session
-func GoogleCallback(c *gin.Context) {
-	code := c.Query("code")
-
-	// Exchange authorization code for access token
-	token, err := oauthConfig.Exchange(context.Background(), code)
-	if err != nil {
-		logger.Error.Printf("❌ OAuth Exchange failed: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to exchange token")
-		return
-	}
-
-	// Use the token to get user info
-	client := oauthConfig.Client(context.Background(), token)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
-	if err != nil {
-		logger.Error.Printf("❌ Failed to retrieve user info: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to get user info")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		if err := Body.Close(); err != nil {
-			logger.Warn.Printf("Warning: Failed to close response body: %v", err)
-		}
-	}(resp.Body)
-
-	// Parse user info (e.g., email and name)
-	userInfo := struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}{}
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		logger.Error.Printf("❌ Failed to parse user info: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to parse user info")
-		return
-	}
-
-	// Store user info in session
+// SetMeetHandler saves the selected meetName in session.
+// We’ve removed the old check that prevented the user from changing the meet.
+func SetMeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	session.Set("user", userInfo.Email)
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("❌ Failed to save session: %v", err)
-	} else {
-		logger.Info.Printf("Session saved for user: %s", userInfo.Email)
+
+	meetName := c.PostForm("meetName")
+	if meetName == "" {
+		c.HTML(http.StatusBadRequest, "choose_meet.html", gin.H{"Error": "Please select a meet."})
+		return
 	}
 
-	logger.Info.Printf("User %s successfully authenticated. Redirecting to home page.", userInfo.Email)
-	c.Redirect(http.StatusFound, "/") // Redirect to home page after login
+	session.Set("meetName", meetName)
+	if err := session.Save(); err != nil {
+		logger.Error.Println("Failed to save meet session:", err)
+		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error, please try again."})
+		return
+	}
+
+	logger.Info.Printf("Meet %s selected, redirecting to login.", meetName)
+	c.Redirect(http.StatusFound, "/login")
 }
 
-// ShowLoginPage redirects users to Google OAuth login
-func ShowLoginPage(c *gin.Context) {
-	logger.Info.Println("Redirecting to Google OAuth login page (ShowLoginPage)")
-	c.Redirect(http.StatusFound, "/auth/google/login")
+// LoadMeetCreds loads meet credentials from JSON file
+func LoadMeetCreds() (*models.MeetCreds, error) {
+	_, _, _, _ = runtime.Caller(0) // Unused variable fix
+	credPath := "./config/meet_creds.json"
+
+	data, err := os.ReadFile(credPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var creds models.MeetCreds
+	if err := json.Unmarshal(data, &creds); err != nil {
+		return nil, err
+	}
+
+	// Debug print to confirm meets are loaded correctly
+	fmt.Println("Loaded meets:", creds.Meets)
+
+	return &creds, nil
+}
+
+// LoginHandler verifies the username and password, enforces single login,
+// and stores session data if successful.
+func LoginHandler(c *gin.Context) {
+	session := sessions.Default(c)
+
+	meetNameRaw := session.Get("meetName")
+	meetName, ok := meetNameRaw.(string)
+	if !ok || meetName == "" {
+		logger.Warn.Println("LoginHandler: No meet selected, redirecting to /choose-meet")
+		c.Redirect(http.StatusFound, "/choose-meet")
+		return
+	}
+
+	username := c.PostForm("username")
+	password := c.PostForm("password")
+
+	if username == "" || password == "" {
+		logger.Warn.Println("LoginHandler: Missing username or password")
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Please fill in all fields.",
+		})
+		return
+	}
+
+	// Load credentials from config
+	creds, err := LoadMeetCreds()
+	if err != nil {
+		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again later.",
+		})
+		return
+	}
+
+	// Validate user credentials against the chosen meet
+	var valid bool
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			for _, user := range m.Users {
+				// If we find a username match and the password check passes, it's valid
+				if user.Username == username && ComparePasswords(user.Password, password) {
+					valid = true
+					break
+				}
+			}
+		}
+	}
+
+	// If no match found, return an error
+	if !valid {
+		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Invalid username or password.",
+		})
+		return
+	}
+
+	// -------------------------------------------------------------------------
+	// Single-login enforcement:
+	// If the user is already in activeUsers, that means they have a live session.
+	// We deny the new session attempt.  (They can log out to free up the old session.)
+	// -------------------------------------------------------------------------
+	if activeUsers[username] {
+		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "This username is already logged in on another device.",
+		})
+		return
+	}
+
+	// Mark the user as active. If we reach here, they either:
+	// 1) haven't logged in before, or
+	// 2) they have logged out from the old session properly.
+	activeUsers[username] = true
+
+	// Save user info in session
+	session.Set("user", username)
+	if err := session.Save(); err != nil {
+		logger.Error.Println("LoginHandler: Failed to save session:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again.",
+		})
+		return
+	}
+
+	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s", username, meetName)
+	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+// -----------------------------------------------------------------------------
+//  2. Provide a logout function that removes the user from activeUsers,
+//     so they can log in again from another device.
+//     Note: If your existing logout is in a different file (e.g. page_controller.go),
+//     you can adapt the code below and call it from there. The key is to delete
+//     the username from activeUsers so they can log in again later.
+//
+// -----------------------------------------------------------------------------
+func LogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+
+	// Attempt to get the username from session
+	user, hasUser := session.Get("user").(string)
+	if hasUser && user != "" {
+		// Remove the user from the activeUsers map
+		delete(activeUsers, user)
+		logger.Info.Printf("LogoutHandler: Removed user %s from active list", user)
+	}
+
+	// Clear out all session data
+	session.Clear()
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("LogoutHandler: Error saving session during logout: %v", err)
+	} else {
+		logger.Info.Println("LogoutHandler: Session cleared successfully")
+	}
+
+	// You can redirect to a "logged out" page or back to choose-meet, etc.
+	c.Redirect(http.StatusFound, "/choose-meet")
 }

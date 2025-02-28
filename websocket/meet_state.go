@@ -1,8 +1,9 @@
-// Package websocket: This file contains the MeetState struct, which holds per-meet, in-memory data
+// Package websocket: websocket/meet_state.go
 package websocket
 
 import (
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
@@ -17,16 +18,13 @@ type NextAttemptTimer struct {
 
 // MeetState holds per-meet, in-memory data.
 type MeetState struct {
-	// judgeID -> WebSocket connection (e.g. "left" -> conn)
-	RefereeSessions map[string]*websocket.Conn
-	// judgeID -> decision string (e.g. "left" -> "white")
-	JudgeDecisions map[string]string
-	// whether the Platform Ready timer is active, and the time left
+	MeetName              string
+	RefereeSessions       map[string]*websocket.Conn
+	JudgeDecisions        map[string]string
 	PlatformReadyActive   bool
 	PlatformReadyTimeLeft int
-
-	// nextAttempt timers, multiple can run concurrently
-	NextAttemptTimers []NextAttemptTimer
+	PlatformReadyEnd      time.Time
+	NextAttemptTimers     []NextAttemptTimer
 }
 
 // a global map storing meetName -> *MeetState
@@ -37,12 +35,6 @@ var (
 
 // getMeetState fetches or creates a MeetState for the given meetName.
 func getMeetState(meetName string) *MeetState {
-	// If meetName is empty, log an error and default to "DEFAULT_MEET"
-	if meetName == "" {
-		logger.Error.Println("Empty meetName provided to getMeetState. Defaulting to 'DEFAULT_MEET'.")
-		meetName = "DEFAULT_MEET"
-	}
-
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
 
@@ -50,6 +42,7 @@ func getMeetState(meetName string) *MeetState {
 	if !exists {
 		logger.Info.Printf("Creating new MeetState for meet: %s", meetName)
 		state = &MeetState{
+			MeetName:              meetName, // ← This is the added field!
 			RefereeSessions:       make(map[string]*websocket.Conn),
 			JudgeDecisions:        make(map[string]string),
 			PlatformReadyActive:   false,
@@ -80,8 +73,11 @@ func ClearMeetState(meetName string) {
 
 // DecisionMessage now includes MeetName so we can handle multiple meets.
 type DecisionMessage struct {
-	MeetName string `json:"meetName,omitempty"` // e.g. "STATE_CHAMPS_2025"
-	JudgeID  string `json:"judgeId,omitempty"`
-	Decision string `json:"decision,omitempty"`
-	Action   string `json:"action,omitempty"`
+	Action         string `json:"action"`
+	MeetName       string `json:"meetName"`
+	JudgeID        string `json:"judgeId"`
+	Decision       string `json:"decision"`
+	LeftDecision   string `json:"leftDecision"`
+	centerDecision string `json:"centerDecision"`
+	RightDecision  string `json:"rightDecision"`
 }

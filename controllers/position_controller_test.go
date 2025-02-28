@@ -22,7 +22,7 @@ type MockOccupancyService struct{}
 func (m *MockOccupancyService) GetOccupancy() services.Occupancy {
 	return services.Occupancy{
 		LeftUser:   "left@example.com",
-		CentreUser: "",
+		centerUser: "",
 		RightUser:  "right@example.com",
 	}
 }
@@ -104,7 +104,7 @@ func TestShowPositionsPage_Authenticated(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "Left (Occupied by left@example.com)")
-	assert.Contains(t, w.Body.String(), "Centre (Available)")
+	assert.Contains(t, w.Body.String(), "center (Available)")
 	assert.Contains(t, w.Body.String(), "Right (Occupied by right@example.com)")
 }
 

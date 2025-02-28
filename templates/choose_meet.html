@@ -1,28 +1,32 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
-  <title>Home</title>
+  <title>Choose Meet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 
 <body>
-<h1>Scan To Log-in</h1>
 
-<!--QR Code container-->
-<div class="qr-code-container">
-  <img src="/qrcode" alt="QR Code">
-</div>
+<h1>Select a Meet</h1>
 
-<!--button container: lights or select ref positions-->
+<!--select meet container-->
 <div class="button-container">
-  <a href="/lights" class="button-link">Lights</a>
-  <a href="/positions" class="button-link">Select Referee Position</a>
+  <form action="/set-meet" method="POST">
+    <label for="meetSelect">Choose your meet:</label>
+    <select name="meetName" id="meetSelect">
+      <option value="">-- Please select a meet --</option>
+      {{range .availableMeets}}
+      <option value="{{.Name}}">{{.Name}}</option>
+      {{end}}
+    </select>
+    <div>
+      <input type="submit" value="Proceed" class="action-button" />
+    </div>
+  </form>
 </div>
 
 <!--APL logo container-->

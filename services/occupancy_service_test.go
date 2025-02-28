@@ -59,18 +59,18 @@ func TestSetPosition_SwitchPosition(t *testing.T) {
 	svc := services.OccupancyService{}
 	svc.ResetOccupancy()
 
-	// User claims "centre"
-	err := svc.SetPosition("centre", "referee@example.com")
+	// User claims "center"
+	err := svc.SetPosition("center", "referee@example.com")
 	assert.NoError(t, err)
 
 	// Same user moves to "left"
 	err = svc.SetPosition("left", "referee@example.com")
 	assert.NoError(t, err)
 
-	// Ensure "centre" is now empty and "left" is assigned
+	// Ensure "center" is now empty and "left" is assigned
 	occ := svc.GetOccupancy()
 	assert.Equal(t, "referee@example.com", occ.LeftUser)
-	assert.Empty(t, occ.CentreUser, "Previous position should be cleared")
+	assert.Empty(t, occ.CenterUser, "Previous position should be cleared")
 }
 
 // Test ResetOccupancy clears all assignments
@@ -82,8 +82,8 @@ func TestResetOccupancy(t *testing.T) {
 	err := svc.SetPosition("left", "ref1@example.com")
 	assert.NoError(t, err, "Setting position 'left' should not fail")
 
-	err = svc.SetPosition("centre", "ref2@example.com")
-	assert.NoError(t, err, "Setting position 'centre' should not fail")
+	err = svc.SetPosition("center", "ref2@example.com")
+	assert.NoError(t, err, "Setting position 'center' should not fail")
 
 	err = svc.SetPosition("right", "ref3@example.com")
 	assert.NoError(t, err, "Setting position 'right' should not fail")
@@ -94,7 +94,7 @@ func TestResetOccupancy(t *testing.T) {
 	// Ensure all positions are empty
 	occ := svc.GetOccupancy()
 	assert.Empty(t, occ.LeftUser, "Left position should be cleared after reset")
-	assert.Empty(t, occ.CentreUser, "Centre position should be cleared after reset")
+	assert.Empty(t, occ.CenterUser, "center position should be cleared after reset")
 	assert.Empty(t, occ.RightUser, "Right position should be cleared after reset")
 }
 
@@ -106,7 +106,7 @@ func TestSetPosition(t *testing.T) {
 	// Start with a clean occupancy
 	occ := svc.GetOccupancy()
 	assert.Empty(t, occ.LeftUser, "LeftUser should be empty at start")
-	assert.Empty(t, occ.CentreUser, "CentreUser should be empty at start")
+	assert.Empty(t, occ.CenterUser, "CenterUser should be empty at start")
 	assert.Empty(t, occ.RightUser, "RightUser should be empty at start")
 
 	// Attempt to set "left" to "test@example.com"
@@ -116,7 +116,7 @@ func TestSetPosition(t *testing.T) {
 	occ = svc.GetOccupancy()
 	assert.Equal(t, "test@example.com", occ.LeftUser)
 	// Others should still be empty
-	assert.Empty(t, occ.CentreUser)
+	assert.Empty(t, occ.CenterUser)
 	assert.Empty(t, occ.RightUser)
 }
 
@@ -125,11 +125,11 @@ func TestSetPosition_AlreadyTaken(t *testing.T) {
 	svc := services.OccupancyService{}
 	svc.ResetOccupancy() // ✅ Reset before running the test
 
-	// Set "centre" position to user1
-	err := svc.SetPosition("centre", "user1@example.com")
+	// Set "center" position to user1
+	err := svc.SetPosition("center", "user1@example.com")
 	assert.NoError(t, err)
 
-	// Now user2 tries to claim "centre" as well
-	err = svc.SetPosition("centre", "user2@example.com")
-	assert.Error(t, err, "Expected an error since 'centre' was already occupied")
+	// Now user2 tries to claim "center" as well
+	err = svc.SetPosition("center", "user2@example.com")
+	assert.Error(t, err, "Expected an error since 'center' was already occupied")
 }

@@ -1,4 +1,4 @@
-// Package services file: services/occupancy_service.go
+// Package services: services/occupancy_service.go
 package services
 
 import (
@@ -8,130 +8,147 @@ import (
 	"go-ref-lights/logger"
 )
 
-// Occupancy defines the struct to track referee positions.
+// Occupancy defines the struct to track referee positions
 type Occupancy struct {
 	LeftUser   string
-	CentreUser string
+	CenterUser string
 	RightUser  string
 }
 
-// Mutex for thread safety.
 var occupancyMutex sync.Mutex
+var occupancyMap = make(map[string]*Occupancy)
 
-// Global variable to track current referee occupancy.
-var currentOccupancy = Occupancy{}
-
-// OccupancyServiceInterface defines an interface for dependency injection.
 type OccupancyServiceInterface interface {
-	GetOccupancy() Occupancy
-	SetPosition(position, userEmail string) error
-	ResetOccupancy()
+	GetOccupancy(meetName string) Occupancy
+	SetPosition(meetName, position, userEmail string) error
+	ResetOccupancyForMeet(meetName string)
+	// ADD: We'll explicitly reference UnsetPosition in the interface too:
+	UnsetPosition(meetName, position, userEmail string) error
 }
 
-// OccupancyService struct that implements the interface.
 type OccupancyService struct{}
 
-// GetOccupancy retrieves the current occupancy state (thread-safe).
-func (s *OccupancyService) GetOccupancy() Occupancy {
+func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
-	logger.Debug.Printf("Getting occupancy state: %+v", currentOccupancy)
-	return currentOccupancy
+	occ, exists := occupancyMap[meetName]
+	if !exists {
+		occ = &Occupancy{}
+		occupancyMap[meetName] = occ
+	}
+	logger.Debug.Printf("Getting occupancy state: %s %+v", meetName, occ)
+	return *occ
 }
 
-// SetPosition assigns a user to a referee position (thread-safe).
-func (s *OccupancyService) SetPosition(position, userEmail string) error {
+func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
-	logger.Info.Printf("Attempting to assign position '%s' to user '%s'", position, userEmail)
+	occ, exists := occupancyMap[meetName]
+	if !exists {
+		occ = &Occupancy{}
+		occupancyMap[meetName] = occ
+	}
+	logger.Info.Printf("Attempting to assign position '%s' to user '%s' for meet %s", position, userEmail, meetName)
 
-	// Reject invalid positions.
-	validPositions := map[string]bool{"left": true, "centre": true, "right": true}
+	// Validate position
+	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
-		err := errors.New("invalid position selected")
-		logger.Error.Printf("SetPosition failed: %v", err)
+		err := errors.New("invalid position selected, please choose left, center, or right")
+		logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 		return err
 	}
 
-	// Prevent multiple assignments of the same position.
+	// Check if already taken
 	switch position {
 	case "left":
-		if currentOccupancy.LeftUser != "" {
+		if occ.LeftUser != "" {
 			err := errors.New("left position is already taken")
-			logger.Error.Printf("SetPosition failed: %v", err)
+			logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 			return err
 		}
-	case "centre":
-		if currentOccupancy.CentreUser != "" {
-			err := errors.New("centre position is already taken")
-			logger.Error.Printf("SetPosition failed: %v", err)
+	case "center":
+		if occ.CenterUser != "" {
+			err := errors.New("center position is already taken")
+			logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 			return err
 		}
 	case "right":
-		if currentOccupancy.RightUser != "" {
+		if occ.RightUser != "" {
 			err := errors.New("right position is already taken")
-			logger.Error.Printf("SetPosition failed: %v", err)
+			logger.Error.Printf("SetPosition failed for meet %s: %v", meetName, err)
 			return err
 		}
 	}
 
-	// Clear any previous position assigned to this user.
-	if currentOccupancy.LeftUser == userEmail {
-		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to left", userEmail)
-		currentOccupancy.LeftUser = ""
+	// Clear any old seat this user had
+	if occ.LeftUser == userEmail {
+		occ.LeftUser = ""
 	}
-	if currentOccupancy.CentreUser == userEmail {
-		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to centre", userEmail)
-		currentOccupancy.CentreUser = ""
+	if occ.CenterUser == userEmail {
+		occ.CenterUser = ""
 	}
-	if currentOccupancy.RightUser == userEmail {
-		logger.Debug.Printf("Clearing previous assignment: user '%s' was assigned to right", userEmail)
-		currentOccupancy.RightUser = ""
+	if occ.RightUser == userEmail {
+		occ.RightUser = ""
 	}
 
-	// Assign the new position.
+	// Assign new seat
 	switch position {
 	case "left":
-		currentOccupancy.LeftUser = userEmail
-	case "centre":
-		currentOccupancy.CentreUser = userEmail
+		occ.LeftUser = userEmail
+	case "center":
+		occ.CenterUser = userEmail
 	case "right":
-		currentOccupancy.RightUser = userEmail
+		occ.RightUser = userEmail
 	}
 
-	logger.Info.Printf("Position '%s' successfully assigned to user '%s'. Current occupancy: %+v", position, userEmail, currentOccupancy)
+	logger.Info.Printf("Position '%s' assigned to user '%s' for meet %s. Current occupancy: %+v",
+		position, userEmail, meetName, occ)
 	return nil
 }
 
-// ResetOccupancy resets the global occupancy state.
-func (s *OccupancyService) ResetOccupancy() {
+func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
-	currentOccupancy = Occupancy{}
-	logger.Info.Println("Occupancy state has been reset.")
+	occupancyMap[meetName] = &Occupancy{}
+	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetName)
 }
 
-// UnsetPosition frees up a referee position.
-func UnsetPosition(position, userEmail string) {
+// ADD: We define UnsetPosition as part of our service interface.
+func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
+
+	occ, exists := occupancyMap[meetName]
+	if !exists {
+		// no occupancy record for that meet
+		logger.Warn.Printf("UnsetPosition: no occupancy record for meet %s", meetName)
+		return errors.New("no occupancy found for that meet")
+	}
 
 	switch position {
 	case "left":
-		if currentOccupancy.LeftUser == userEmail {
-			logger.Info.Printf("Unsetting left position for user '%s'", userEmail)
-			currentOccupancy.LeftUser = ""
+		if occ.LeftUser == userEmail {
+			logger.Info.Printf("Unsetting left position for user '%s' in meet %s", userEmail, meetName)
+			occ.LeftUser = ""
 		}
-	case "centre":
-		if currentOccupancy.CentreUser == userEmail {
-			logger.Info.Printf("Unsetting centre position for user '%s'", userEmail)
-			currentOccupancy.CentreUser = ""
+	case "center":
+		if occ.CenterUser == userEmail {
+			logger.Info.Printf("Unsetting center position for user '%s' in meet %s", userEmail, meetName)
+			occ.CenterUser = ""
 		}
 	case "right":
-		if currentOccupancy.RightUser == userEmail {
-			logger.Info.Printf("Unsetting right position for user '%s'", userEmail)
-			currentOccupancy.RightUser = ""
+		if occ.RightUser == userEmail {
+			logger.Info.Printf("Unsetting right position for user '%s' in meet %s", userEmail, meetName)
+			occ.RightUser = ""
 		}
+	default:
+		err := errors.New("invalid position")
+		logger.Error.Printf("UnsetPosition: %v", err)
+		return err
 	}
+
+	logger.Info.Printf("Position '%s' was vacated by user '%s' for meet %s. Current occupancy: %+v",
+		position, userEmail, meetName, occ)
+	return nil
 }

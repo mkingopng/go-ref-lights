@@ -27,8 +27,8 @@ func PositionRequired() gin.HandlerFunc {
 		switch path {
 		case "/left":
 			requiredPos = "left"
-		case "/centre":
-			requiredPos = "centre"
+		case "/center":
+			requiredPos = "center"
 		case "/right":
 			requiredPos = "right"
 		default:

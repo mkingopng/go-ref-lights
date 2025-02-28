@@ -14,25 +14,31 @@
 
 <h1>Select Your Referee Position</h1>
 
+{{ if .Error }}
+<div class="error" style="color:red; margin-top:10px; text-align:center;">
+    {{.Error}}
+</div>
+{{ end }}
+
 <!--select referee position container-->
 <div class="button-container">
     <form action="/position/claim" method="POST">
         <label for="positionSelect" style="margin-right:10px;">Choose Position:</label>
         <select id="positionSelect" name="position" style="padding:8px; border-radius:5px; margin-right:10px;">
             {{ if .Positions.LeftOccupied }}
-            <option value="left" disabled>Left (Occupied by {{ .Positions.LeftUser }})</option>
+            <option value="left" disabled id="leftOption">Left (Occupied by {{ .Positions.leftUser }})</option>
             {{ else }}
             <option value="left">Left (Available)</option>
             {{ end }}
 
-            {{ if .Positions.CentreOccupied }}
-            <option value="centre" disabled>Centre (Occupied by {{ .Positions.CentreUser }})</option>
+            {{ if .Positions.centerOccupied }}
+            <option value="center" disabled id="centerOption">center (Occupied by {{ .Positions.centerUser }})</option>
             {{ else }}
-            <option value="centre">Centre (Available)</option>
+            <option value="center">center (Available)</option>
             {{ end }}
 
             {{ if .Positions.RightOccupied }}
-            <option value="right" disabled>Right (Occupied by {{ .Positions.RightUser }})</option>
+            <option value="right" disabled id="rightOption">Right (Occupied by {{ .Positions.rightUser }})</option>
             {{ else }}
             <option value="right">Right (Available)</option>
             {{ end }}
@@ -50,6 +56,51 @@
 <div class="logo-container">
     <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
+
+<script>
+    const ws = new WebSocket("ws://localhost:8080/referee-updates?meetName={{.meetName}}");
+    ws.onmessage = function(evt) {
+        let data;
+        try {
+            data = JSON.parse(evt.data);
+        } catch (e) {
+            console.warn("Invalid JSON from server:", evt.data);
+            return;
+        }
+        if (data.action === "occupancyChanged") {
+            const leftOption   = document.getElementById("leftOption");
+            const centerOption = document.getElementById("centerOption");
+            const rightOption  = document.getElementById("rightOption");
+
+            // Left
+            if (data.leftUser) {
+                leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
+                leftOption.disabled = true;
+            } else {
+                leftOption.textContent = `Left (Available)`;
+                leftOption.disabled = false;
+            }
+
+            // Right
+            if (data.rightUser) {
+                rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
+                rightOption.disabled = true;
+            } else {
+                rightOption.textContent = `Right (Available)`;
+                rightOption.disabled = false;
+            }
+
+            // Center
+            if (data.centerUser) {
+                centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
+                centerOption.disabled = true;
+            } else {
+                centerOption.textContent = `Center (Available)`;
+                centerOption.disabled = false;
+            }
+        }
+    };
+</script>
 
 </body>
 </html>

@@ -1,96 +1,122 @@
 // static/js/referee-common.js
+"use strict";
+
+let socket;
+
+// utility function for logging
+function log(message, level = 'debug') {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+
+    // Log to console
+    switch (level) {
+        case 'error':
+            console.error(logMessage);
+            break;
+        case 'warn':
+            console.warn(logMessage);
+            break;
+        case 'debug':
+            console.debug(logMessage);
+            break;
+        default:
+            console.log(logMessage);
+    }
+
+    // send logs to a server for saving to a file
+    fetch('/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: logMessage, level: level }),
+    }).catch(error => console.error('Failed to send log to server:', error));
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // custom logger for standardised logging
-    const Logger = (function() {
-        const isDebug = true;  // set to false in production to diable debug logging
-
-        // helper function to send log messages to the server's /log endpoint.
-        function sendLog(level, message) {
-            fetch('/log', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message: message, level: level })
-            }).catch(err => {
-                // if sending the log fails, output a warning in the console.
-                console.warn(`[WARN ${new Date().toISOString()}] Failed to send ${level} log to server:`, err);
-            });
-        }
-
-        return {
-            info: function(...args) {
-                const message = `[INFO ${new Date().toISOString()}] ${args.join(" ")}`;
-                console.info(message);
-                sendLog("info", message);
-            },
-            warn: function(...args) {
-                const message = `[WARN ${new Date().toISOString()}] ${args.join(" ")}`;
-                console.warn(message);
-                sendLog("warn", message);
-            },
-            error: function(...args) {
-                const message = `[ERROR ${new Date().toISOString()}] ${args.join(" ")}`;
-                console.error(message);
-                sendLog("error", message);
-            },
-            debug: function(...args) {
-                if (isDebug) {
-                    const message = `[DEBUG ${new Date().toISOString()}] ${args.join(" ")}`;
-                    console.debug(message);
-                    sendLog("debug", message);
-                }
-            }
-        };
-    })();
-
     // validate required globals
     if (typeof websocketUrl === 'undefined') {
-        Logger.error("websocketUrl is not defined");
+        log("websocketUrl is not defined", "error");
         return;
     }
     if (typeof judgeId === 'undefined') {
-        Logger.error("judgeId is not defined");
+        log("judgeId is not defined", "error");
         return;
     }
 
-    // initialize WebSocket
-    const socket = new WebSocket(websocketUrl);
+    // helper function to get a consistent meet name from the DOM/URL/sessionStorage
+    function getMeetName() {
+        let elem = document.getElementById("meetName");
+        let meetName = elem ? elem.dataset.meetName : null;
+        if (!meetName) {
+            meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
+        }
+        if (meetName) {
+            sessionStorage.setItem("meetName", meetName);
+            log(`✅ Meet name set: ${meetName}`, "info");
+        } else {
+            log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
+            alert("Error: No meet selected. Redirecting.");
+            window.location.href = "/meets";
+        }
+        return meetName;
+    }
+
+    // constants
+    const meetName = getMeetName();
+    if (!meetName) return;
+
+    // initialise the global WebSocket (do not shadow the global 'socket')
+    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // fix_me: not convinced this is correct
+    socket = new WebSocket(wsUrl);
 
     // grab common DOM elements
     const healthEl = document.getElementById("healthStatus");
-
-    // "Centre" has extra timer buttons
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
+    const platformReadyButton = document.getElementById('platformReadyButton');
+    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    // WebSocket event: opened
+    // Platform Ready Button Logic:
+    // only attach Platform Ready button event for center referee
+    if (judgeId === "center") {
+        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on center page only
+        const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyButton) {
+            platformReadyButton.addEventListener("click", () => {
+                console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
+                if (socket.readyState === WebSocket.OPEN) {
+                    log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
+                    socket.send(JSON.stringify({ action: "startTimer", meetName: meetName }));
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.remove("hidden");
+                    }
+                } else {
+                    log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
+                }
+            });
+        } else {
+            log("⚠️ Platform Ready button not found.", "warn");
+        }
+    }
+
+    // set up WebSocket event handlers
+    // WebSocket event: onopen
     socket.onopen = function() {
-        Logger.info(`WebSocket connected for judgeId: ${judgeId}`);
-
-        // immediately register as connected
-        const registerMsg = {
-            action: "registerRef",
-            judgeId: judgeId
-            // When i have multi-meet, I might also add "meetName":"STATE_CHAMPS" or something
-        };
+        log(`WebSocket connected for judgeId: ${judgeId}`, "info");
+        const registerMsg = { action: "registerRef", judgeId, meetName };
         socket.send(JSON.stringify(registerMsg));
     };
 
-    // WebSocket event: message
+    // WebSocket event: onmessage
     socket.onmessage = (event) => {
         let data;
         try {
             data = JSON.parse(event.data);
         } catch (e) {
-            Logger.error("Invalid JSON from server:", event.data);
-            return;
+            log(`Invalid JSON: ${event.data} - ${e.message}`, "error");
         }
-
         switch (data.action) {
             case "refereeHealth":
-                // the server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -98,54 +124,80 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             case "healthError":
-                // for critical errors we alert the user
                 alert(data.message);
                 break;
             default:
-                Logger.debug("Unhandled action:", data.action);
+                log(`Unhandled action: ${data.action}`, "debug");
         }
     };
 
-    // webSocket event: error
+    // webSocket event: onerror
     socket.onerror = function(error) {
-        Logger.error(`WebSocket error (${judgeId}):`, error);
+        log(`WebSocket error (${judgeId}): ${error}`, "error");
     };
 
-    // webSocket event: close
+    // webSocket event: onclose
     socket.onclose = function(event) {
-        Logger.info(`WebSocket closed (${judgeId}):`, event);
+        log(`WebSocket closed (${judgeId}): ${event.code} - ${event.reason}`, "info");
         if (healthEl) {
             healthEl.innerText = "Disconnected";
             healthEl.style.color = "red";
         }
     };
 
-    // utility to send JSON
+    // utility function to send JSON messages over the socket
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(obj));
-            Logger.info("Sent message:", obj);
+            const messageString = JSON.stringify(obj)
+            socket.send(messageString);
+            log(`Sent message: ${messageString}`, "info");
         } else {
-            Logger.warn(`Cannot send message; socket not open (readyState = ${socket.readyState})`);
+            log(`Cannot send message; socket not open (readyState = ${socket.readyState})`, "warn");
         }
     }
 
-    // if these buttons exist, wire them up
+    // buttons
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
-            sendMessage({ judgeId: judgeId, decision: "white" });
+            // CHANGE: we add a short guard log plus the actual send:
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetName,
+                judgeId: judgeId,
+                decision: "white"
+            })
+            log(`[RefereeCommon] Judge '${judgeId}' clicked GOOD LIFT (white).`, "info");
         });
     }
     if (redButton) {
         redButton.addEventListener('click', function() {
-            sendMessage({ judgeId: judgeId, decision: "red" });
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetName,
+                judgeId: judgeId,
+                decision: "red"
+            });
+            log(`[RefereeCommon] Judge '${judgeId}' clicked NO LIFT (red).`, "info");
         });
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "resetLights" });
-            sendMessage({ action: "resetTimer" });
-            sendMessage({ action: "startTimer" });
+            // send multiple messages: reset lights, reset timer, start timer
+            sendMessage({
+                action: "resetLights",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "resetTimer",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "startTimer",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
         });
     }
 });

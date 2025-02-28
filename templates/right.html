@@ -11,21 +11,31 @@
 </head>
 
 <body>
+<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+<p id="visibleMeetName">{{ .meetName }}</p>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
-<h1 class="title">Right Referee</h1>
+
+  <h1 class="title">Right Referee</h1>
 
 <!--connection Health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
-<!--Ref decision button container-->
+<!--referee decision button container-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
 </div>
 
+<!--vacate button form -->
+<div class="button-container">
+  <form action="/position/vacate" method="POST">
+    <button type="submit" class="action-button">Vacate Position</button>
+  </form>
+</div>
+
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
-  var judgeId = "right";
+  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
+  let judgeId = "right"
 </script>
 
 <script src="/static/js/referee-common.js"></script>

@@ -3,6 +3,8 @@ package main
 
 import (
 	"fmt"
+	"go-ref-lights/services"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,12 +22,27 @@ import (
 )
 
 func main() {
-	// initialize the centralized logger.
+	// Set Gin to release mode and disable logging
+	gin.SetMode(gin.ReleaseMode)
+	gin.DefaultWriter = io.Discard
+	gin.DefaultErrorWriter = io.Discard
+
+	creds, err := controllers.LoadMeetCreds()
+	if err != nil {
+		fmt.Println("Error loading credentials:", err)
+	} else {
+		fmt.Println("Loaded meets:", creds.Meets)
+	}
+
+	// initialise the centralised logger.
 	if err := logger.InitLogger(); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
+	logger.Info.Println("[main] Starting application on port :8080")
 
+	// initialise router
 	router := gin.Default()
+	logger.Info.Println("[main] Setting up routes & sessions...")
 
 	// add logging endpoint:
 	router.POST("/log", func(c *gin.Context) {
@@ -38,7 +55,6 @@ func main() {
 			c.Status(http.StatusBadRequest)
 			return
 		}
-
 		// depending on the level, log with the appropriate logger:
 		switch payload.Level {
 		case "error":
@@ -46,7 +62,7 @@ func main() {
 		case "warn":
 			logger.Warn.Println(payload.Message)
 		case "debug":
-			logger.Debug.Println(payload.Message)
+			//logger.Debug.Println(payload.Message)
 		case "info":
 			fallthrough
 		default:
@@ -59,7 +75,7 @@ func main() {
 	logger.Info.Println("Application started successfully.")
 
 	// load environment variables from .env file
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found. Using system environment variables.")
 	}
@@ -67,12 +83,11 @@ func main() {
 	// set Gin to release mode for production (optional but recommended)
 	gin.SetMode(gin.ReleaseMode)
 
-	// Read environment variables
+	// read environment variables
 	applicationURL := os.Getenv("APPLICATION_URL")
 	if applicationURL == "" {
 		applicationURL = "http://localhost:8080"
 	}
-
 	websocketURL := os.Getenv("WEBSOCKET_URL")
 	if websocketURL == "" {
 		websocketURL = "ws://localhost:8080/referee-updates"
@@ -98,65 +113,77 @@ func main() {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   os.Getenv("GIN_MODE") == "release", // Secure in production
+		Secure:   false, // Set to false for development (true in production)
 		SameSite: http.SameSiteLaxMode,
 	})
-	router.Use(sessions.Sessions("mysession", store))
+	router.Use(sessions.Sessions("mySession", store))
 
 	// determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Dir(b)
-	templatesDir := filepath.Join(basepath, "templates")
+	basePath := filepath.Dir(b)
+	templatesDir := filepath.Join(basePath, "templates")
 
 	// validate that the templates directory exists
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		log.Fatalf("Templates directory does not exist: %s", templatesDir)
 	}
 
-	// Load HTML templates
+	// load HTML templates
 	fmt.Println("Templates Path:", templatesDir)
 	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
 
-	// Serve static files
-	router.Static("/static", "./static")
+	pc := controllers.NewPositionController(&services.OccupancyService{})
 
-	// Serve favicon.ico
+	// serve static files
+	router.Static("/static", "./static")
 	router.GET("/favicon.ico", func(c *gin.Context) {
-		faviconPath := filepath.Join(basepath, "static", "images", "favicon.ico")
+		faviconPath := filepath.Join(basePath, "static", "images", "favicon.ico")
 		c.File(faviconPath)
 	})
 
-	// Public routes
-	router.GET("/login", controllers.ShowLoginPage)
-	router.POST("/login", controllers.PerformLogin)
+	// public routes
+	router.GET("/", controllers.ShowMeets)
+	router.POST("/set-meet", controllers.SetMeetHandler)
+	router.GET("/login", controllers.PerformLogin)
+	router.POST("/login", controllers.LoginHandler)
 	router.GET("/logout", controllers.Logout)
-	router.GET("/positions", controllers.ShowPositionsPage)
-	router.POST("/position/claim", controllers.ClaimPosition)
 
-	// In your main.go or an admin controller file
-	router.GET("/admin/clear-meet", func(c *gin.Context) {
-		meetName := c.Query("meetName")
-		if meetName == "" {
-			c.String(http.StatusBadRequest, "meetName query parameter is required")
-			return
+	// middleware: Ensure meetName is set before login
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
+			return // Allow meet selection and login pages
 		}
-		websocket.ClearMeetState(meetName) // use package qualifier
-		c.String(http.StatusOK, "Cleared MeetState for meet: %s", meetName)
+
+		session := sessions.Default(c)
+		if _, ok := session.Get("meetName").(string); !ok {
+			c.Redirect(http.StatusFound, "/")
+			c.Abort()
+		}
 	})
 
-	// Google Auth routes
-	router.GET("/auth/google/login", controllers.GoogleLogin)
-	router.GET("/auth/google/callback", controllers.GoogleCallback)
-
 	// protected routes
-	protected := router.Group("/", middleware.AuthRequired, middleware.PositionRequired())
+	protected := router.Group("/")
+	protected.Use(middleware.AuthRequired) // Check auth first
+	protected.Use(func(c *gin.Context) {   // Custom middleware to check meetName
+		session := sessions.Default(c)
+		if _, ok := session.Get("meetName").(string); !ok {
+			c.Redirect(http.StatusFound, "/meets")
+			c.Abort()
+			return
+		}
+	})
+	protected.Use(middleware.PositionRequired()) // Then check position
 	{
-		protected.GET("/", controllers.Index)
+		protected.GET("/dashboard", controllers.Index)
+		protected.GET("/positions", controllers.ShowPositionsPage)
+		protected.POST("/position/claim", pc.ClaimPosition)
 		protected.GET("/left", controllers.Left)
-		protected.GET("/centre", controllers.Centre)
+		protected.GET("/center", controllers.Center)
 		protected.GET("/right", controllers.Right)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/qrcode", controllers.GetQRCode)
+		protected.GET("/occupancy", pc.GetOccupancyAPI)
+		protected.POST("/position/vacate", pc.VacatePosition)
 	}
 
 	// webSocket Route for Live Updates
@@ -168,6 +195,7 @@ func main() {
 	go websocket.HandleMessages()
 
 	// start the server
+	logger.Info.Println("[main] About to run gin server on :8080")
 	if err := router.Run(":8080"); err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}

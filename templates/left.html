@@ -12,7 +12,8 @@
 </head>
 
 <body>
-
+<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+<p id="visibleMeetName">{{ .meetName }}</p>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
 <h1 class="title">Left Referee</h1>
 
@@ -25,9 +26,16 @@
   <button id="redButton" class="action-button red">No Lift</button>
 </div>
 
+<!--vacate button form -->
+<div class="button-container">
+  <form action="/position/vacate" method="POST">
+    <button type="submit" class="action-button">Vacate Position</button>
+  </form>
+</div>
+
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
-  var judgeId = "left";
+  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
+  let judgeId = "left"
 </script>
 
 <script src="/static/js/referee-common.js"></script>

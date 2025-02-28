@@ -1,4 +1,4 @@
-<!-- templates/centre.html -->
+<!-- templates/center.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,23 +10,39 @@
 </head>
 
 <body>
+<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+
+<p id="visibleMeetName">{{ .meetName }}</p>
+
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
+
 <h1 class="title">Center Referee</h1>
 
 <!--ref position health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
-<!--Referee decision button container-->
+<!--connection status-->
+<div id="connectionStatus" class="connection-status"></div>
+
+<!--referee decision button container-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
   <button id="startTimerButton" class="action-button">Platform Ready</button>
 </div>
 
+<!--vacate button form -->
+<div class="button-container">
+  <form action="/position/vacate" method="POST">
+    <button type="submit" class="action-button">Vacate Position</button>
+  </form>
+</div>
+
 <script>
-  var websocketUrl = "{{ .WebsocketURL }}";
-  var judgeId = "centre";
+  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
+  let judgeId = "center";
 </script>
+
 <script src="/static/js/referee-common.js"></script>
 
 </body>

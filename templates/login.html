@@ -1,24 +1,34 @@
 <!-- templates/login.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="UTF-8">
-  <title>Referee Lights - Login</title>
+  <title>Log In</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 
 <body>
 
-<!--login container-->
+<h1>Login</h1>
+
+<!--login form-->
 <div class="login-container">
-  <h1>Referee Lights</h1>
-  <a href="/auth/google/login">
-    <button class="google-login-button">Sign in with Google</button>
-  </a>
+  <h2>Meet: {{.MeetName}}</h2>
+  <form action="/login" method="POST">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+    <br>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
+    <br>
+    <input type="submit" value="Login">
+  </form>
+
+  {{ if .Error }}
+  <div class="error">{{ .Error }}</div>
+  {{ end }}
 </div>
 
 <!--APL logo container-->
