@@ -14,6 +14,12 @@
 
 <h1>Select Your Referee Position</h1>
 
+{{ if .Error }}
+<div class="error" style="color:red; margin-top:10px; text-align:center;">
+    {{.Error}}
+</div>
+{{ end }}
+
 <!--select referee position container-->
 <div class="button-container">
     <form action="/position/claim" method="POST">

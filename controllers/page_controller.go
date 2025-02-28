@@ -4,7 +4,9 @@ package controllers
 import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
+	"go-ref-lights/services"
 	"net/http"
 )
 
@@ -113,14 +115,24 @@ func ClaimPosition(c *gin.Context) {
 }
 
 // GetQRCode ✅ FIX for: Unresolved reference 'GetQRCode'
+// In page_controller.go, fix the GetQRCode function:
+
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
-	qrCodeData := "https://https://referee-lights.michaelkingston.com.au/"
+
+	// Actually generate real PNG data:
+	qrBytes, err := services.GenerateQRCode(300, 300, services.QRCodeEncoder(qrcode.Encode))
+	if err != nil {
+		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
+		c.String(http.StatusInternalServerError, "QR generation failed")
+		return
+	}
 
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
-	if _, err := c.Writer.Write([]byte(qrCodeData)); err != nil {
-		logger.Error.Printf("GetQRCode: Error writing QR code: %v", err)
+	// Write the binary PNG bytes to the response
+	if _, err := c.Writer.Write(qrBytes); err != nil {
+		logger.Error.Printf("GetQRCode: Error writing QR code bytes: %v", err)
 	}
 }
 

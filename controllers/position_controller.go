@@ -34,9 +34,13 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 		return
 	}
 
-	// pass tje meetName to GetOccupancy
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	logger.Debug.Printf("ShowPositionsPage: Retrieved occupancy state: %+v", occ)
+
+	// Get real occupancy from the service:
+	occ = pc.OccupancyService.GetOccupancy(meetName)
+
+	// Build the data structure to pass to positions.html
 	data := gin.H{
 		"Positions": map[string]interface{}{
 			"LeftOccupied":   occ.LeftUser != "",
@@ -64,17 +68,38 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		return
 	}
 
+	// Grab the position from the form
 	position := c.PostForm("position")
 	userEmail := user.(string)
 	logger.Info.Printf("ClaimPosition: User %s attempting to claim position %s in meet %s", userEmail, position, meetName)
 
+	// Attempt to set position in the OccupancyService
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
-		logger.Error.Printf("ClaimPosition: Failed to set position %s for user %s: %v", position, userEmail, err)
-		c.String(http.StatusForbidden, "Error: %s", err.Error())
+		// If SetPosition fails, the seat is either taken or the position is invalid.
+		logger.Error.Printf("ClaimPosition: Position is taken or invalid. %v", err)
+
+		// ADD: Re-fetch occupancy to render the page again properly
+		occ := pc.OccupancyService.GetOccupancy(meetName)
+
+		// Re-render the positions page with an error message at the top (or wherever you place it in the template).
+		// We’ll use HTTP 403 (Forbidden) to indicate user can’t claim that seat.
+		c.HTML(http.StatusForbidden, "positions.html", gin.H{
+			"Error":    err.Error(), // The error text (e.g. "left position is already taken")
+			"meetName": meetName,
+			"Positions": map[string]interface{}{
+				"LeftOccupied":   occ.LeftUser != "",
+				"LeftUser":       occ.LeftUser,
+				"centerOccupied": occ.CenterUser != "",
+				"centerUser":     occ.CenterUser,
+				"RightOccupied":  occ.RightUser != "",
+				"RightUser":      occ.RightUser,
+			},
+		})
 		return
 	}
 
+	// Otherwise, the position was successfully claimed. Update the session:
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
@@ -84,7 +109,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 
 	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetName)
 
-	// Redirect to the appropriate view based on the claimed position
+	// Redirect to the correct referee view based on the claimed position
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
@@ -93,29 +118,30 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	case "right":
 		c.Redirect(http.StatusFound, "/right")
 	default:
+		// If we don’t recognize the position, go back to /positions
 		logger.Warn.Printf("ClaimPosition: Unknown position %s; redirecting to /positions", position)
 		c.Redirect(http.StatusFound, "/positions")
 	}
+	// Finally, notify other clients that occupancy changed
 	go pc.broadcastOccupancy(meetName)
 }
 
-// Suppose in your position_controller.go, after user claims a seat:
+// broadcastOccupancy sends a JSON payload indicating which seats are occupied.
+// Any clients listening for "occupancyChanged" can update their UI accordingly.
 func (pc *PositionController) broadcastOccupancy(meetName string) {
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	// We'll form a JSON object like this:
 	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
 		"leftUser":   occ.LeftUser,
 		"centerUser": occ.CenterUser,
 		"rightUser":  occ.RightUser,
 	}
-	// Convert to []byte
 	jsonBytes, _ := json.Marshal(msg)
-	// Send it to a broadcast channel
-	websocket.SendBroadcastMessage(jsonBytes)
+	websocket.SendBroadcastMessage(jsonBytes) // fix_me
 }
 
-// GetOccupancyAPI in position_controller.go (or a new file):
+// GetOccupancyAPI provides a JSON endpoint to retrieve the current occupancy.
+// This is optional, used for dynamic front-end updates if you want an AJAX approach.
 func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	session := sessions.Default(c)
 	meetNameRaw := session.Get("meetName")

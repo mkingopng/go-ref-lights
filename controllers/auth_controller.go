@@ -14,21 +14,18 @@ import (
 	"runtime"
 )
 
+var activeUsers = make(map[string]bool)
+
 // ComparePasswords checks if the given password matches the hashed password
 func ComparePasswords(hashedPassword, plainPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
 	return err == nil
 }
 
-// SetMeetHandler saves the selected meetName in session
+// SetMeetHandler saves the selected meetName in session.
+// We’ve removed the old check that prevented the user from changing the meet.
 func SetMeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
-
-	// Prevent selecting a different meet after already setting one
-	if session.Get("meetName") != nil {
-		c.Redirect(http.StatusFound, "/login")
-		return
-	}
 
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
@@ -68,7 +65,8 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 	return &creds, nil
 }
 
-// LoginHandler verifies the username and password
+// LoginHandler verifies the username and password, enforces single login,
+// and stores session data if successful.
 func LoginHandler(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -92,7 +90,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Load credentials
+	// Load credentials from config
 	creds, err := LoadMeetCreds()
 	if err != nil {
 		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
@@ -103,11 +101,12 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Validate user credentials
+	// Validate user credentials against the chosen meet
 	var valid bool
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
 			for _, user := range m.Users {
+				// If we find a username match and the password check passes, it's valid
 				if user.Username == username && ComparePasswords(user.Password, password) {
 					valid = true
 					break
@@ -116,6 +115,7 @@ func LoginHandler(c *gin.Context) {
 		}
 	}
 
+	// If no match found, return an error
 	if !valid {
 		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
@@ -124,6 +124,25 @@ func LoginHandler(c *gin.Context) {
 		})
 		return
 	}
+
+	// -------------------------------------------------------------------------
+	// Single-login enforcement:
+	// If the user is already in activeUsers, that means they have a live session.
+	// We deny the new session attempt.  (They can log out to free up the old session.)
+	// -------------------------------------------------------------------------
+	if activeUsers[username] {
+		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "This username is already logged in on another device.",
+		})
+		return
+	}
+
+	// Mark the user as active. If we reach here, they either:
+	// 1) haven't logged in before, or
+	// 2) they have logged out from the old session properly.
+	activeUsers[username] = true
 
 	// Save user info in session
 	session.Set("user", username)
@@ -138,4 +157,35 @@ func LoginHandler(c *gin.Context) {
 
 	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s", username, meetName)
 	c.Redirect(http.StatusFound, "/dashboard")
+}
+
+// -----------------------------------------------------------------------------
+//  2. Provide a logout function that removes the user from activeUsers,
+//     so they can log in again from another device.
+//     Note: If your existing logout is in a different file (e.g. page_controller.go),
+//     you can adapt the code below and call it from there. The key is to delete
+//     the username from activeUsers so they can log in again later.
+//
+// -----------------------------------------------------------------------------
+func LogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+
+	// Attempt to get the username from session
+	user, hasUser := session.Get("user").(string)
+	if hasUser && user != "" {
+		// Remove the user from the activeUsers map
+		delete(activeUsers, user)
+		logger.Info.Printf("LogoutHandler: Removed user %s from active list", user)
+	}
+
+	// Clear out all session data
+	session.Clear()
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("LogoutHandler: Error saving session during logout: %v", err)
+	} else {
+		logger.Info.Println("LogoutHandler: Session cleared successfully")
+	}
+
+	// You can redirect to a "logged out" page or back to choose-meet, etc.
+	c.Redirect(http.StatusFound, "/choose-meet")
 }

@@ -15,7 +15,7 @@ func HandleMessages() {
 		// attempt to decode the message to see if it contains a "meetName" field
 		var msgMap map[string]interface{}
 		err := json.Unmarshal(msg, &msgMap)
-		// if the message isn't JSON or doesn't have a meetName, then we assume its global // fix_me
+		// if the message isn't JSON or doesn't have a meetName, then we assume its global
 		meetFilter := ""
 		if err == nil {
 			if m, ok := msgMap["meetName"].(string); ok {
