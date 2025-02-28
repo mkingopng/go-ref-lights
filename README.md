@@ -130,7 +130,7 @@ Possible solutions:
 - Make sure you only have one instance of the same timer running.
 - Tolerate small scheduling drift, which is normal with time.Ticker.
 
-Lets Fix this ticker drift problem, and all the rest, one at a time
+Let's fix this ticker drift problem, and all the rest, one at a time
 
 ----
 
@@ -140,9 +140,3 @@ Lets Fix this ticker drift problem, and all the rest, one at a time
 - unit tests
 - integration tests
 - improved formatting
-
-
-
-
-
-

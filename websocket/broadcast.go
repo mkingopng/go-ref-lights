@@ -112,7 +112,6 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	}
 }
 
-// todo: where does this go?
-// logger.Debug.Printf("[broadcast] Sending judgeSubmitted for judgeId=%s in meet=%s",
-// decisionMsg.JudgeID, decisionMsg.MeetName)
-// broadcastTimeUpdateWithIndex("nextAttemptExpired", 0, expiredDisplayIndex, meetState.MeetName)
+func SendBroadcastMessage(data []byte) {
+	broadcast <- data
+}

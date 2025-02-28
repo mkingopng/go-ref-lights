@@ -111,8 +111,8 @@ func (pc *PositionController) broadcastOccupancy(meetName string) {
 	}
 	// Convert to []byte
 	jsonBytes, _ := json.Marshal(msg)
-	// Send it to broadcast channel
-	broadcast <- jsonBytes
+	// Send it to a broadcast channel
+	websocket.SendBroadcastMessage(jsonBytes)
 }
 
 // GetOccupancyAPI in position_controller.go (or a new file):
