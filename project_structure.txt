@@ -1,0 +1,92 @@
+├── .dockerignore
+├── .env
+├── .gitignore
+├── .precommit.config.yaml
+├── Dockerfile
+├── README.md
+├── app.py
+├── cdk.context.json
+├── cdk.json
+├── check.sh
+├── config/
+│   ├── creds.txt
+│   ├── meet_creds.json
+│   ├── meet_creds2.json
+│   ├── meets.json
+│   └── meets2.json
+├── config.yaml
+├── controllers/
+│   ├── auth_controller.go
+│   ├── hash_creds.py
+│   ├── loginHandler.go
+│   ├── meet_controller.go
+│   ├── page_controller.go
+│   ├── page_controller_test.go
+│   ├── position_controller.go
+│   └── position_controller_test.go
+├── file_tree.py
+├── go.mod
+├── go.sum
+├── logger/
+│   └── logger.go
+├── main.go
+├── main_test.go
+├── middleware/
+│   ├── auth.go
+│   ├── auth_test.go
+│   ├── role.go
+│   └── role_test.go
+├── models/
+│   └── meet.go
+├── poetry.lock
+├── project_structure.txt
+├── pyproject.toml
+├── referee_lights_cdk/
+│   └── referee_lights_cdk_stack.py
+├── repomix-output.txt
+├── services/
+│   ├── occupancy_service.go
+│   ├── occupancy_service_test.go
+│   ├── qrcode_service.go
+│   └── qrcode_service_test.go
+├── source.bat
+├── static/
+│   ├── css/
+│   │   └── styles.css
+│   ├── images/
+│   │   ├── APL_logo grey apl logo HQ.png
+│   │   ├── APL_logo white apl logo HQ.png
+│   │   ├── ZeroW-sunshine-coast-logo.svg
+│   │   ├── about.txt
+│   │   ├── android-chrome-192x192.png
+│   │   ├── android-chrome-512x512.png
+│   │   ├── apl_logo.png
+│   │   ├── apple-touch-icon.png
+│   │   ├── favicon-16x16.png
+│   │   ├── favicon-32x32.png
+│   │   ├── favicon.ico
+│   │   ├── site.webmanifest
+│   │   ├── upcoming_meets.PNG
+│   │   ├── zerow-pro.png
+│   │   ├── zerow.png
+│   │   ├── zerow_white.png
+│   │   └── zerow_white.svg
+│   └── js/
+│       ├── lights.js
+│       └── referee-common.js
+├── templates/
+│   ├── center.html
+│   ├── choose_meet.html
+│   ├── index.html
+│   ├── left.html
+│   ├── lights.html
+│   ├── login.html
+│   ├── positions.html
+│   └── right.html
+└── websocket/
+    ├── broadcast.go
+    ├── connection.go
+    ├── globals.go
+    ├── heartbeat.go
+    ├── meet_state.go
+    └── timer.go
