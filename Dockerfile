@@ -41,6 +41,10 @@ RUN mkdir -p ./config
 COPY --from=builder /app/config/meets.json ./config/meets.json
 COPY --from=builder /app/config/meet_creds.json ./config/meet_creds.json
 
+RUN mkdir -p ./config
+COPY --from=builder /app/config/meets.json ./config/meets.json
+COPY --from=builder /app/config/meet_creds.json ./config/meet_creds.json
+
 # Expose the application port
 EXPOSE 8080
 
