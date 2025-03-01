@@ -152,11 +152,20 @@ class RefereeLightsCdkStack(Stack):
         # set idle timeout
         fargate_service.load_balancer.set_attribute(
             "idle_timeout.timeout_seconds",
-            # "3600" # 60 minutes
+            "3600" # 60 minutes
             # "1800" # 30 minutes
-            "300" # 5 minutes
+            # "300" # 5 minutes
         )
-
+        # auto scaling
+        fargate_service.service.auto_scale_task_count(
+            min_capacity=1,
+            max_capacity=5
+        ).scale_on_cpu_utilization(
+            "CpuScaling",
+            target_utilization_percent=50,
+            scale_in_cooldown=Duration.seconds(60),
+            scale_out_cooldown=Duration.seconds(60),
+        )
         # output ALB DNS Name
         self.output_alb_dns = CfnOutput(
             self,

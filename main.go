@@ -147,6 +147,7 @@ func main() {
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
 	router.GET("/logout", controllers.Logout)
+	router.GET("/meets", controllers.ShowMeets)
 
 	// middleware: Ensure meetName is set before login
 	router.Use(func(c *gin.Context) {

@@ -35,6 +35,11 @@ COPY --from=builder /app/main .
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/config.yaml .
+COPY --from=builder /app/.env .
+
+RUN mkdir -p ./config
+COPY --from=builder /app/config/meets.json ./config/meets.json
+COPY --from=builder /app/config/meet_creds.json ./config/meet_creds.json
 
 # Expose the application port
 EXPOSE 8080
