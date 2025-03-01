@@ -21,14 +21,13 @@ type MeetsData struct {
 	} `json:"meets"`
 }
 
-// LoadMeets reads ./config/meets.json and returns the parsed data
+// LoadMeets reads config/meets.json and returns the parsed data
 func LoadMeets() (*MeetsData, error) {
-	// EXACT PATH reference
-	filePath := "./config/meets.json"
+	// Use a relative path so it works in Docker and local:
+	filePath := "config/meets.json"
 
 	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
-		// Could log an error or just return
 		return nil, err
 	}
 	var data MeetsData
@@ -38,21 +37,17 @@ func LoadMeets() (*MeetsData, error) {
 	return &data, nil
 }
 
-// ShowMeets is an example endpoint that reads the meets data
-// and renders it or returns JSON
+// ShowMeets loads the meets data and renders the meets.html template
 func ShowMeets(c *gin.Context) {
 	meets, err := LoadMeets()
 	if err != nil {
-		// Log the error and show a user-friendly message
 		log.Printf("ShowMeets: failed to load meets: %v", err)
-		// You might want to do c.HTML(...) or c.JSON(...) with an error
+		// Make sure "error.html" actually exists or choose a real template
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
 			"ErrorMessage": "Failed to load meets data.",
 		})
 		return
 	}
-
-	// If successful, you could pass the data to your template or JSON
 	c.HTML(http.StatusOK, "meets.html", gin.H{
 		"Meets": meets,
 	})

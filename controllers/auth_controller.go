@@ -47,7 +47,13 @@ func SetMeetHandler(c *gin.Context) {
 // LoadMeetCreds loads meet credentials from JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
 	_, _, _, _ = runtime.Caller(0) // Unused variable fix
-	credPath := "./config/meet_creds.json"
+
+	// -----------------------------------------------------------------------------
+	// CHANGED: Instead of "./config/meet_creds.json", we now use "config/meet_creds.json"
+	// to match the same pattern you used for meets.json. Either is fine, but
+	// be consistent across your code and Docker paths.
+	// -----------------------------------------------------------------------------
+	credPath := "config/meet_creds.json"
 
 	data, err := os.ReadFile(credPath)
 	if err != nil {
@@ -159,14 +165,6 @@ func LoginHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
-// -----------------------------------------------------------------------------
-//  2. Provide a logout function that removes the user from activeUsers,
-//     so they can log in again from another device.
-//     Note: If your existing logout is in a different file (e.g. page_controller.go),
-//     you can adapt the code below and call it from there. The key is to delete
-//     the username from activeUsers so they can log in again later.
-//
-// -----------------------------------------------------------------------------
 func LogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 
