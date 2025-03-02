@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"go-ref-lights/services"
 	"io"
 	"log"
@@ -14,7 +15,6 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go-ref-lights/controllers"
 	"go-ref-lights/logger"
 	"go-ref-lights/middleware"
@@ -27,6 +27,32 @@ func main() {
 	gin.DefaultWriter = io.Discard
 	gin.DefaultErrorWriter = io.Discard
 
+	//Load env vars from .env if present
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: No .env file found. Using system environment variables.")
+	}
+
+	// Check environment to decide URLs
+	env := os.Getenv("ENV") // e.g. "production" or "development"
+	if env == "" {
+		env = "development"
+	}
+
+	// Defaults for local development
+	applicationURL := "http://localhost:8080"
+	websocketURL := "ws://localhost:8080/referee-updates"
+
+	// For production, switch to HTTPS / WSS
+	if env == "production" {
+		applicationURL = "https://referee-lights.michaelkingston.com.au"
+		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
+	}
+
+	// Pass these computed URLs to your controllers
+	controllers.SetConfig(applicationURL, websocketURL)
+
+	// load credentials from file
 	creds, err := controllers.LoadMeetCreds()
 	if err != nil {
 		fmt.Println("Error loading credentials:", err)
@@ -71,27 +97,18 @@ func main() {
 		c.Status(http.StatusOK)
 	})
 
+	// Configure session store
+	store := cookie.NewStore([]byte("secret"))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   env == "production", // true in production
+	})
+	router.Use(sessions.Sessions("mySession", store))
+
 	// use logger.Info, logger.Warn
 	logger.Info.Println("Application started successfully.")
-
-	// load environment variables from .env file
-	err = godotenv.Load()
-	if err != nil {
-		log.Println("Warning: No .env file found. Using system environment variables.")
-	}
-
-	// set Gin to release mode for production (optional but recommended)
-	gin.SetMode(gin.ReleaseMode)
-
-	// read environment variables
-	applicationURL := os.Getenv("APPLICATION_URL")
-	if applicationURL == "" {
-		applicationURL = "http://localhost:8080"
-	}
-	websocketURL := os.Getenv("WEBSOCKET_URL")
-	if websocketURL == "" {
-		websocketURL = "ws://localhost:8080/referee-updates"
-	}
 
 	// pass these values to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
@@ -108,15 +125,15 @@ func main() {
 	router.GET("/health", controllers.Health)
 
 	// initialize session store
-	store := cookie.NewStore([]byte("secret"))
-	store.Options(sessions.Options{
-		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
-		HttpOnly: true,
-		Secure:   false, // Set to false for development (true in production)
-		SameSite: http.SameSiteLaxMode,
-	})
-	router.Use(sessions.Sessions("mySession", store))
+	//store := cookie.NewStore([]byte("secret"))
+	//store.Options(sessions.Options{
+	//	Path:     "/",
+	//	MaxAge:   86400 * 7, // 7 days
+	//	HttpOnly: true,
+	//	Secure:   false, // Set to false for development (true in production)
+	//	SameSite: http.SameSiteLaxMode,
+	//})
+	//router.Use(sessions.Sessions("mySession", store))
 
 	// determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)

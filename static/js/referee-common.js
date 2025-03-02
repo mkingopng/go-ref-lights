@@ -32,15 +32,6 @@ function log(message, level = 'debug') {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // validate required globals
-    if (typeof websocketUrl === 'undefined') {
-        log("websocketUrl is not defined", "error");
-        return;
-    }
-    if (typeof judgeId === 'undefined') {
-        log("judgeId is not defined", "error");
-        return;
-    }
 
     // helper function to get a consistent meet name from the DOM/URL/sessionStorage
     function getMeetName() {
@@ -65,7 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!meetName) return;
 
     // initialise the global WebSocket (do not shadow the global 'socket')
-    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${encodeURIComponent(meetName)}`; // fix_me: not convinced this is correct
+    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
     socket = new WebSocket(wsUrl);
 
     // grab common DOM elements

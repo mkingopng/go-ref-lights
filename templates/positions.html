@@ -57,8 +57,12 @@
     <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
 
+<div id="meetName" data-meet-name="{{.meetName}}"></div>
+
 <script>
-    const ws = new WebSocket("ws://localhost:8080/referee-updates?meetName={{.meetName}}");
+    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
+    const ws = new WebSocket(wsUrl);
     ws.onmessage = function(evt) {
         let data;
         try {

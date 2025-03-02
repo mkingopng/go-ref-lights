@@ -35,16 +35,7 @@ let nextAttemptTimers = {};
 const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
 
 window.addEventListener("DOMContentLoaded", function () {
-    // validate required globals
-    if (typeof websocketUrl === 'undefined') {
-        log("websocketUrl is not defined", "error");
-        return;
-    }
-    // validate required globals
-    if (typeof websocketUrl === 'undefined') {
-        log("websocketUrl is not defined", "error");
-        return;
-    }
+
     // 2) We still check meetName below, but we define judgeId ourselves
     // helper function to get a consistent meet name from the DOM/URL/sessionStorage
     function getMeetName() {
@@ -70,7 +61,8 @@ window.addEventListener("DOMContentLoaded", function () {
     const judgeId = "lights";
 
     // initialise the global WebSocket object (do not shadow the global 'socket')
-    const wsUrl = `ws://localhost:8080/referee-updates?meetName=${meetName}`; // fix_me
+    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
     socket = new WebSocket(wsUrl);
 
     // grab common DOM elements
