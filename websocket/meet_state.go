@@ -70,14 +70,3 @@ func ClearMeetState(meetName string) {
 		logger.Warn.Printf("Attempted to clear non-existent MeetState for meet: %s", meetName)
 	}
 }
-
-// DecisionMessage now includes MeetName so we can handle multiple meets.
-type DecisionMessage struct {
-	Action         string `json:"action"`
-	MeetName       string `json:"meetName"`
-	JudgeID        string `json:"judgeId"`
-	Decision       string `json:"decision"`
-	LeftDecision   string `json:"leftDecision"`
-	centerDecision string `json:"centerDecision"`
-	RightDecision  string `json:"rightDecision"`
-}
