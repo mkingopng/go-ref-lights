@@ -4,9 +4,11 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
@@ -46,86 +48,111 @@ func TestShowPositionsPage_NoUser(t *testing.T) {
 	assert.Equal(t, "/meets", w.Header().Get("Location"))
 }
 
-// ✅ Test ClaimPosition (Successful Claim)
+// Test ClaimPosition (Successful Claim)
 func TestClaimPosition_Success(t *testing.T) {
-	router := setupPositionTestRouter()
+	t.Run("ClaimPosition_Success", func(t *testing.T) {
+		mockOccupancyService = new(services.MockOccupancyService)
+		positionController = NewPositionController(mockOccupancyService)
 
-	form := bytes.NewBufferString("position=left")
-	req, _ := http.NewRequest("POST", "/claim-position", form)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		router := setupPositionTestRouter()
+		form := bytes.NewBufferString("position=left")
+		req, _ := http.NewRequest("POST", "/claim-position", form)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
 
-	// ✅ Attach session middleware properly
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req // ✅ Associate the request with the context
+		mockOccupancyService.On("SetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
+		mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{LeftUser: "testuser"}).Once()
 
-	// ✅ Ensure session middleware is applied
-	store := cookie.NewStore([]byte("test-secret"))
-	sessions.Sessions("testsession", store)(c)
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		store := cookie.NewStore([]byte("test-secret"))
+		sessions.Sessions("testsession", store)(c)
 
-	// ✅ Set session values inside the request context
-	session := sessions.Default(c)
-	session.Set("user", "testuser")     // ✅ Simulate logged-in user
-	session.Set("meetName", "TestMeet") // ✅ Simulate selected meet
-	_ = session.Save()
+		session := sessions.Default(c)
+		session.Set("user", "testuser")
+		session.Set("meetName", "TestMeet")
+		_ = session.Save()
 
-	// ✅ Perform request using the same context
-	router.ServeHTTP(w, req)
+		router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
-	assert.Equal(t, "/left", w.Header().Get("Location"))
+		time.Sleep(200 * time.Millisecond)
+
+		fmt.Println("Assertions after ClaimPosition execution")
+
+		assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
+		assert.Equal(t, "/left", w.Header().Get("Location"))
+
+		time.Sleep(200 * time.Millisecond)
+
+		mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
+		mockOccupancyService.AssertExpectations(t)
+	})
 }
 
-// ✅ Test VacatePosition (Successful Vacate)
+// Test VacatePosition (Successful Vacate)
 func TestVacatePosition_Success(t *testing.T) {
+	mockOccupancyService = new(services.MockOccupancyService)
+	positionController = NewPositionController(mockOccupancyService)
+
 	router := setupPositionTestRouter()
-
 	req, _ := http.NewRequest("POST", "/vacate-position", nil)
-
-	// ✅ Attach session middleware properly
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req // ✅ Associate the request with the context
 
-	// ✅ Ensure session middleware is applied
+	mockOccupancyService.On("UnsetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{}).Once()
+
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
 	store := cookie.NewStore([]byte("test-secret"))
 	sessions.Sessions("testsession", store)(c)
 
-	// ✅ Set session values inside the request context
 	session := sessions.Default(c)
-	session.Set("user", "testuser")     // Simulate logged-in user
-	session.Set("meetName", "TestMeet") // Simulate selected meet
-	session.Set("refPosition", "left")  // Simulate a referee position
+	session.Set("user", "testuser")
+	session.Set("meetName", "TestMeet")
+	session.Set("refPosition", "left")
 	_ = session.Save()
 
-	// Perform request using the same context
+	fmt.Println("Session refPosition (before request):", session.Get("refPosition"))
+
 	router.ServeHTTP(w, req)
+
+	time.Sleep(200 * time.Millisecond)
+
+	fmt.Println("Assertions after VacatePosition execution")
 
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
 	assert.Equal(t, "/positions", w.Header().Get("Location"))
+
+	time.Sleep(150 * time.Millisecond)
+
+	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet") // Checks at least one call
+	mockOccupancyService.AssertExpectations(t)
 }
 
-// ✅ Test GetOccupancyAPI
+// Test GetOccupancyAPI
 func TestGetOccupancyAPI_Success(t *testing.T) {
+	mockOccupancyService = new(services.MockOccupancyService)
+	positionController = NewPositionController(mockOccupancyService)
+
 	router := setupPositionTestRouter()
-
 	req, _ := http.NewRequest("GET", "/occupancy", nil)
-
-	// ✅ Attach session middleware properly
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req // ✅ Associate the request with the context
 
-	// ✅ Ensure session middleware is applied
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{
+		LeftUser:   "user1",
+		CenterUser: "",
+		RightUser:  "user2",
+	}).Once()
+
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
 	store := cookie.NewStore([]byte("test-secret"))
 	sessions.Sessions("testsession", store)(c)
 
-	// ✅ Set session values inside the request context
 	session := sessions.Default(c)
-	session.Set("meetName", "TestMeet") // ✅ Simulate selected meet
+	session.Set("meetName", "TestMeet")
 	_ = session.Save()
 
-	// ✅ Perform request using the same context
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -135,4 +162,8 @@ func TestGetOccupancyAPI_Success(t *testing.T) {
 	assert.Contains(t, response, "leftUser")
 	assert.Contains(t, response, "centreUser")
 	assert.Contains(t, response, "rightUser")
+
+	time.Sleep(150 * time.Millisecond)
+
+	mockOccupancyService.AssertExpectations(t)
 }

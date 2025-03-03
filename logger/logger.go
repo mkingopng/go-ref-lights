@@ -19,7 +19,7 @@ var (
 
 // InitLogger sets up the logging system.
 func InitLogger() error {
-	if err := os.MkdirAll("logs", 0755); err != nil {
+	if err := os.MkdirAll("./logs", 0755); err != nil {
 		return err
 	}
 	logFileName := filepath.Join("logs", time.Now().Format("2006-01-02_15-04-05")+".log")
