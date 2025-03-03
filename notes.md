@@ -52,7 +52,6 @@ Write tests in a **clear, structured way**:
 
 ### Use Meaningful Test Names
 
-
 ### Ensure Clean Test Data
 - **Reset mock services after each test**.
 - **Use `defer` to clean up test artifacts**.
@@ -65,8 +64,40 @@ Write tests in a **clear, structured way**:
 
 
 # tasks
-- Ci/CD
-- pre-commit hooks
-- unit tests
-- integration tests
-- improved formatting
+
+1. Unit tests
+	- auth_test.go (Authentication logic)
+    - role_test.go (User roles and permissions)
+    - meet_test.go (Meet lifecycle: creation, updates, deletion)
+    - occupancy_service_test.go (Occupancy behavior validation)
+    - qrcode_service_test.go (QR code generation)
+    - broadcast_test.go (Websocket broadcast testing)
+    - connection_test.go (Real-time connection handling)
+    - meet_state_test.go (State transitions in meets)
+    - timer_test.go (Timekeeping accuracy)
+    - main_test.go (Bootstrap and config validation)
+
+2. Integration tests
+	- Login + Session Management → Ensure login persists a session.
+    - Meet Creation + Role Assignment → Verify a user can create a meet and 
+	  assign roles.
+    - Position Claiming + Websocket Broadcast → User claims a position → UI 
+	  updates via broadcast.
+    - Referee Actions + State Updates → A referee gives a lift decision → 
+	  The state updates correctly.
+
+3. Smoke tests
+4. Load tests
+5. update precommit hooks
+	- golangci-lint (code quality)
+    - gofmt (formatting)
+    - govet (detect common issues)
+    - prettier for frontend parts (if applicable)
+
+6. CI/CD: Automate tests and deploys via GitHub Actions.
+	- Run unit tests.
+    - Run integration tests.
+    - Run smoke tests.
+    - Deploy if all pass.
+
+7. improved formatting
