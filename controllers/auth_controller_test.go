@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -33,14 +34,27 @@ func hashPassword(password string) string {
 	return string(hashed)
 }
 
-// Mock session setup
 func setupTestRouter() *gin.Engine {
-	gin.SetMode(gin.TestMode) // Ensure test mode
+	gin.SetMode(gin.TestMode) // ✅ Ensure test mode
 	router := gin.Default()
 
-	// ✅ Attach session store to router
+	// ✅ Attach session store
 	store := cookie.NewStore([]byte("test-secret"))
 	router.Use(sessions.Sessions("testsession", store))
+
+	// ✅ Fix: Register a minimal template renderer
+	tmpl := template.Must(template.New("choose_meet.html").Parse(`
+		<html>
+			<body>
+				<h1>Choose Meet</h1>
+				<ul>
+					{{range .availableMeets}}
+						<li>{{.Name}}</li>
+					{{end}}
+				</ul>
+			</body>
+		</html>`))
+	router.SetHTMLTemplate(tmpl) // ✅ Now Gin can render HTML safely
 
 	return router
 }
