@@ -3,7 +3,6 @@ package websocket
 
 import (
 	"encoding/json"
-	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
 	"time"
 )
@@ -14,62 +13,54 @@ func HandleMessages() {
 		msg := <-broadcast
 		// attempt to decode the message to see if it contains a "meetName" field
 		var msgMap map[string]interface{}
-		err := json.Unmarshal(msg, &msgMap)
-		// if the message isn't JSON or doesn't have a meetName, then we assume its global
-		meetFilter := ""
-		if err == nil {
+		var meetFilter string
+		if err := json.Unmarshal(msg, &msgMap); err == nil {
 			if m, ok := msgMap["meetName"].(string); ok {
 				meetFilter = m
 			}
 		}
 
-		// copy clients under lock
-		clientsCopy := make(map[*websocket.Conn]bool)
-		writeMutex.Lock()
-		for conn, v := range clients {
-			clientsCopy[conn] = v
-		}
-		writeMutex.Unlock()
-
-		// send message only to connections with matching meetName (if meetFiler is set)
-		for conn := range clientsCopy {
-			if meetFilter != "" {
-				if info, exists := connectionMapping[conn]; exists {
-					if info.meetName != meetFilter {
-						// skip connections that are not in the target meet
-						continue
-					}
-				} else {
-					// no connection info? skip it
-					continue
-				}
+		for c := range connections {
+			if meetFilter != "" && c.meetName != meetFilter {
+				continue
 			}
-			// use safeWriteMessage
-			if err := safeWriteMessage(conn, websocket.TextMessage, msg); err != nil {
-				logger.Error.Printf("❌ Failed to send broadcast message to %v: %v", conn.RemoteAddr(), err)
+			select {
+			case c.send <- msg:
+			default:
+				logger.Warn.Printf("Dropping broadcast message for connection %v", c.conn.RemoteAddr())
 			}
 		}
 	}
 }
 
+// BroadcastMessage takes a meetName and a message (as a map marshals the message into JSON, sends it to the broadcast channel
 func BroadcastMessage(meetName string, message map[string]interface{}) {
 	logger.Debug.Printf("Broadcasting next attempt timers for meet: %s", meetName)
-	msg, _ := json.Marshal(message)
+	msg, err := json.Marshal(message)
+	if err != nil {
+		logger.Error.Printf("Error marshalling message: %v", err)
+		return
+	}
 	broadcast <- msg
 }
 
-// broadcastFinalResults sends the final decisions to all clients
+// broadcastFinalResults sends the final decisions to all connections in the given meet.
+// It then starts the next attempt timer and clears the results after a set duration
 func broadcastFinalResults(meetName string) {
 	meetState := getMeetState(meetName)
 
-	// broadcast the final decisions
+	// prepare the final decision message
 	submission := map[string]string{
 		"action":         "displayResults",
 		"leftDecision":   meetState.JudgeDecisions["left"],
 		"centerDecision": meetState.JudgeDecisions["center"],
 		"rightDecision":  meetState.JudgeDecisions["right"],
 	}
-	resultMsg, _ := json.Marshal(submission)
+	resultMsg, err := json.Marshal(submission)
+	if err != nil {
+		logger.Error.Printf("Error marshalling final results message: %v", err)
+		return
+	}
 	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' is being sent with Left=%s, center=%s, Right=%s",
 		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 	broadcast <- resultMsg
@@ -82,6 +73,10 @@ func broadcastFinalResults(meetName string) {
 		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
 		clearJSON, _ := json.Marshal(clearMsg)
+		if err != nil {
+			logger.Error.Printf("Error marshalling clearResults: %v", err)
+			return
+		}
 		broadcast <- clearJSON
 	}()
 
@@ -89,20 +84,22 @@ func broadcastFinalResults(meetName string) {
 	meetState.JudgeDecisions = make(map[string]string)
 }
 
-// broadcastTimeUpdateWithIndex sends a message to all clients with a time update,
-// including a display index so the client can map the update to the correct timer.
+// broadcastTimeUpdateWithIndex sends a time update message with an index to all connections in the meet.
 func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) {
-	msg, _ := json.Marshal(map[string]interface{}{
+	msg, err := json.Marshal(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
 		"index":    index,
 		"meetName": meetName,
 	})
+	if err != nil {
+		logger.Error.Printf("Error marshalling time update: %v", err)
+		return
+	}
 	broadcast <- msg
 }
 
-// broadcastAllNextAttemptTimers re-broadcasts the TimeLeft for every active
-// timer, computing a fresh "display index" for each in ascending order.
+// broadcastAllNextAttemptTimers iterates over active next-attempt timers and broadcasts their timeLeft.
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	for i, t := range timers {
 		if t.Active {
@@ -111,6 +108,7 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	}
 }
 
+// SendBroadcastMessage is a helper function that sends raw byte data over the broadcast channel.
 func SendBroadcastMessage(data []byte) {
 	broadcast <- data
 }
