@@ -66,7 +66,6 @@ Write tests in a **clear, structured way**:
 # tasks
 
 1. Unit tests
-    - role_test.go (User roles and permissions)
     - meet_test.go (Meet lifecycle: creation, updates, deletion)
     - occupancy_service_test.go (Occupancy behavior validation)
     - qrcode_service_test.go (QR code generation)
