@@ -66,7 +66,6 @@ Write tests in a **clear, structured way**:
 # tasks
 
 1. Unit tests
-    - meet_test.go (Meet lifecycle: creation, updates, deletion)
     - occupancy_service_test.go (Occupancy behavior validation)
     - qrcode_service_test.go (QR code generation)
     - broadcast_test.go (Websocket broadcast testing)
