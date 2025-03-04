@@ -66,8 +66,6 @@ Write tests in a **clear, structured way**:
 # tasks
 
 1. Unit tests
-    - connection_test.go (Real-time connection handling)
-    - meet_state_test.go (State transitions in meets)
     - timer_test.go (Timekeeping accuracy)
     - main_test.go (Bootstrap and config validation)
 
