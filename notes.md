@@ -66,8 +66,6 @@ Write tests in a **clear, structured way**:
 # tasks
 
 1. Unit tests
-    - occupancy_service_test.go (Occupancy behavior validation)
-    - qrcode_service_test.go (QR code generation)
     - broadcast_test.go (Websocket broadcast testing)
     - connection_test.go (Real-time connection handling)
     - meet_state_test.go (State transitions in meets)
