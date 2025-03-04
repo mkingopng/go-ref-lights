@@ -11,7 +11,6 @@ import (
 func HandleMessages() {
 	for {
 		msg := <-broadcast
-		// attempt to decode the message to see if it contains a "meetName" field
 		var msgMap map[string]interface{}
 		var meetFilter string
 		if err := json.Unmarshal(msg, &msgMap); err == nil {
@@ -49,7 +48,6 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 func broadcastFinalResults(meetName string) {
 	meetState := getMeetState(meetName)
 
-	// prepare the final decision message
 	submission := map[string]string{
 		"action":         "displayResults",
 		"leftDecision":   meetState.JudgeDecisions["left"],
@@ -65,10 +63,8 @@ func broadcastFinalResults(meetName string) {
 		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 	broadcast <- resultMsg
 
-	// immediately start the next-lifter timer
-	startNextAttemptTimer(meetState)
+	StartNextAttemptTimer(meetState)
 
-	// clear results after set duration
 	go func() {
 		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
@@ -79,8 +75,6 @@ func broadcastFinalResults(meetName string) {
 		}
 		broadcast <- clearJSON
 	}()
-
-	// reset for next lift
 	meetState.JudgeDecisions = make(map[string]string)
 }
 

@@ -22,24 +22,20 @@ import (
 )
 
 func main() {
-	// Set Gin to release mode and disable logging
 	gin.SetMode(gin.ReleaseMode)
 	gin.DefaultWriter = io.Discard
 	gin.DefaultErrorWriter = io.Discard
 
-	//Load env vars from .env if present
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Warning: No .env file found. Using system environment variables.")
 	}
 
-	// Check environment to decide URLs
 	env := os.Getenv("ENV") // e.g. "production" or "development"
 	if env == "" {
 		env = "development"
 	}
 
-	// Defaults for local development
 	applicationURL := "http://localhost:8080"
 	websocketURL := "ws://localhost:8080/referee-updates"
 
@@ -123,17 +119,6 @@ func main() {
 
 	// add health check route
 	router.GET("/health", controllers.Health)
-
-	// initialize session store
-	//store := cookie.NewStore([]byte("secret"))
-	//store.Options(sessions.Options{
-	//	Path:     "/",
-	//	MaxAge:   86400 * 7, // 7 days
-	//	HttpOnly: true,
-	//	Secure:   false, // Set to false for development (true in production)
-	//	SameSite: http.SameSiteLaxMode,
-	//})
-	//router.Use(sessions.Sessions("mySession", store))
 
 	// determine absolute path for templates
 	_, b, _, _ := runtime.Caller(0)

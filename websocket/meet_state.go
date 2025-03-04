@@ -11,7 +11,7 @@ import (
 
 // NextAttemptTimer structure used to track next attempt timers.
 type NextAttemptTimer struct {
-	ID       int // Unique identifier for this timer.
+	ID       int
 	TimeLeft int
 	Active   bool
 }
@@ -57,8 +57,8 @@ func getMeetState(meetName string) *MeetState {
 }
 
 // ClearMeetState removes the MeetState for the given meetName.
-// This can be used when a meet is finished or if an error condition warrants
-// cleanup.  // todo: where should i use this?
+// This can be used when a meet is finished, or if an error condition warrants
+// clean-up.
 func ClearMeetState(meetName string) {
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()

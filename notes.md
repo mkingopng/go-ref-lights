@@ -62,11 +62,8 @@ Write tests in a **clear, structured way**:
 - **Cover edge cases (invalid input, errors, permissions, etc.).**
 - **Focus on high-risk areas first**.
 
-
 # tasks
-
 1. Unit tests
-    - timer_test.go (Timekeeping accuracy)
     - main_test.go (Bootstrap and config validation)
 
 2. Integration tests
@@ -93,3 +90,9 @@ Write tests in a **clear, structured way**:
     - Deploy if all pass.
 
 7. improved formatting
+
+8. admin page
+
+9. logout from anywhere
+
+10. reset meet state
