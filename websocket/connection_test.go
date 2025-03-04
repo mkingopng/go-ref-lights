@@ -1,3 +1,4 @@
+// websocket/connection_test.go
 package websocket
 
 import (
@@ -12,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// ✅ Helper function to start a test WebSocket server
+// Helper function to start a test WebSocket server
 func startTestServer(t *testing.T) (*httptest.Server, *websocket.Conn) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ServeWs(w, r)
@@ -25,19 +26,19 @@ func startTestServer(t *testing.T) (*httptest.Server, *websocket.Conn) {
 	return server, conn
 }
 
-// ✅ Fix: `TestWritePump` should match expected response
+// `TestWritePump` should match expected response
 func TestWritePump(t *testing.T) {
 	server, conn := startTestServer(t)
 	defer server.Close()
-
-	if conn == nil {
-		t.Fatal("WebSocket connection failed")
-	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Warning: WebSocket close error: %v", err)
+		}
+	}()
 
 	testConn := &Connection{
 		conn: conn,
-		send: make(chan []byte, 100), // ✅ Increase buffer size
+		send: make(chan []byte, 100), // Increase buffer size
 	}
 
 	registerConnection(testConn)
@@ -52,7 +53,7 @@ func TestWritePump(t *testing.T) {
 
 	time.Sleep(500 * time.Millisecond)
 
-	// ✅ Send properly formatted test message
+	// Send properly formatted test message
 	testMessage := DecisionMessage{
 		Action:   "submitDecision",
 		JudgeID:  "left",
@@ -62,7 +63,7 @@ func TestWritePump(t *testing.T) {
 	messageBytes, _ := json.Marshal(testMessage)
 	testConn.send <- messageBytes
 
-	// ✅ Wait for the message to be read
+	// Wait for the message to be read
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -73,10 +74,10 @@ func TestWritePump(t *testing.T) {
 			return
 		}
 
-		// ✅ Ensure message type is correct
+		// Ensure message type is correct
 		assert.Equal(t, websocket.TextMessage, msgType, "Expected TextMessage")
 
-		// ✅ Fix: Match actual response from `handleIncoming()`
+		// Match actual response from `handleIncoming()`
 		expectedResponse := map[string]interface{}{
 			"action":  "judgeSubmitted",
 			"judgeId": "left",
@@ -100,13 +101,17 @@ func TestWritePump(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 }
 
-// ✅ Fix: Ensure proper cleanup in `TestBroadcastRefereeHealth`
+// Ensure proper cleanup in `TestBroadcastRefereeHealth`
 func TestBroadcastRefereeHealth(t *testing.T) {
 	server, conn := startTestServer(t)
 	defer server.Close()
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Logf("Warning: WebSocket close error: %v", err)
+		}
+	}()
 
-	// ✅ Clear global connections before test
+	// Clear global connections before test
 	connections = make(map[*Connection]bool)
 
 	mockConn := &Connection{
@@ -123,7 +128,7 @@ func TestBroadcastRefereeHealth(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// ✅ Explicitly unregister connection and close channel
+	// Ensure proper cleanup
 	unregisterConnection(mockConn)
 	close(mockConn.send)
 
@@ -145,7 +150,12 @@ func TestProcessDecision(t *testing.T) {
 func TestBroadcastToMeet(t *testing.T) {
 	server, conn := startTestServer(t)
 	defer server.Close()
-	defer conn.Close()
+	defer func(conn *websocket.Conn) {
+		err := conn.Close()
+		if err != nil {
+			t.Logf("Warning: WebSocket close error: %v", err)
+		}
+	}(conn)
 
 	mockConn := &Connection{
 		conn:     conn,
