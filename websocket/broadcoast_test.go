@@ -9,30 +9,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// ✅ Mock WebSocket Broadcast Channel
+// Mock WebSocket Broadcast Channel
 var mockBroadcast = make(chan []byte, 10) // Buffered channel to prevent blocking
 
-// ✅ Override `broadcast` with mock
+// Override `broadcast` with mock
 func init() {
 	broadcast = mockBroadcast
 }
 
-// ✅ Test helper function to override `getMeetState` during tests
+// Test helper function to override `getMeetState` during tests
 var mockGetMeetState = getMeetState // Default to real function
 
-// ✅ Wrapper function to use mock in tests
+// Wrapper function to use mock in tests
 func getMeetStateWrapper(meetName string) *MeetState {
 	return mockGetMeetState(meetName)
 }
 
-// ✅ Helper function to **flush** the mock broadcast channel before each test
+// Helper function to **flush** the mock broadcast channel before each test
 func flushBroadcastChannel() {
 	for len(mockBroadcast) > 0 {
 		<-mockBroadcast
 	}
 }
 
-// ✅ Test: BroadcastMessage marshals and sends messages
+// Test: BroadcastMessage marshals and sends messages
 func TestBroadcastMessage_Success(t *testing.T) {
 	flushBroadcastChannel() // ✅ Ensure clean state before test
 
@@ -55,11 +55,11 @@ func TestBroadcastMessage_Success(t *testing.T) {
 	}
 }
 
-// ✅ Test: broadcastFinalResults sends final decisions
+// Test: broadcastFinalResults sends final decisions
 func TestBroadcastFinalResults(t *testing.T) {
-	flushBroadcastChannel() // ✅ Ensure clean state before test
+	flushBroadcastChannel() // Ensure clean state before test
 
-	// ✅ Force override the meet state before calling broadcastFinalResults
+	// Force override the meet state before calling broadcastFinalResults
 	mockMeetState := getMeetState("APL Test Meet")
 	mockMeetState.JudgeDecisions = map[string]string{
 		"left":   "good",
@@ -67,10 +67,10 @@ func TestBroadcastFinalResults(t *testing.T) {
 		"right":  "good",
 	}
 
-	// ✅ Call broadcastFinalResults now that meetState is modified
+	// Call broadcastFinalResults now that meetState is modified
 	broadcastFinalResults("APL Test Meet")
 
-	// ✅ Validate message was broadcasted
+	// Validate message was broadcasted
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
@@ -83,11 +83,11 @@ func TestBroadcastFinalResults(t *testing.T) {
 	}
 }
 
-// ✅ Test: broadcastFinalResults sends **clearResults** after timeout
+// Test: broadcastFinalResults sends clearResults after timeout
 func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
-	flushBroadcastChannel() // ✅ Ensure clean state before test
+	flushBroadcastChannel() // Ensure clean state before test
 
-	resultsDisplayDuration = 1 // ✅ Set short timeout for test
+	resultsDisplayDuration = 1 // Set short timeout for test
 
 	mockState := &MeetState{
 		JudgeDecisions: map[string]string{
@@ -100,16 +100,16 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 		return mockState
 	}
 
-	// ✅ Call broadcastFinalResults
+	// Call broadcastFinalResults
 	broadcastFinalResults("APL Test Meet")
 
-	// ✅ Read **both** messages from the broadcast channel
+	// Read both messages from the broadcast channel
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
-		assert.Equal(t, "displayResults", decoded["action"]) // ✅ First message
+		assert.Equal(t, "displayResults", decoded["action"]) // First message
 
 	case <-time.After(1 * time.Second):
 		t.Fatal("Expected displayResults broadcast, but got none")
@@ -120,14 +120,14 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 		var decoded map[string]string
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
-		assert.Equal(t, "clearResults", decoded["action"]) // ✅ Second message (after timeout)
+		assert.Equal(t, "clearResults", decoded["action"]) // Second message (after timeout)
 
 	case <-time.After(2 * time.Second):
 		t.Fatal("Expected clearResults broadcast after timeout, but got none")
 	}
 }
 
-// ✅ Test: broadcastTimeUpdateWithIndex sends time updates
+// Test: broadcastTimeUpdateWithIndex sends time updates
 func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 	flushBroadcastChannel() // ✅ Ensure clean state before test
 
@@ -138,7 +138,7 @@ func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 		var decoded map[string]interface{}
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
-		assert.Equal(t, "updateTime", decoded["action"]) // ✅ Correct message
+		assert.Equal(t, "updateTime", decoded["action"]) // Correct message
 		assert.Equal(t, float64(30), decoded["timeLeft"])
 		assert.Equal(t, float64(1), decoded["index"])
 	default:
@@ -146,9 +146,9 @@ func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 	}
 }
 
-// ✅ Test: broadcastAllNextAttemptTimers sends all active timers
+// Test: broadcastAllNextAttemptTimers sends all active timers
 func TestBroadcastAllNextAttemptTimers(t *testing.T) {
-	flushBroadcastChannel() // ✅ Ensure clean state before test
+	flushBroadcastChannel() // Ensure clean state before test
 
 	timers := []NextAttemptTimer{
 		{Active: true, TimeLeft: 30},
@@ -158,7 +158,7 @@ func TestBroadcastAllNextAttemptTimers(t *testing.T) {
 
 	broadcastAllNextAttemptTimers(timers, "APL Test Meet")
 
-	// ✅ Expect only active timers to be broadcasted (2 messages)
+	// Expect only active timers to be broadcasted (2 messages)
 	count := 0
 	for i := 0; i < 2; i++ {
 		select {
@@ -171,9 +171,9 @@ func TestBroadcastAllNextAttemptTimers(t *testing.T) {
 	assert.Equal(t, 2, count, "Expected exactly 2 active timers to be broadcasted")
 }
 
-// ✅ Test: SendBroadcastMessage sends raw data
+// Test: SendBroadcastMessage sends raw data
 func TestSendBroadcastMessage(t *testing.T) {
-	flushBroadcastChannel() // ✅ Ensure clean state before test
+	flushBroadcastChannel() // Ensure clean state before test
 
 	rawData := []byte(`{"action":"rawMessage"}`)
 	SendBroadcastMessage(rawData)
