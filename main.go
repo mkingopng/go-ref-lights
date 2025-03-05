@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"go-ref-lights/services"
 	"io"
 	"log"
 	"net/http"
@@ -127,6 +128,9 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
+	occupancyService := &services.OccupancyService{}
+	pc := controllers.NewPositionController(occupancyService)
+
 	// Public routes.
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
@@ -164,6 +168,13 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/dashboard", controllers.Index)
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/lights", controllers.Lights)
+		protected.GET("/positions", controllers.ShowPositionsPage)
+		protected.POST("/position/claim", pc.ClaimPosition)
+		protected.GET("/left", controllers.Left)
+		protected.GET("/center", controllers.Center)
+		protected.GET("/right", controllers.Right)
+		protected.GET("/occupancy", pc.GetOccupancyAPI)
+		protected.POST("/position/vacate", pc.VacatePosition)
 
 	}
 

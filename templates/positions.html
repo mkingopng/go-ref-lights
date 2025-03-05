@@ -60,50 +60,59 @@
 <div id="meetName" data-meet-name="{{.meetName}}"></div>
 
 <script>
-    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
-    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
-    const ws = new WebSocket(wsUrl);
-    ws.onmessage = function(evt) {
-        let data;
-        try {
-            data = JSON.parse(evt.data);
-        } catch (e) {
-            console.warn("Invalid JSON from server:", evt.data);
-            return;
+    document.querySelector('form[action="/position/claim"]').addEventListener('submit', function(e) {
+        console.log("Claim form submitted normally");
+        const meetNameElem = document.getElementById("meetName");
+        const meetName = meetNameElem ? meetNameElem.dataset.meetName : null;
+        if (!meetName) {
+            alert("Error: No meet selected. Redirecting.");
+            window.location.href = "/meets";
         }
-        if (data.action === "occupancyChanged") {
-            const leftOption   = document.getElementById("leftOption");
+
+        const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+        const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
+        const ws = new WebSocket(wsUrl);
+
+        ws.onmessage = function (evt) {
+            let data;
+            try {
+                data = JSON.parse(evt.data);
+            } catch (e) {
+                console.warn("Invalid JSON from server:", evt.data);
+                return;
+            }
+            // Update options based on occupancy
+            const leftOption = document.getElementById("leftOption");
             const centerOption = document.getElementById("centerOption");
-            const rightOption  = document.getElementById("rightOption");
+            const rightOption = document.getElementById("rightOption");
 
-            // Left
-            if (data.leftUser) {
-                leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
-                leftOption.disabled = true;
-            } else {
-                leftOption.textContent = `Left (Available)`;
-                leftOption.disabled = false;
-            }
+            if (data.action === "occupancyChanged") {
+                if (data.leftUser) {
+                    leftOption.textContent = `Left (Occupied by ${data.leftUser})`;
+                    leftOption.disabled = true;
+                } else {
+                    leftOption.textContent = `Left (Available)`;
+                    leftOption.disabled = false;
+                }
 
-            // Right
-            if (data.rightUser) {
-                rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
-                rightOption.disabled = true;
-            } else {
-                rightOption.textContent = `Right (Available)`;
-                rightOption.disabled = false;
-            }
+                if (data.rightUser) {
+                    rightOption.textContent = `Right (Occupied by ${data.rightUser})`;
+                    rightOption.disabled = true;
+                } else {
+                    rightOption.textContent = `Right (Available)`;
+                    rightOption.disabled = false;
+                }
 
-            // Center
-            if (data.centerUser) {
-                centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
-                centerOption.disabled = true;
-            } else {
-                centerOption.textContent = `Center (Available)`;
-                centerOption.disabled = false;
+                if (data.centerUser) {
+                    centerOption.textContent = `Center (Occupied by ${data.centerUser})`;
+                    centerOption.disabled = true;
+                } else {
+                    centerOption.textContent = `Center (Available)`;
+                    centerOption.disabled = false;
+                }
             }
         }
-    };
+    });
 </script>
 
 </body>

@@ -22,7 +22,7 @@ type OccupancyServiceInterface interface {
 	GetOccupancy(meetName string) Occupancy
 	SetPosition(meetName, position, userEmail string) error
 	ResetOccupancyForMeet(meetName string)
-	// ADD: We'll explicitly reference UnsetPosition in the interface too:
+	// todo: ADD: We'll explicitly reference UnsetPosition in the interface too:
 	UnsetPosition(meetName, position, userEmail string) error
 }
 
@@ -51,7 +51,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	}
 	logger.Info.Printf("Attempting to assign position '%s' to user '%s' for meet %s", position, userEmail, meetName)
 
-	// Validate position
+	// validate position
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
 		err := errors.New("invalid position selected, please choose left, center, or right")
@@ -59,7 +59,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		return err
 	}
 
-	// Check if already taken
+	// check if already taken
 	switch position {
 	case "left":
 		if occ.LeftUser != "" {
@@ -81,7 +81,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		}
 	}
 
-	// Clear any old seat this user had
+	// clear any old seat this user had
 	if occ.LeftUser == userEmail {
 		occ.LeftUser = ""
 	}
@@ -92,7 +92,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = ""
 	}
 
-	// Assign new seat
+	// assign new seat
 	switch position {
 	case "left":
 		occ.LeftUser = userEmail
@@ -114,7 +114,7 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetName)
 }
 
-// We define UnsetPosition as part of our service interface.
+// UnsetPosition We define UnsetPosition as part of our service interface.
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()

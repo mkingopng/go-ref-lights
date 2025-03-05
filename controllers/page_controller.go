@@ -90,33 +90,31 @@ func ShowPositionsPage(c *gin.Context) {
 }
 
 // ClaimPosition ✅ FIX for: Unresolved reference 'ClaimPosition'
-func ClaimPosition(c *gin.Context) {
-	session := sessions.Default(c)
-	user := session.Get("user")
-	meetName, ok := session.Get("meetName").(string)
-	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /meets")
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
+//func ClaimPosition(c *gin.Context) {
+//	session := sessions.Default(c)
+//	user := session.Get("user")
+//	meetName, ok := session.Get("meetName").(string)
+//	if user == nil || !ok || meetName == "" {
+//		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /meets")
+//		c.Redirect(http.StatusFound, "/meets")
+//		return
+//	}
+//
+//	position := c.PostForm("position")
+//	userEmail := user.(string)
+//
+//	// Logic to claim position (Update this with real implementation)
+//	logger.Info.Printf("ClaimPosition: User %s claimed position %s for meet %s", userEmail, position, meetName)
+//
+//	session.Set("refPosition", position)
+//	if err := session.Save(); err != nil {
+//		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
+//	}
+//
+//	c.Redirect(http.StatusFound, "/positions")
+//}
 
-	position := c.PostForm("position")
-	userEmail := user.(string)
-
-	// Logic to claim position (Update this with real implementation)
-	logger.Info.Printf("ClaimPosition: User %s claimed position %s for meet %s", userEmail, position, meetName)
-
-	session.Set("refPosition", position)
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
-	}
-
-	c.Redirect(http.StatusFound, "/positions")
-}
-
-// GetQRCode ✅ FIX for: Unresolved reference 'GetQRCode'
-// In page_controller.go, fix the GetQRCode function:
-
+// GetQRCode displays a QR code for the application URL
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
 
@@ -157,6 +155,8 @@ func PerformLogin(c *gin.Context) {
 func Left(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Left handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
@@ -173,6 +173,8 @@ func Left(c *gin.Context) {
 func Center(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Center handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
@@ -189,6 +191,8 @@ func Center(c *gin.Context) {
 func Right(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Right handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
