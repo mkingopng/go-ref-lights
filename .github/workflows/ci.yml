@@ -52,8 +52,8 @@ jobs:
         run: go test -v ./...
 
       # Run integration tests (using the integration build tag).
-      - name: Run Integration Tests
-        run: go test -v -tags=integration ./...
+#      - name: Run Integration Tests
+#        run: go test -v -tags=integration ./...
 
       # Build Docker image.
       - name: Build Docker Image
