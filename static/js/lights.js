@@ -161,9 +161,8 @@ window.addEventListener("DOMContentLoaded", function () {
                 if (data.timers && Array.isArray(data.timers)) {
                     data.timers.forEach(timer => {
                         if (timer.ID === 1) {
-                            // If results have been displayed, use timer ID 1 for next attempt timer
+                            // If results have been displayed, treat timer ID 1 as the next attempt timer
                             if (resultsDisplayed) {
-                                // Update the next attempt timer (using same ID)
                                 if (timer.TimeLeft <= 0) {
                                     if (nextAttemptTimers[timer.ID]) {
                                         multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
@@ -176,6 +175,7 @@ window.addEventListener("DOMContentLoaded", function () {
                                         multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
                                         nextAttemptTimers[timer.ID] = newRow;
                                     }
+                                    // Removed index number from the text content here
                                     nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
                                     multiNextAttemptTimers.classList.remove("hidden");
                                 }
@@ -192,7 +192,7 @@ window.addEventListener("DOMContentLoaded", function () {
                                 }
                             }
                         } else {
-                            // If timer ID is not 1, update next attempt timers as before
+                            // For timer IDs other than 1, update the next attempt timer without an index
                             if (timer.TimeLeft <= 0) {
                                 if (nextAttemptTimers[timer.ID]) {
                                     multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
@@ -205,7 +205,8 @@ window.addEventListener("DOMContentLoaded", function () {
                                     multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
                                     nextAttemptTimers[timer.ID] = newRow;
                                 }
-                                nextAttemptTimers[timer.ID].textContent = `Next Attempt #${timer.ID}: ${timer.TimeLeft}s`;
+                                // Remove the index number from the text
+                                nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
                                 multiNextAttemptTimers.classList.remove("hidden");
                             }
                         }
