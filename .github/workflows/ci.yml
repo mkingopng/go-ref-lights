@@ -1,0 +1,111 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Go environment for building and testing your Go code.
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+
+      # Set up Python (needed for your CDK stack which is written in Python).
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Install AWS CDK and any Python dependencies for your CDK code.
+      - name: Install CDK and Python dependencies
+        run: |
+          npm install -g aws-cdk
+          python -m pip install --upgrade pip
+          # If you have a requirements.txt file for your CDK, install it:
+          if [ -f referee_lights_cdk/requirements.txt ]; then pip install -r referee_lights_cdk/requirements.txt; fi
+
+      # Install Go dependencies.
+      - name: Install Go dependencies
+        run: go mod download
+
+      # Optionally run linting or static analysis.
+      - name: Lint and Static Analysis
+        run: |
+          go install golang.org/x/lint/golint@latest
+          golint ./...
+
+      # Run unit tests.
+      - name: Run Unit Tests
+        run: go test -v ./...
+
+      # Run integration tests (using the integration build tag).
+      - name: Run Integration Tests
+        run: go test -v -tags=integration ./...
+
+      # Build Docker image.
+      - name: Build Docker Image
+        run: |
+          docker build -t referee-lights:latest .
+
+      # Synthesize the CDK app to verify the stack builds.
+      - name: Synthesize CDK Stack
+        working-directory: referee_lights_cdk
+        run: cdk synth
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Python for CDK deployment.
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
+
+      # Configure AWS credentials from GitHub secrets.
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
+
+      # Deploy the CDK stack.
+      - name: Deploy CDK Stack
+        working-directory: referee_lights_cdk
+        run: cdk deploy --require-approval never
+
+      # Notify Slack channel of deployment.
+      - name: Notify Slack on Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          payload: |
+            {
+              "channel": "#deployments", // or the channel you want to use
+              "text": "Deployment succeeded for the main branch!",
+              "attachments": [{
+                "color": "good",
+                "text": "Your CDK deployment completed successfully."
+              }]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

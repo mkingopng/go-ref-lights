@@ -1,12 +1,11 @@
 //go:build integration
 // +build integration
 
-// integration/connection_test.go
-package integration
+// integration/connection_integration_test.go
+package websocket
 
 import (
 	"encoding/json"
-	websocket2 "go-ref-lights/websocket"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -20,7 +19,7 @@ import (
 // Helper function to start a test WebSocket server
 func startTestServer(t *testing.T) (*httptest.Server, *websocket.Conn) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		websocket2.ServeWs(w, r)
+		ServeWs(w, r)
 	}))
 
 	wsURL := "ws" + server.URL[4:] + "?meetName=TestMeet"
@@ -40,12 +39,12 @@ func TestWritePump(t *testing.T) {
 		}
 	}()
 
-	testConn := &websocket2.Connection{
+	testConn := &Connection{
 		conn: conn,
 		send: make(chan []byte, 100), // Increase buffer size
 	}
 
-	websocket2.registerConnection(testConn)
+	registerConnection(testConn)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -58,7 +57,7 @@ func TestWritePump(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	// Send properly formatted test message
-	testMessage := websocket2.DecisionMessage{
+	testMessage := DecisionMessage{
 		Action:   "submitDecision",
 		JudgeID:  "left",
 		Decision: "white",
@@ -100,7 +99,7 @@ func TestWritePump(t *testing.T) {
 	}
 
 	wg.Wait()
-	websocket2.unregisterConnection(testConn)
+	unregisterConnection(testConn)
 	close(testConn.send)
 	time.Sleep(500 * time.Millisecond)
 }
@@ -116,39 +115,39 @@ func TestBroadcastRefereeHealth(t *testing.T) {
 	}()
 
 	// Clear global connections before test
-	websocket2.connections = make(map[*websocket2.Connection]bool)
+	connections = make(map[*Connection]bool)
 
-	mockConn := &websocket2.Connection{
+	mockConn := &Connection{
 		conn:     conn,
 		send:     make(chan []byte, 1),
 		meetName: "TestMeet",
 		judgeID:  "left",
 	}
-	websocket2.registerConnection(mockConn)
+	registerConnection(mockConn)
 
-	assert.Equal(t, 1, len(websocket2.connections), "Should register one connection")
+	assert.Equal(t, 1, len(connections), "Should register one connection")
 
-	websocket2.broadcastRefereeHealth("TestMeet")
+	broadcastRefereeHealth("TestMeet")
 
 	time.Sleep(100 * time.Millisecond)
 
 	// Ensure proper cleanup
-	websocket2.unregisterConnection(mockConn)
+	unregisterConnection(mockConn)
 	close(mockConn.send)
 
-	assert.Equal(t, 0, len(websocket2.connections), "Connection should be removed after test")
+	assert.Equal(t, 0, len(connections), "Connection should be removed after test")
 }
 
 func TestProcessDecision(t *testing.T) {
-	mockConn := &websocket2.Connection{meetName: "TestMeet"}
-	decision := websocket2.DecisionMessage{
+	mockConn := &Connection{meetName: "TestMeet"}
+	decision := DecisionMessage{
 		Action:   "submitDecision",
 		MeetName: "TestMeet",
 		JudgeID:  "left",
 		Decision: "white",
 	}
 
-	websocket2.processDecision(mockConn, decision)
+	processDecision(mockConn, decision)
 }
 
 func TestBroadcastToMeet(t *testing.T) {
@@ -161,15 +160,15 @@ func TestBroadcastToMeet(t *testing.T) {
 		}
 	}(conn)
 
-	mockConn := &websocket2.Connection{
+	mockConn := &Connection{
 		conn:     conn,
 		send:     make(chan []byte, 1),
 		meetName: "TestMeet",
 	}
-	websocket2.registerConnection(mockConn)
+	registerConnection(mockConn)
 
 	testMessage := []byte(`{"action":"judgeSubmitted","judgeId":"left"}`)
-	websocket2.broadcastToMeet("TestMeet", testMessage)
+	broadcastToMeet("TestMeet", testMessage)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -177,5 +176,5 @@ func TestBroadcastToMeet(t *testing.T) {
 	assert.NoError(t, err, "Should receive broadcast message")
 	assert.JSONEq(t, string(testMessage), string(msg), "Broadcasted message should be received correctly")
 
-	websocket2.unregisterConnection(mockConn)
+	unregisterConnection(mockConn)
 }
