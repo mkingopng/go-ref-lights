@@ -1,4 +1,8 @@
 // Description: Test cases for the authentication middleware. middleware/auth_test.go
+
+//go:build unit
+// +build unit
+
 package middleware
 
 import (
@@ -13,6 +17,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
 var (
@@ -96,6 +101,7 @@ func setupTestRouter() *gin.Engine {
 
 // Initialize router ONCE before all tests
 func TestMain(m *testing.M) {
+	websocket.InitTest()
 	if router == nil { // ✅ Only initialize once
 		router = setupTestRouter()
 	}
@@ -104,6 +110,7 @@ func TestMain(m *testing.M) {
 
 // Test unauthorised access is blocked
 func TestAuthMiddleware_Unauthorized(t *testing.T) {
+	websocket.InitTest()
 	req, _ := http.NewRequest("GET", "/protected", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -114,6 +121,7 @@ func TestAuthMiddleware_Unauthorized(t *testing.T) {
 
 // Test authorised access with session persistence
 func TestAuthMiddleware_Authorized(t *testing.T) {
+	websocket.InitTest()
 	// Ensure the global router is used (do not reinitialize)
 	assert.NotNil(t, router, "Router should be initialized in TestMain")
 
@@ -156,6 +164,7 @@ func TestAuthMiddleware_Authorized(t *testing.T) {
 
 // Test session clears on logout
 func TestAuthMiddleware_Logout(t *testing.T) {
+	websocket.InitTest()
 	// Perform a request to set the session
 	loginReq := httptest.NewRequest("GET", "/login-test", nil)
 	loginResp := httptest.NewRecorder()

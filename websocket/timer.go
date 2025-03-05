@@ -9,6 +9,7 @@ import (
 )
 
 // Interfaces for dependency injection:
+// These allow us to replace external dependencies with mocks in tests.
 
 type StateProvider interface {
 	GetMeetState(meetName string) *MeetState
@@ -20,13 +21,14 @@ type Messenger interface {
 	BroadcastRaw(msg []byte)
 }
 
-// TimerManager using dependency injection
+// TimerManager manages timer actions using dependency injection.
+// -----------------------------------------------------------------------------
+// ✨ TickerInterval: lets tests override how often the ticker ticks (default is 1s)
+// ✨ NextAttemptStartValue: lets tests override the starting value for next‑attempt timers (default is 60)
 type TimerManager struct {
-	Provider  StateProvider
-	Messenger Messenger
-	// Allow tests to override the ticker interval.
-	TickerInterval time.Duration
-	// Allow tests to override the initial next-attempt timer value.
+	Provider              StateProvider
+	Messenger             Messenger
+	TickerInterval        time.Duration
 	NextAttemptStartValue int
 
 	nextAttemptMutex     sync.Mutex
@@ -34,7 +36,7 @@ type TimerManager struct {
 	nextAttemptIDCounter int
 }
 
-// interval returns the ticker interval; defaults to 1 second.
+// interval returns the ticker interval, defaulting to 1 second if not set.
 func (tm *TimerManager) interval() time.Duration {
 	if tm.TickerInterval > 0 {
 		return tm.TickerInterval
@@ -42,7 +44,7 @@ func (tm *TimerManager) interval() time.Duration {
 	return 1 * time.Second
 }
 
-// HandleTimerAction processes timer-related actions.
+// HandleTimerAction processes different timer actions.
 func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 	logger.Info.Printf("[HandleTimerAction] Received '%s' for meet '%s'", action, meetName)
 	meetState := tm.Provider.GetMeetState(meetName)
@@ -54,7 +56,7 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 		meetState.JudgeDecisions = make(map[string]string)
 		clearMsg := map[string]string{"action": "clearResults"}
 		clearJSON, _ := json.Marshal(clearMsg)
-		tm.Messenger.BroadcastRaw(clearJSON)
+		tm.Messenger.BroadcastRaw(clearJSON) // Broadcast clearResults.
 		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
 		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet '%s'", meetName)
 		tm.startPlatformReadyTimer(meetState)
@@ -81,7 +83,7 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 	logger.Info.Printf("[HandleTimerAction] Finished processing action '%s' for meet '%s'", action, meetName)
 }
 
-// startPlatformReadyTimer starts a 60-second timer and broadcasts updates.
+// startPlatformReadyTimer starts a 60‑second timer for platform readiness.
 func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	logger.Info.Printf("[startPlatformReadyTimer] Called for meet: %s", meetState.MeetName)
 	tm.platformReadyMutex.Lock()
@@ -122,7 +124,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	}()
 }
 
-// resetPlatformReadyTimer stops the active timer.
+// resetPlatformReadyTimer stops the platform-ready timer.
 func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 	tm.platformReadyMutex.Lock()
 	defer tm.platformReadyMutex.Unlock()
@@ -135,13 +137,13 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 	meetState.PlatformReadyTimeLeft = 60
 }
 
-// startNextAttemptTimer adds a new timer for the next attempt.
+// startNextAttemptTimer adds a new next-attempt timer.
+// It uses NextAttemptStartValue if set; otherwise defaults to 60.
 func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	tm.nextAttemptMutex.Lock()
 	tm.nextAttemptIDCounter++
 	timerID := tm.nextAttemptIDCounter
 
-	// Use NextAttemptStartValue if set; otherwise default to 60.
 	startVal := 60
 	if tm.NextAttemptStartValue > 0 {
 		startVal = tm.NextAttemptStartValue
@@ -168,8 +170,10 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
+			// Decrement the timer.
 			meetState.NextAttemptTimers[idx].TimeLeft--
-			broadcastAllNextAttemptTimers(meetState.NextAttemptTimers, meetState.MeetName)
+			// ✨ Call an overridable function for broadcasting next-attempt timers.
+			broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 			if meetState.NextAttemptTimers[idx].TimeLeft <= 0 {
 				meetState.NextAttemptTimers[idx].Active = false
 				tm.nextAttemptMutex.Unlock()
@@ -180,6 +184,7 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	}(timerID)
 }
 
+// findTimerIndex returns the index of the timer with the given ID.
 func findTimerIndex(timers []NextAttemptTimer, id int) int {
 	for i, t := range timers {
 		if t.ID == id {
@@ -189,9 +194,13 @@ func findTimerIndex(timers []NextAttemptTimer, id int) int {
 	return -1
 }
 
-// fix_me: Package-level default dependencies with dummy implementations.
-//  Replace these with your actual implementations in production.
+// -----------------------------------------------------------------------------
+// Overridable broadcast function variable.
+// In tests we can override this function (for example, to a no-op).
+var broadcastAllNextAttemptTimersFunc = broadcastAllNextAttemptTimers
 
+// Package-level default dependencies using dummy implementations.
+// In production replace these with your actual implementations.
 type dummyStateProvider struct{}
 
 func (d *dummyStateProvider) GetMeetState(meetName string) *MeetState {
@@ -230,7 +239,7 @@ func init() {
 	}
 }
 
-// StartNextAttemptTimer Package-level wrapper.
+// StartNextAttemptTimer Package-level wrapper for legacy code.
 func StartNextAttemptTimer(meetState *MeetState) {
 	if defaultTimerManager == nil {
 		logger.Error.Println("defaultTimerManager is nil!")

@@ -1,4 +1,5 @@
 // Package websocket - websocket/connection.go
+
 package websocket
 
 import (
@@ -8,12 +9,27 @@ import (
 
 	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
+	"net"
 )
+
+// -----------------------------------------------------------------------------
+// Define an interface for the minimal WebSocket connection functionality.
+// This allows dependency injection for tests.
+type WSConn interface {
+	WriteMessage(messageType int, data []byte) error
+	SetWriteDeadline(t time.Time) error
+	ReadMessage() (int, []byte, error)
+	Close() error
+	RemoteAddr() net.Addr
+	SetReadLimit(limit int64)
+	SetReadDeadline(t time.Time) error
+	SetPongHandler(h func(string) error)
+}
 
 // Connection represents a single WebSocket connection for one client.
 type Connection struct {
-	// The underlying Gorilla WebSocket connection.
-	conn *websocket.Conn
+	// Now using WSConn instead of a concrete *websocket.Conn.
+	conn WSConn
 	// Outbound messages are queued in this channel.
 	send chan []byte
 	// Each connection belongs to a specific meet.
@@ -233,10 +249,9 @@ func broadcastToMeet(meetName string, message []byte) {
 	}
 }
 
-// broadcastRefereeHealth is a placeholder function that broadcasts the health
-// (i.e. the list of connected judge IDs) for a given meet.
-// You can keep or modify this function as part of your business logic.
-func broadcastRefereeHealth(meetName string) {
+// broadcastRefereeHealth broadcasts the health for a given meet.
+// Declare it as a variable so it can be overridden in tests.
+var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
 	for c := range connections {
 		if c.meetName == meetName && c.judgeID != "" {

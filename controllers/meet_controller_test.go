@@ -1,3 +1,8 @@
+// controllers/meet_controller_test.go
+
+//go:build unit
+// +build unit
+
 package controllers
 
 import (
@@ -9,9 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go-ref-lights/models"
+	"go-ref-lights/websocket"
 )
 
-// ✅ Mock meet data for testing
+// Mock meet data for testing
 var testMeets = models.MeetCreds{
 	Meets: []models.Meet{
 		{Name: "TestMeet1", Date: "2025-03-10"},
@@ -19,8 +25,9 @@ var testMeets = models.MeetCreds{
 	},
 }
 
-// ✅ Test LoadMeets Success
+// Test LoadMeets Success
 func TestLoadMeets_Success(t *testing.T) {
+	websocket.InitTest()
 	originalLoadMeetsFunc := loadMeetsFunc
 	loadMeetsFunc = func() (*models.MeetCreds, error) { return &testMeets, nil }
 	defer func() { loadMeetsFunc = originalLoadMeetsFunc }() // Restore after test
@@ -32,8 +39,9 @@ func TestLoadMeets_Success(t *testing.T) {
 	assert.Equal(t, "TestMeet1", meets.Meets[0].Name, "First meet should match")
 }
 
-// ✅ Test LoadMeets Failure (File Not Found)
+// Test LoadMeets Failure (File Not Found)
 func TestLoadMeets_FileNotFound(t *testing.T) {
+	websocket.InitTest()
 	originalLoadMeetsFunc := loadMeetsFunc
 	loadMeetsFunc = func() (*models.MeetCreds, error) { return nil, os.ErrNotExist }
 	defer func() { loadMeetsFunc = originalLoadMeetsFunc }() // Restore after test
@@ -43,12 +51,13 @@ func TestLoadMeets_FileNotFound(t *testing.T) {
 	assert.Nil(t, meets, "Meets should be nil on failure")
 }
 
-// ✅ Test ShowMeets Handler
+// Test ShowMeets Handler
 func TestShowMeets(t *testing.T) {
+	websocket.InitTest()
 	gin.SetMode(gin.TestMode)
-	router := setupTestRouter() // ✅ Now includes templates
+	router := setupTestRouter() // Now includes templates
 
-	// ✅ Attach ShowMeets route
+	// Attach ShowMeets route
 	router.GET("/meets", ShowMeets)
 
 	originalLoadMeetsFunc := loadMeetsFunc
@@ -58,7 +67,7 @@ func TestShowMeets(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/meets", nil)
 	w := httptest.NewRecorder()
 
-	// ✅ Perform request
+	// Perform request
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code, "ShowMeets should return 200 OK")
@@ -66,13 +75,14 @@ func TestShowMeets(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "TestMeet2", "Response should contain TestMeet2")
 }
 
-// ✅ Test ShowMeets Failure
+// Test ShowMeets Failure
 func TestShowMeets_Failure(t *testing.T) {
+	websocket.InitTest()
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	router.GET("/meets", ShowMeets)
 
-	// ✅ Simulate error loading meets
+	// Simulate error loading meets
 	originalLoadMeetsFunc := loadMeetsFunc
 	loadMeetsFunc = func() (*models.MeetCreds, error) { return nil, os.ErrNotExist }
 	defer func() { loadMeetsFunc = originalLoadMeetsFunc }() // Restore after test

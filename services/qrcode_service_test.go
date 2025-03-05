@@ -1,4 +1,8 @@
 // file: services/qrcode_service_test.go
+
+//go:build unit
+// +build unit
+
 package services
 
 import (
@@ -7,6 +11,7 @@ import (
 
 	"github.com/skip2/go-qrcode"
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
 // Mock encoder function (successful)
@@ -21,6 +26,7 @@ func mockQRCodeEncoderFailure(content string, level qrcode.RecoveryLevel, size i
 
 // Test: Generate QR Code Successfully
 func TestGenerateQRCode_Success(t *testing.T) {
+	websocket.InitTest()
 	data, err := GenerateQRCode(200, 200, mockQRCodeEncoderSuccess)
 
 	assert.NoError(t, err)
@@ -30,6 +36,7 @@ func TestGenerateQRCode_Success(t *testing.T) {
 
 // Test: Fail QR Code Generation Due to Negative Dimensions
 func TestGenerateQRCode_InvalidDimensions(t *testing.T) {
+	websocket.InitTest()
 	data, err := GenerateQRCode(-100, 200, mockQRCodeEncoderSuccess)
 
 	assert.Error(t, err)
@@ -39,6 +46,7 @@ func TestGenerateQRCode_InvalidDimensions(t *testing.T) {
 
 // Test: QR Code Generation Fails Due to Encoder Error
 func TestGenerateQRCode_EncoderFails(t *testing.T) {
+	websocket.InitTest()
 	data, err := GenerateQRCode(200, 200, mockQRCodeEncoderFailure)
 
 	assert.Error(t, err)

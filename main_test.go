@@ -1,8 +1,12 @@
 // main_test.go
+//go:build unit
+// +build unit
+
 package main
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,143 +14,177 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
-// setupTestTemplates creates a temporary templates directory with a dummy file.
-// Given: a need for a valid templates directory for HTML template loading.
-func setupTestTemplates(t *testing.T) string {
+// testSetupTemplates creates a temporary templates directory with a dummy template file.
+func testSetupTemplates(t *testing.T) string {
+	log.Println("[testSetupTemplates] Creating temporary templates directory")
 	tempDir, err := ioutil.TempDir("", "templates")
 	if err != nil {
 		t.Fatalf("Failed to create temp templates directory: %v", err)
 	}
-
-	// Create a dummy template file so that router.LoadHTMLGlob does not fail.
 	dummyFile := filepath.Join(tempDir, "dummy.html")
 	content := []byte("<html><body>Dummy Template</body></html>")
 	if err := ioutil.WriteFile(dummyFile, content, 0644); err != nil {
 		t.Fatalf("Failed to write dummy template: %v", err)
 	}
-
-	// Clean up the temporary directory after test finishes.
 	t.Cleanup(func() {
+		log.Println("[testSetupTemplates] Cleaning up temporary templates directory")
 		os.RemoveAll(tempDir)
 	})
+	log.Printf("[testSetupTemplates] Templates directory set to: %s\n", tempDir)
 	return tempDir
 }
 
-// TestHealthEndpoint tests the /health endpoint.
-// Given: A router with the health endpoint registered.
-// When: A GET request is made to /health.
-// Then: It should return HTTP 200 and the expected content.
-func TestHealthEndpoint(t *testing.T) {
-	// Setup
-	gin.SetMode(gin.TestMode)
-	templatesDir := setupTestTemplates(t)
+// testSetupRouter creates a minimal Gin router for testing.
+func testSetupRouter(templatesDir, env string) *gin.Engine {
+	log.Println("[testSetupRouter] Setting up test router")
 	router := gin.Default()
 
-	// Load templates as done in main.go
-	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
-
-	// For testing purposes, we simulate the health endpoint handler.
-	// In your actual application, this would be controllers.Health.
-	router.GET("/health", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
+	// Middleware to log incoming requests and paths.
+	router.Use(func(c *gin.Context) {
+		log.Printf("[Middleware] Incoming request: %s %s", c.Request.Method, c.Request.URL.Path)
+		c.Next()
+		log.Printf("[Middleware] Completed request: %s %s", c.Request.Method, c.Request.URL.Path)
 	})
 
-	// When: A GET request is sent to /health.
-	req, _ := http.NewRequest("GET", "/health", nil)
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
-
-	// Then: Verify the response.
-	if resp.Code != http.StatusOK {
-		t.Errorf("Expected status code %d, got %d", http.StatusOK, resp.Code)
+	// Public paths that should not be protected.
+	publicPaths := map[string]bool{
+		"/health":   true,
+		"/log":      true,
+		"/":         true,
+		"/set-meet": true,
+		"/login":    true,
 	}
-	if resp.Body.String() != "OK" {
-		t.Errorf("Expected response body 'OK', got %q", resp.Body.String())
-	}
-}
-
-// TestLogEndpoint tests the /log endpoint.
-// Given: A router with the /log endpoint that processes JSON log payloads.
-// When: A valid JSON payload is posted to /log.
-// Then: It should return HTTP 200.
-func TestLogEndpoint(t *testing.T) {
-	// Setup
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-
-	// Simulate the /log route as in main.go.
-	router.POST("/log", func(c *gin.Context) {
-		var payload struct {
-			Message string `json:"message"`
-			Level   string `json:"level"`
-		}
-		// When: Binding the JSON payload
-		if err := c.ShouldBindJSON(&payload); err != nil {
-			c.Status(http.StatusBadRequest)
+	// Protection middleware.
+	router.Use(func(c *gin.Context) {
+		if publicPaths[c.Request.URL.Path] {
+			log.Printf("[Protection Middleware] Public path %s accessed", c.Request.URL.Path)
+			c.Next()
 			return
 		}
-		// Here you would normally log the message based on level.
-		// For testing, simply return OK.
-		c.Status(http.StatusOK)
-	})
-
-	// When: Sending a valid log payload.
-	jsonPayload := `{"message": "Test log", "level": "info"}`
-	req, _ := http.NewRequest("POST", "/log", strings.NewReader(jsonPayload))
-	req.Header.Set("Content-Type", "application/json")
-	resp := httptest.NewRecorder()
-	router.ServeHTTP(resp, req)
-
-	// Then: Expect a 200 OK response.
-	if resp.Code != http.StatusOK {
-		t.Errorf("Expected status 200 but got %d", resp.Code)
-	}
-}
-
-// TestProtectedRouteRedirect tests the middleware that requires a session variable.
-// Given: A router with session middleware and a custom middleware checking for "meetName".
-// When: A request is made to a protected route without "meetName" set.
-// Then: The user should be redirected (HTTP 302) to the meet selection ("/").
-func TestProtectedRouteRedirect(t *testing.T) {
-	// Setup
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-
-	// Configure a dummy session store.
-	store := cookie.NewStore([]byte("secret"))
-	router.Use(sessions.Sessions("mySession", store))
-
-	// Custom middleware that simulates redirection if "meetName" is not in session.
-	router.Use(func(c *gin.Context) {
-		session := sessions.Default(c)
-		if _, ok := session.Get("meetName").(string); !ok {
+		// For testing, check if "meetName" is set in the Gin context.
+		if meetName, exists := c.Get("meetName"); !exists || meetName == "" {
+			log.Printf("[Protection Middleware] No meetName in context for path %s; redirecting", c.Request.URL.Path)
 			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 			return
 		}
+		log.Printf("[Protection Middleware] meetName present for path %s", c.Request.URL.Path)
 		c.Next()
 	})
 
-	// Protected route simulation.
+	// Load templates.
+	log.Printf("[testSetupRouter] Loading templates from: %s", filepath.Join(templatesDir, "*.html"))
+	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
+
+	// Define public routes.
+	router.GET("/health", func(c *gin.Context) {
+		log.Println("[Route /health] Health check called")
+		c.String(http.StatusOK, "OK")
+	})
+	router.POST("/log", func(c *gin.Context) {
+		log.Println("[Route /log] Log endpoint called")
+		var payload struct {
+			Message string `json:"message"`
+			Level   string `json:"level"`
+		}
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			log.Printf("[Route /log] Error binding JSON: %v", err)
+			c.Status(http.StatusBadRequest)
+			return
+		}
+		log.Printf("[Route /log] Received log: level=%s, message=%s", payload.Level, payload.Message)
+		c.Status(http.StatusOK)
+	})
+	router.GET("/", func(c *gin.Context) {
+		log.Println("[Route /] Meet selection page accessed")
+		c.String(http.StatusOK, "Meet Selection Page")
+	})
+	router.POST("/set-meet", func(c *gin.Context) {
+		log.Println("[Route /set-meet] set-meet called; redirecting to /login")
+		c.Redirect(http.StatusFound, "/login")
+	})
+	router.GET("/login", func(c *gin.Context) {
+		log.Println("[Route /login] Login page accessed")
+		c.String(http.StatusOK, "Login Page")
+	})
+	router.POST("/login", func(c *gin.Context) {
+		log.Println("[Route /login] Login POST received; redirecting to /dashboard")
+		c.Redirect(http.StatusFound, "/dashboard")
+	})
+	router.GET("/logout", func(c *gin.Context) {
+		log.Println("[Route /logout] Logout called; redirecting to /")
+		c.Redirect(http.StatusFound, "/")
+	})
+
+	// Protected route.
 	router.GET("/dashboard", func(c *gin.Context) {
+		log.Println("[Route /dashboard] Protected dashboard accessed")
 		c.String(http.StatusOK, "Dashboard")
 	})
 
-	// When: A GET request is sent to /dashboard without a valid session.
-	req, _ := http.NewRequest("GET", "/dashboard", nil)
+	log.Println("[testSetupRouter] Test router setup complete")
+	return router
+}
+
+// TestMainSetup resets global state before each test.
+func TestMainSetup(t *testing.T) {
+	log.Println("[TestMainSetup] Resetting global state")
+	websocket.InitTest() // Reset any global state in the websocket package.
+}
+
+func TestHealthEndpoint(t *testing.T) {
+	TestMainSetup(t)
+	gin.SetMode(gin.TestMode)
+	templatesDir := testSetupTemplates(t)
+	router := testSetupRouter(templatesDir, "development")
+
+	req, _ := http.NewRequest("GET", "/health", nil)
+	log.Println("[TestHealthEndpoint] Sending GET /health request")
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
-	// Then: Verify that the response is a redirection to "/".
-	if resp.Code != http.StatusFound {
-		t.Errorf("Expected HTTP status %d for redirection, got %d", http.StatusFound, resp.Code)
-	}
-	if location := resp.Header().Get("Location"); location != "/" {
-		t.Errorf("Expected redirection to '/', got %s", location)
-	}
+	log.Printf("[TestHealthEndpoint] Received status code: %d, body: %s", resp.Code, resp.Body.String())
+	assert.Equal(t, http.StatusOK, resp.Code)
+	assert.Equal(t, "OK", resp.Body.String())
+}
+
+func TestLogEndpoint(t *testing.T) {
+	TestMainSetup(t)
+	gin.SetMode(gin.TestMode)
+	templatesDir := testSetupTemplates(t)
+	router := testSetupRouter(templatesDir, "development")
+
+	jsonPayload := `{"message": "Test log", "level": "info"}`
+	req, _ := http.NewRequest("POST", "/log", strings.NewReader(jsonPayload))
+	req.Header.Set("Content-Type", "application/json")
+	log.Println("[TestLogEndpoint] Sending POST /log with payload:", jsonPayload)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	log.Printf("[TestLogEndpoint] Received status code: %d", resp.Code)
+	// Expect HTTP 200 since /log is public.
+	assert.Equal(t, http.StatusOK, resp.Code)
+}
+
+func TestProtectedRouteRedirect(t *testing.T) {
+	TestMainSetup(t)
+	gin.SetMode(gin.TestMode)
+	templatesDir := testSetupTemplates(t)
+	router := testSetupRouter(templatesDir, "development")
+
+	// Do not set "meetName" in the context so the protected middleware will trigger.
+	req, _ := http.NewRequest("GET", "/dashboard", nil)
+	log.Println("[TestProtectedRouteRedirect] Sending GET /dashboard without meetName")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	log.Printf("[TestProtectedRouteRedirect] Received status code: %d, Location header: %s", resp.Code, resp.Header().Get("Location"))
+	// Our middleware should redirect to "/" if "meetName" is not set.
+	assert.Equal(t, http.StatusFound, resp.Code)
+	assert.Equal(t, "/", resp.Header().Get("Location"))
 }

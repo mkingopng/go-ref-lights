@@ -1,13 +1,19 @@
 // file: services/occupancy_service_test.go
+
+//go:build unit
+// +build unit
+
 package services
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
 func TestGetOccupancy_NewMeet(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL State Championship"
 
@@ -20,6 +26,7 @@ func TestGetOccupancy_NewMeet(t *testing.T) {
 }
 
 func TestSetPosition_Success(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Nationals"
 
@@ -33,6 +40,7 @@ func TestSetPosition_Success(t *testing.T) {
 }
 
 func TestSetPosition_FailsIfTaken(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Regionals"
 
@@ -50,6 +58,7 @@ func TestSetPosition_FailsIfTaken(t *testing.T) {
 }
 
 func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Qualifiers"
 
@@ -67,6 +76,7 @@ func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
 }
 
 func TestResetOccupancyForMeet(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Open"
 
@@ -85,6 +95,7 @@ func TestResetOccupancyForMeet(t *testing.T) {
 }
 
 func TestUnsetPosition(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Grand Finals"
 
@@ -101,6 +112,7 @@ func TestUnsetPosition(t *testing.T) {
 }
 
 func TestUnsetPosition_FailsIfPositionDoesNotMatchUser(t *testing.T) {
+	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Regionals"
 

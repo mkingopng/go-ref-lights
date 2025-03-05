@@ -1,4 +1,8 @@
 // file: controllers/position_controller_test.go
+
+//go:build unit
+// +build unit
+
 package controllers
 
 import (
@@ -15,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go-ref-lights/services"
+	"go-ref-lights/websocket"
 )
 
 // mock Occupancy Service
@@ -39,6 +44,7 @@ func setupPositionTestRouter() *gin.Engine {
 
 // test ShowPositionsPage (Redirect when not logged in)
 func TestShowPositionsPage_NoUser(t *testing.T) {
+	websocket.InitTest()
 	router := setupPositionTestRouter()
 	req, _ := http.NewRequest("GET", "/positions", nil)
 	w := httptest.NewRecorder()
@@ -50,6 +56,7 @@ func TestShowPositionsPage_NoUser(t *testing.T) {
 
 // Test ClaimPosition (Successful Claim)
 func TestClaimPosition_Success(t *testing.T) {
+	websocket.InitTest()
 	t.Run("ClaimPosition_Success", func(t *testing.T) {
 		mockOccupancyService = new(services.MockOccupancyService)
 		positionController = NewPositionController(mockOccupancyService)
@@ -91,6 +98,7 @@ func TestClaimPosition_Success(t *testing.T) {
 
 // Test VacatePosition (Successful Vacate)
 func TestVacatePosition_Success(t *testing.T) {
+	websocket.InitTest()
 	mockOccupancyService = new(services.MockOccupancyService)
 	positionController = NewPositionController(mockOccupancyService)
 
@@ -131,6 +139,7 @@ func TestVacatePosition_Success(t *testing.T) {
 
 // Test GetOccupancyAPI
 func TestGetOccupancyAPI_Success(t *testing.T) {
+	websocket.InitTest()
 	mockOccupancyService = new(services.MockOccupancyService)
 	positionController = NewPositionController(mockOccupancyService)
 

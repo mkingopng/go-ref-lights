@@ -1,4 +1,8 @@
 // file: middleware/role_test.go
+
+//go:build unit
+// +build unit
+
 package middleware
 
 import (
@@ -10,6 +14,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
 var roleRouter *gin.Engine
@@ -55,6 +60,7 @@ func setupRoleTestRouter() *gin.Engine {
 
 // Unauthenticated user should be redirected to /login
 func TestPositionRequired_Unauthenticated(t *testing.T) {
+	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}
@@ -69,6 +75,7 @@ func TestPositionRequired_Unauthenticated(t *testing.T) {
 
 // Test: User without position should be allowed on routes with no role requirement
 func TestPositionRequired_NoRefPositionAllowed(t *testing.T) {
+	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}
@@ -93,11 +100,12 @@ func TestPositionRequired_NoRefPositionAllowed(t *testing.T) {
 
 // Test: User with incorrect `refPosition` should be redirected to /positions
 func TestPositionRequired_WrongRefPosition(t *testing.T) {
+	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}
 
-	// Step 1: Perform a request to set the session
+	// Perform a request to set the session
 	loginReq := httptest.NewRequest("GET", "/login-test", nil)
 	loginResp := httptest.NewRecorder()
 	roleRouter.ServeHTTP(loginResp, loginReq)
@@ -133,6 +141,7 @@ func TestPositionRequired_WrongRefPosition(t *testing.T) {
 
 // Test: User with correct `refPosition` should be allowed
 func TestPositionRequired_CorrectRefPosition(t *testing.T) {
+	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}

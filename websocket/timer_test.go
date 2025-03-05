@@ -1,4 +1,8 @@
 // websocket/timer_test.go
+
+//go:build unit
+// +build unit
+
 package websocket
 
 import (
@@ -10,7 +14,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock implementations using testify/mock.
+// --- Mock implementations using testify/mock ---
+
 type MockStateProvider struct {
 	mock.Mock
 }
@@ -36,8 +41,9 @@ func (m *MockMessenger) BroadcastRaw(msg []byte) {
 	m.Called(msg)
 }
 
-// Test for startTimer action.
+// Test: startTimer action should clear JudgeDecisions and start the platform timer.
 func TestTimerManager_HandleTimerAction_StartTimer(t *testing.T) {
+	InitTest()
 	meetState := &MeetState{
 		MeetName:       "TestMeet",
 		JudgeDecisions: map[string]string{"initial": "value"},
@@ -47,20 +53,21 @@ func TestTimerManager_HandleTimerAction_StartTimer(t *testing.T) {
 	mockMessenger := new(MockMessenger)
 	mockProvider.On("GetMeetState", "TestMeet").Return(meetState)
 
+	// Expect a clearResults broadcast.
 	mockMessenger.
 		On("BroadcastRaw", []byte(`{"action":"clearResults"}`)).
 		Once()
-
+	// Expect a BroadcastMessage with action "startTimer".
 	mockMessenger.
 		On("BroadcastMessage", "TestMeet", mock.MatchedBy(func(msg map[string]interface{}) bool {
 			return msg["action"] == "startTimer"
 		})).
 		Once()
-
+	// Expect a platformReadyExpired broadcast when the timer expires.
 	mockMessenger.
 		On("BroadcastRaw", []byte(`{"action":"platformReadyExpired"}`)).
 		Once()
-
+	// Optionally allow BroadcastTimeUpdate calls.
 	mockMessenger.
 		On("BroadcastTimeUpdate", "updatePlatformReadyTime", mock.Anything, 0, "TestMeet").
 		Maybe()
@@ -84,8 +91,14 @@ func TestTimerManager_HandleTimerAction_StartTimer(t *testing.T) {
 	mockMessenger.AssertExpectations(t)
 }
 
-// Test for next-attempt timer with fast ticker and short start value.
+// Test: startNextAttemptTimer with fast ticker and short start value.
 func TestTimerManager_HandleTimerAction_StartNextAttemptTimer(t *testing.T) {
+	InitTest()
+	// Override broadcastAllNextAttemptTimersFunc to no-op to prevent delays.
+	oldBroadcast := broadcastAllNextAttemptTimersFunc
+	broadcastAllNextAttemptTimersFunc = func(timers []NextAttemptTimer, meetName string) {}
+	defer func() { broadcastAllNextAttemptTimersFunc = oldBroadcast }()
+
 	meetState := &MeetState{
 		MeetName:          "TestMeet",
 		NextAttemptTimers: []NextAttemptTimer{},
@@ -94,10 +107,11 @@ func TestTimerManager_HandleTimerAction_StartNextAttemptTimer(t *testing.T) {
 	mockMessenger := new(MockMessenger)
 	mockProvider.On("GetMeetState", "TestMeet").Return(meetState)
 
+	// Create TimerManager with fast ticker and a very low starting value.
 	tm := &TimerManager{
 		Provider:              mockProvider,
 		Messenger:             mockMessenger,
-		NextAttemptStartValue: 1,                     // start with 1 second
+		NextAttemptStartValue: 1,                     // start at 1 second
 		TickerInterval:        10 * time.Millisecond, // tick every 10ms
 		nextAttemptIDCounter:  0,
 	}
@@ -109,7 +123,7 @@ func TestTimerManager_HandleTimerAction_StartNextAttemptTimer(t *testing.T) {
 	assert.Equal(t, 1, timer.TimeLeft, "Timer should start at 1 second")
 	assert.True(t, timer.Active, "Timer should be active")
 
-	// Wait for a short period for the timer to expire.
+	// Wait enough time for the timer goroutine to expire the timer.
 	time.Sleep(50 * time.Millisecond)
 
 	tm.nextAttemptMutex.Lock()
@@ -119,8 +133,9 @@ func TestTimerManager_HandleTimerAction_StartNextAttemptTimer(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
-// TestTimerManager_HandleTimerAction_ResetTimer tests the resetTimer action.
+// Test: resetTimer action should clear JudgeDecisions and stop the platform timer.
 func TestTimerManager_HandleTimerAction_ResetTimer(t *testing.T) {
+	InitTest()
 	meetState := &MeetState{
 		MeetName:              "TestMeet",
 		JudgeDecisions:        map[string]string{"decision": "value"},
@@ -154,8 +169,9 @@ func TestTimerManager_HandleTimerAction_ResetTimer(t *testing.T) {
 	mockMessenger.AssertExpectations(t)
 }
 
-// TestTimerManager_HandleTimerAction_ResetNextAttemptTimer tests the resetNextAttemptTimer action.
+// Test: updatePlatformReadyTime action should leave JudgeDecisions unchanged.
 func TestTimerManager_HandleTimerAction_UpdatePlatformReadyTime(t *testing.T) {
+	InitTest()
 	meetState := &MeetState{
 		MeetName:       "TestMeet",
 		JudgeDecisions: map[string]string{"initial": "value"},
@@ -174,8 +190,9 @@ func TestTimerManager_HandleTimerAction_UpdatePlatformReadyTime(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 }
 
-// TestTimerManager_HandleTimerAction_InvalidAction tests the invalidAction case.
+// Test: invalid action should not modify JudgeDecisions.
 func TestTimerManager_HandleTimerAction_InvalidAction(t *testing.T) {
+	InitTest()
 	meetState := &MeetState{
 		MeetName:       "TestMeet",
 		JudgeDecisions: map[string]string{"initial": "value"},

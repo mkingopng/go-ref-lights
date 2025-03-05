@@ -1,11 +1,17 @@
-// websocket/connection_test.go
+//go:build unit
+// +build unit
+
+// connection_unit_test.go
+
+// Unit tests for connection.go. These tests use a fakeConn to simulate a WSConn
+// so that we can test the connection business logic (registering, handling messages,
+// processing decisions, and ensuring pings are sent) without doing any real network I/O.
+
 package websocket
 
 import (
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"sync"
+	"net"
 	"testing"
 	"time"
 
@@ -13,165 +19,158 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// Helper function to start a test WebSocket server
-func startTestServer(t *testing.T) (*httptest.Server, *websocket.Conn) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ServeWs(w, r)
-	}))
+// Fake WSConn implementation for unit tests
 
-	wsURL := "ws" + server.URL[4:] + "?meetName=TestMeet"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	assert.NoError(t, err, "WebSocket connection should succeed")
-
-	return server, conn
+// fakeConn implements the WSConn interface. It provides no‐op implementations
+// for methods except that it records when a ping is sent.
+type fakeConn struct {
+	// pingCaptured is set to true when WriteMessage is called with a PingMessage.
+	pingCaptured bool
 }
 
-// `TestWritePump` should match expected response
-func TestWritePump(t *testing.T) {
-	server, conn := startTestServer(t)
-	defer server.Close()
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Logf("Warning: WebSocket close error: %v", err)
-		}
-	}()
-
-	testConn := &Connection{
-		conn: conn,
-		send: make(chan []byte, 100), // Increase buffer size
+func (fc *fakeConn) WriteMessage(messageType int, data []byte) error {
+	if messageType == websocket.PingMessage {
+		fc.pingCaptured = true
 	}
-
-	registerConnection(testConn)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-		testConn.writePump()
-	}()
-
-	time.Sleep(500 * time.Millisecond)
-
-	// Send properly formatted test message
-	testMessage := DecisionMessage{
-		Action:   "submitDecision",
-		JudgeID:  "left",
-		Decision: "white",
-		MeetName: "TestMeet",
-	}
-	messageBytes, _ := json.Marshal(testMessage)
-	testConn.send <- messageBytes
-
-	// Wait for the message to be read
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-
-		msgType, msg, err := conn.ReadMessage()
-		if err != nil {
-			t.Errorf("Error reading message: %v", err)
-			return
-		}
-
-		// Ensure message type is correct
-		assert.Equal(t, websocket.TextMessage, msgType, "Expected TextMessage")
-
-		// Match actual response from `handleIncoming()`
-		expectedResponse := map[string]interface{}{
-			"action":  "judgeSubmitted",
-			"judgeId": "left",
-		}
-
-		var receivedResponse map[string]interface{}
-		_ = json.Unmarshal(msg, &receivedResponse)
-
-		assert.Equal(t, expectedResponse, receivedResponse, "Sent and received messages should match")
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Timeout waiting for message in TestWritePump")
-	}
-
-	wg.Wait()
-	unregisterConnection(testConn)
-	close(testConn.send)
-	time.Sleep(500 * time.Millisecond)
+	// For unit testing, we simply do nothing.
+	return nil
 }
 
-// Ensure proper cleanup in `TestBroadcastRefereeHealth`
-func TestBroadcastRefereeHealth(t *testing.T) {
-	server, conn := startTestServer(t)
-	defer server.Close()
-	defer func() {
-		if err := conn.Close(); err != nil {
-			t.Logf("Warning: WebSocket close error: %v", err)
-		}
-	}()
+func (fc *fakeConn) SetWriteDeadline(t time.Time) error {
+	return nil
+}
 
-	// Clear global connections before test
+func (fc *fakeConn) ReadMessage() (int, []byte, error) {
+	// For unit tests that do not use ReadMessage, simply return a dummy value.
+	return websocket.TextMessage, []byte(`{"action": "dummy"}`), nil
+}
+
+func (fc *fakeConn) Close() error {
+	return nil
+}
+
+func (fc *fakeConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
+}
+
+func (fc *fakeConn) SetReadLimit(limit int64) {}
+
+func (fc *fakeConn) SetReadDeadline(t time.Time) error {
+	return nil
+}
+
+func (fc *fakeConn) SetPongHandler(h func(string) error) {}
+
+// Unit tests for connection.go business logic
+
+// TestRegisterAndUnregisterConnection verifies that registerConnection and unregisterConnection
+// correctly update the global "connections" map.
+func TestRegisterAndUnregisterConnection(t *testing.T) {
+	InitTest()
+	// Clear the global connections map.
 	connections = make(map[*Connection]bool)
 
-	mockConn := &Connection{
-		conn:     conn,
+	fc := &fakeConn{}
+	conn := &Connection{
+		conn:     fc,
 		send:     make(chan []byte, 1),
-		meetName: "TestMeet",
-		judgeID:  "left",
+		meetName: "UnitTestMeet",
+		judgeID:  "",
 	}
-	registerConnection(mockConn)
 
-	assert.Equal(t, 1, len(connections), "Should register one connection")
+	registerConnection(conn)
+	assert.Equal(t, 1, len(connections), "Expected one connection to be registered")
 
-	broadcastRefereeHealth("TestMeet")
-
-	time.Sleep(100 * time.Millisecond)
-
-	// Ensure proper cleanup
-	unregisterConnection(mockConn)
-	close(mockConn.send)
-
-	assert.Equal(t, 0, len(connections), "Connection should be removed after test")
+	unregisterConnection(conn)
+	assert.Equal(t, 0, len(connections), "Expected no connections after unregistering")
 }
 
+// TestHandleIncoming_RegisterRef tests that when a "registerRef" message is received,
+// the connection's judgeID is set. We override broadcastRefereeHealth to a no-op.
+func TestHandleIncoming_RegisterRef(t *testing.T) {
+	InitTest()
+	fc := &fakeConn{}
+	conn := &Connection{
+		conn:     fc,
+		send:     make(chan []byte, 1),
+		meetName: "UnitTestMeet",
+		judgeID:  "",
+	}
+
+	// Override broadcastRefereeHealth so it does nothing during this test.
+	origBRH := broadcastRefereeHealth
+	broadcastRefereeHealth = func(meetName string) {}
+	defer func() { broadcastRefereeHealth = origBRH }()
+
+	msg := DecisionMessage{
+		Action:   "registerRef",
+		MeetName: "UnitTestMeet",
+		JudgeID:  "ref1",
+	}
+	handleIncoming(conn, msg)
+	assert.Equal(t, "ref1", conn.judgeID, "judgeID should be set from registerRef action")
+}
+
+// TestProcessDecision tests that processDecision enqueues a broadcast message on the connection's send channel.
 func TestProcessDecision(t *testing.T) {
-	mockConn := &Connection{meetName: "TestMeet"}
+	InitTest()
+	// Clear global connections and register one connection.
+	connections = make(map[*Connection]bool)
+	fc := &fakeConn{}
+	conn := &Connection{
+		conn:     fc,
+		send:     make(chan []byte, 10),
+		meetName: "UnitTestMeet",
+		judgeID:  "ref1",
+	}
+	registerConnection(conn)
+	defer unregisterConnection(conn)
+
 	decision := DecisionMessage{
 		Action:   "submitDecision",
-		MeetName: "TestMeet",
-		JudgeID:  "left",
+		MeetName: "UnitTestMeet",
+		JudgeID:  "ref1",
 		Decision: "white",
 	}
+	processDecision(conn, decision)
 
-	processDecision(mockConn, decision)
+	// processDecision is expected to send a JSON message on the send channel.
+	select {
+	case msg := <-conn.send:
+		var decoded map[string]string
+		err := json.Unmarshal(msg, &decoded)
+		assert.NoError(t, err)
+		// Our example processDecision broadcasts a "judgeSubmitted" message.
+		assert.Equal(t, "judgeSubmitted", decoded["action"], "Expected action judgeSubmitted")
+		assert.Equal(t, "ref1", decoded["judgeId"], "Expected judgeId to be ref1")
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected a broadcast message, but none was received")
+	}
 }
 
-func TestBroadcastToMeet(t *testing.T) {
-	server, conn := startTestServer(t)
-	defer server.Close()
-	defer func(conn *websocket.Conn) {
-		err := conn.Close()
-		if err != nil {
-			t.Logf("Warning: WebSocket close error: %v", err)
-		}
-	}(conn)
-
-	mockConn := &Connection{
-		conn:     conn,
-		send:     make(chan []byte, 1),
-		meetName: "TestMeet",
+// TestWritePump_Ping verifies that writePump sends a ping message periodically.
+// We use our fakeConn's pingCaptured flag to detect that a ping was sent.
+func TestWritePump_Ping(t *testing.T) {
+	InitTest()
+	fc := &fakeConn{}
+	conn := &Connection{
+		conn:     fc,
+		send:     make(chan []byte, 10),
+		meetName: "UnitTestMeet",
 	}
-	registerConnection(mockConn)
 
-	testMessage := []byte(`{"action":"judgeSubmitted","judgeId":"left"}`)
-	broadcastToMeet("TestMeet", testMessage)
+	// Run writePump in a separate goroutine.
+	done := make(chan struct{})
+	go func() {
+		conn.writePump()
+		close(done)
+	}()
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait long enough for at least one ping cycle (pingPeriod is defined in connection.go).
+	time.Sleep(pingPeriod + 50*time.Millisecond)
+	// Stop writePump by closing the send channel.
+	close(conn.send)
+	<-done
 
-	_, msg, err := conn.ReadMessage()
-	assert.NoError(t, err, "Should receive broadcast message")
-	assert.JSONEq(t, string(testMessage), string(msg), "Broadcasted message should be received correctly")
-
-	unregisterConnection(mockConn)
+	assert.True(t, fc.pingCaptured, "Expected writePump to send at least one ping")
 }

@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// Allow tests to override the sleep behavior.
+var sleepFunc = time.Sleep
+
+// Allow tests to override the function used to get a MeetState.
+var getMeetStateFunc = getMeetState
+
 // HandleMessages copy clients before iteration
 func HandleMessages() {
 	for {
@@ -43,10 +49,10 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 	broadcast <- msg
 }
 
-// broadcastFinalResults sends the final decisions to all connections in the given meet.
-// It then starts the next attempt timer and clears the results after a set duration
+// broadcastFinalResults sends the final decisions to all connections in the given meet,
+// then starts the next attempt timer, and after a timeout, broadcasts a "clearResults" message.
 func broadcastFinalResults(meetName string) {
-	meetState := getMeetState(meetName)
+	meetState := getMeetStateFunc(meetName) // use the injectable version
 
 	submission := map[string]string{
 		"action":         "displayResults",
@@ -63,18 +69,21 @@ func broadcastFinalResults(meetName string) {
 		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 	broadcast <- resultMsg
 
+	// Start the next attempt timer (this remains as is).
 	StartNextAttemptTimer(meetState)
 
+	// Instead of a direct time.Sleep, we use our injected sleepFunc.
 	go func() {
-		time.Sleep(time.Duration(resultsDisplayDuration) * time.Second)
+		sleepFunc(time.Duration(resultsDisplayDuration) * time.Second)
 		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
+		clearJSON, err := json.Marshal(clearMsg)
 		if err != nil {
 			logger.Error.Printf("Error marshalling clearResults: %v", err)
 			return
 		}
 		broadcast <- clearJSON
 	}()
+	// Clear the JudgeDecisions.
 	meetState.JudgeDecisions = make(map[string]string)
 }
 
@@ -93,16 +102,21 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 	broadcast <- msg
 }
 
-// broadcastAllNextAttemptTimers iterates over active next-attempt timers and broadcasts their timeLeft.
-func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
-	for i, t := range timers {
-		if t.Active {
-			broadcastTimeUpdateWithIndex("updateNextAttemptTime", t.TimeLeft, i+1, meetName)
-		}
-	}
-}
-
 // SendBroadcastMessage is a helper function that sends raw byte data over the broadcast channel.
 func SendBroadcastMessage(data []byte) {
 	broadcast <- data
+}
+
+// broadcastAllNextAttemptTimers iterates over the provided timers and sends each active timer as a JSON message.
+func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
+	for _, timer := range timers {
+		if timer.Active {
+			msg, err := json.Marshal(timer)
+			if err != nil {
+				logger.Error.Printf("Error marshalling timer: %v", err)
+				continue
+			}
+			broadcast <- msg
+		}
+	}
 }

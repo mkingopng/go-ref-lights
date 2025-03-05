@@ -1,5 +1,8 @@
 // file: controllers/page_controller_test.go
 
+//go:build unit
+// +build unit
+
 package controllers
 
 import (
@@ -12,10 +15,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
-// ✅ Test Health Check
+// Test Health Check
 func TestHealth(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.GET("/health", Health)
 
@@ -27,8 +32,9 @@ func TestHealth(t *testing.T) {
 	assert.Equal(t, "OK", w.Body.String())
 }
 
-// ✅ Test Logout
+// Test Logout
 func TestLogout(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.GET("/logout", Logout)
 
@@ -40,8 +46,9 @@ func TestLogout(t *testing.T) {
 	assert.Equal(t, "/login", w.Header().Get("Location"))
 }
 
-// ✅ Test Index Page (No Meet Selected)
+// Test Index Page (No Meet Selected)
 func TestIndex_NoMeetSelected(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.GET("/", Index)
 
@@ -53,8 +60,9 @@ func TestIndex_NoMeetSelected(t *testing.T) {
 	assert.Equal(t, "/meets", w.Header().Get("Location"))
 }
 
-// ✅ Test Claim Position
+// Test Claim Position
 func TestClaimPosition(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.POST("/claim-position", ClaimPosition)
 
@@ -62,29 +70,30 @@ func TestClaimPosition(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/claim-position", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// ✅ Attach session middleware properly
+	// Attach session middleware properly
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = req // ✅ Associate the request with the context
+	c.Request = req // Associate the request with the context
 
-	// ✅ Set session values inside the same request context
+	// Set session values inside the same request context
 	store := cookie.NewStore([]byte("test-secret"))
-	sessions.Sessions("testsession", store)(c) // ✅ Ensure session middleware is applied
+	sessions.Sessions("testsession", store)(c) // Ensure session middleware is applied
 
 	session := sessions.Default(c)
-	session.Set("user", "testuser")     // ✅ Simulate logged-in user
-	session.Set("meetName", "TestMeet") // ✅ Simulate selected meet
+	session.Set("user", "testuser")     // Simulate logged-in user
+	session.Set("meetName", "TestMeet") // Simulate selected meet
 	_ = session.Save()
 
-	// ✅ Perform request using the same context
+	// Perform request using the same context
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
 	assert.Equal(t, "/positions", w.Header().Get("Location"))
 }
 
-// ✅ Test Get QR Code
+// Test Get QR Code
 func TestGetQRCode(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.GET("/qrcode", GetQRCode)
 
@@ -96,8 +105,9 @@ func TestGetQRCode(t *testing.T) {
 	assert.Equal(t, "image/png", w.Header().Get("Content-Type"))
 }
 
-// ✅ Test PerformLogin (No Meet Selected)
+// Test PerformLogin (No Meet Selected)
 func TestPerformLogin_NoMeetSelected(t *testing.T) {
+	websocket.InitTest()
 	router := setupTestRouter()
 	router.GET("/login", PerformLogin)
 

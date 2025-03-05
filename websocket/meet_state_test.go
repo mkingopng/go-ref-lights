@@ -1,4 +1,8 @@
 // websocket/meet_state_test.go
+
+//go:build unit
+// +build unit
+
 package websocket
 
 import (
@@ -10,6 +14,7 @@ import (
 
 // Test `getMeetState` creates a new MeetState when none exists
 func TestGetMeetState_CreatesNewState(t *testing.T) {
+	InitTest()
 	meetName := "TestMeet1"
 
 	// Ensure the state is cleared before test
@@ -29,6 +34,7 @@ func TestGetMeetState_CreatesNewState(t *testing.T) {
 
 // Test `getMeetState` retrieves an existing MeetState without creating a new one
 func TestGetMeetState_RetrievesExistingState(t *testing.T) {
+	InitTest()
 	meetName := "TestMeet2"
 
 	// Ensure the state is cleared before test
@@ -50,6 +56,7 @@ func TestGetMeetState_RetrievesExistingState(t *testing.T) {
 
 // Test `ClearMeetState` removes the MeetState correctly
 func TestClearMeetState_RemovesMeetState(t *testing.T) {
+	InitTest()
 	meetName := "TestMeet3"
 
 	// Ensure the state is cleared before test
@@ -76,6 +83,7 @@ func TestClearMeetState_RemovesMeetState(t *testing.T) {
 
 // Test `getMeetState` is thread-safe under concurrent access
 func TestGetMeetState_ThreadSafety(t *testing.T) {
+	InitTest()
 	meetName := "TestMeet4"
 	ClearMeetState(meetName)
 
@@ -101,6 +109,7 @@ func TestGetMeetState_ThreadSafety(t *testing.T) {
 
 // Test `RefereeSessions` and `JudgeDecisions` behave as expected
 func TestMeetState_RefereeSessionsAndJudgeDecisions(t *testing.T) {
+	InitTest()
 	meetName := "TestMeet5"
 	ClearMeetState(meetName)
 
