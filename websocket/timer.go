@@ -32,6 +32,42 @@ type TimerManager struct {
 	nextAttemptIDCounter int
 }
 
+type realMessenger struct{}
+
+// BroadcastMessage marshals the message and sends it to all connections.
+func (r *realMessenger) BroadcastMessage(meetName string, msg map[string]interface{}) {
+	m, err := json.Marshal(msg)
+	if err != nil {
+		logger.Error.Printf("realMessenger: Error marshalling message: %v", err)
+		return
+	}
+	broadcast <- m
+	logger.Info.Printf("realMessenger: BroadcastMessage sent to meet %s", meetName)
+}
+
+// BroadcastTimeUpdate sends a time update message.
+func (r *realMessenger) BroadcastTimeUpdate(action string, timeLeft int, index int, meetName string) {
+	msg := map[string]interface{}{
+		"action":   action,
+		"index":    index,
+		"timeLeft": timeLeft,
+		"meetName": meetName,
+	}
+	m, err := json.Marshal(msg)
+	if err != nil {
+		logger.Error.Printf("realMessenger: Error marshalling time update: %v", err)
+		return
+	}
+	broadcast <- m
+	logger.Info.Printf("realMessenger: BroadcastTimeUpdate for meet %s: action=%s, timeLeft=%d", meetName, action, timeLeft)
+}
+
+// BroadcastRaw sends a raw JSON message.
+func (r *realMessenger) BroadcastRaw(msg []byte) {
+	broadcast <- msg
+	logger.Info.Printf("realMessenger: BroadcastRaw sent: %s", string(msg))
+}
+
 // interval returns the ticker interval, defaulting to 1 second if not set.
 func (tm *TimerManager) interval() time.Duration {
 	if tm.TickerInterval > 0 {
@@ -220,34 +256,40 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	broadcastToMeet(meetName, out)
 }
 
-// Package-level default dependencies using dummy implementations.
-// fix_me: In production replace these with your actual implementations.
-type dummyStateProvider struct{}
+// ----- REALISTIC STATE PROVIDER IMPLEMENTATION -----
+// CHANGED: Replace the dummy state provider with one that persists MeetState objects.
+type realStateProvider struct {
+	mu    sync.Mutex
+	state map[string]*MeetState
+}
 
-func (d *dummyStateProvider) GetMeetState(meetName string) *MeetState {
-	return &MeetState{
+// GetMeetState returns the persistent MeetState for the given meet name.
+func (r *realStateProvider) GetMeetState(meetName string) *MeetState {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if s, ok := r.state[meetName]; ok {
+		return s
+	}
+	// Create a new MeetState if none exists.
+	s := &MeetState{
 		MeetName:          meetName,
 		JudgeDecisions:    make(map[string]string),
 		NextAttemptTimers: []NextAttemptTimer{},
 	}
+	r.state[meetName] = s
+	return s
 }
 
-type dummyMessenger struct{}
+// ----- END REALISTIC STATE PROVIDER IMPLEMENTATION -----
 
-func (d *dummyMessenger) BroadcastMessage(meetName string, msg map[string]interface{}) {
-	logger.Info.Printf("dummyMessenger: BroadcastMessage to %s: %+v", meetName, msg)
+// Package-level default dependencies.
+// CHANGED: Use the realStateProvider instead of the dummy one.
+var defaultStateProvider StateProvider = &realStateProvider{
+	state: make(map[string]*MeetState),
 }
+var defaultMessenger Messenger = &realMessenger{}
 
-func (d *dummyMessenger) BroadcastTimeUpdate(action string, timeLeft int, index int, meetName string) {
-	logger.Info.Printf("dummyMessenger: BroadcastTimeUpdate for %s: action=%s, timeLeft=%d", meetName, action, timeLeft)
-}
-
-func (d *dummyMessenger) BroadcastRaw(msg []byte) {
-	logger.Info.Printf("dummyMessenger: BroadcastRaw: %s", string(msg))
-}
-
-var defaultStateProvider StateProvider = &dummyStateProvider{}
-var defaultMessenger Messenger = &dummyMessenger{}
+// var defaultMessenger Messenger = &dummyMessenger{}
 var defaultTimerManager *TimerManager
 
 func init() {
