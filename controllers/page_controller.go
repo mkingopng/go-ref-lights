@@ -89,31 +89,6 @@ func ShowPositionsPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "positions.html", data)
 }
 
-// ClaimPosition ✅ FIX for: Unresolved reference 'ClaimPosition'
-//func ClaimPosition(c *gin.Context) {
-//	session := sessions.Default(c)
-//	user := session.Get("user")
-//	meetName, ok := session.Get("meetName").(string)
-//	if user == nil || !ok || meetName == "" {
-//		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /meets")
-//		c.Redirect(http.StatusFound, "/meets")
-//		return
-//	}
-//
-//	position := c.PostForm("position")
-//	userEmail := user.(string)
-//
-//	// Logic to claim position (Update this with real implementation)
-//	logger.Info.Printf("ClaimPosition: User %s claimed position %s for meet %s", userEmail, position, meetName)
-//
-//	session.Set("refPosition", position)
-//	if err := session.Save(); err != nil {
-//		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
-//	}
-//
-//	c.Redirect(http.StatusFound, "/positions")
-//}
-
 // GetQRCode displays a QR code for the application URL
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")

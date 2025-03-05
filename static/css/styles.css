@@ -82,7 +82,6 @@ h2 {
     background-color: #2980b9;
 }
 
-/* Form styles */
 form {
     background-color: #3A5DAB;
     padding: 20px;
@@ -91,6 +90,33 @@ form {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+.vacate-form {
+    background-color: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    display: inline-block !important;
+    text-align: center;
+}
+
+.vacate-form .vacate-button {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: #3A5DAB;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 150px;
+    margin: 5px;
+    line-height: normal;
+}
+
+.vacate-form .vacate-button:hover {
+    background-color: #2980b9;
 }
 
 form div {
