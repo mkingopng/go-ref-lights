@@ -31,9 +31,11 @@ jobs:
       - name: Install CDK and Python dependencies
         run: |
           npm install -g aws-cdk
-          python -m pip install --upgrade pip
-          # If you have a requirements.txt file for your CDK, install it:
-          if [ -f referee_lights_cdk/requirements.txt ]; then pip install -r referee_lights_cdk/requirements.txt; fi
+          curl -sSL https://install.python-poetry.org | python -
+          export PATH="$HOME/.local/bin:$PATH"
+          cd referee_lights_cdk
+          poetry config virtualenvs.create false
+          poetry install
 
       # Install Go dependencies.
       - name: Install Go dependencies
