@@ -72,9 +72,6 @@ go test -v ./...
 - **Vacate Position**: Frees up a referee slot.
 
 ## Future Enhancements
-- Improved CI/CD pipeline.
-- Enhanced UI/UX for better referee experience.
-- Extended analytics and performance tracking.
 - Integration with OpenLifter for automated lift decisions.
 
 ## Contributing
