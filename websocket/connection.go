@@ -244,7 +244,8 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 	}
 }
 
-// processDecision processes a judge decision message
+// processDecision processes a judge decision message.
+// CHANGED: Now also records the decision in the MeetState and checks for completion.
 func processDecision(c *Connection, dm DecisionMessage) {
 	if dm.JudgeID == "" || dm.Decision == "" {
 		logger.Warn.Printf("Incomplete decision message received from %v; ignoring", c.conn.RemoteAddr())
@@ -252,6 +253,20 @@ func processDecision(c *Connection, dm DecisionMessage) {
 	}
 	logger.Info.Printf("Processing decision from %s: %s (meet: %s)", dm.JudgeID, dm.Decision, dm.MeetName)
 
+	// Fetch the current MeetState (this uses the injectable function getMeetStateFunc).
+	meetState := getMeetState(dm.MeetName)
+
+	// Record the judge's decision.
+	meetState.JudgeDecisions[dm.JudgeID] = dm.Decision
+
+	// Check if all three judges have submitted.
+	// (You might adjust the number '3' if your requirement differs.)
+	if len(meetState.JudgeDecisions) >= 3 {
+		// All required decisions are in—broadcast the final results.
+		broadcastFinalResults(dm.MeetName)
+	}
+
+	// Now broadcast that this judge has submitted his/her decision.
 	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": dm.JudgeID,
