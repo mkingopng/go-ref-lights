@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"go-ref-lights/services"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -137,6 +138,7 @@ func SetupRouter(env string) *gin.Engine {
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
 	router.GET("/logout", controllers.Logout)
+	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
 	// Middleware to ensure "meetName" is set.
 	router.Use(func(c *gin.Context) {
