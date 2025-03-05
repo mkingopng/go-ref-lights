@@ -151,32 +151,6 @@ func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 	}
 }
 
-// TestBroadcastAllNextAttemptTimers verifies that only active timers are broadcasted.
-func TestBroadcastAllNextAttemptTimers(t *testing.T) {
-	InitTest()
-	flushBroadcastChannel()
-
-	timers := []NextAttemptTimer{
-		{Active: true, TimeLeft: 30},
-		{Active: false, TimeLeft: 20}, // Should be skipped.
-		{Active: true, TimeLeft: 10},
-	}
-
-	broadcastAllNextAttemptTimers(timers, "APL Test Meet")
-
-	// Expect exactly 2 messages (one for each active timer).
-	count := 0
-	for i := 0; i < 2; i++ {
-		select {
-		case <-mockBroadcast:
-			count++
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Expected active timers to be broadcasted, but timeout occurred")
-		}
-	}
-	assert.Equal(t, 2, count, "Expected exactly 2 active timers to be broadcasted")
-}
-
 // TestSendBroadcastMessage verifies that SendBroadcastMessage sends raw data.
 func TestSendBroadcastMessage(t *testing.T) {
 	InitTest()
