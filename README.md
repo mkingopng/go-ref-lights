@@ -84,5 +84,4 @@ go test -v ./...
 4. Submit a pull request.
 
 ## Contact
-For any issues or inquiries, please contact **michaelkingston@gmail.com**.
-
+For any issues or inquiries, please contact **michael.kenneth.kingston@gmail.com**.
