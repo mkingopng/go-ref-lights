@@ -114,14 +114,13 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetName)
 }
 
-// ADD: We define UnsetPosition as part of our service interface.
+// We define UnsetPosition as part of our service interface.
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
 	occ, exists := occupancyMap[meetName]
 	if !exists {
-		// no occupancy record for that meet
 		logger.Warn.Printf("UnsetPosition: no occupancy record for meet %s", meetName)
 		return errors.New("no occupancy found for that meet")
 	}
@@ -131,16 +130,22 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 		if occ.LeftUser == userEmail {
 			logger.Info.Printf("Unsetting left position for user '%s' in meet %s", userEmail, meetName)
 			occ.LeftUser = ""
+		} else {
+			return errors.New("user does not hold this position")
 		}
 	case "center":
 		if occ.CenterUser == userEmail {
 			logger.Info.Printf("Unsetting center position for user '%s' in meet %s", userEmail, meetName)
 			occ.CenterUser = ""
+		} else {
+			return errors.New("user does not hold this position")
 		}
 	case "right":
 		if occ.RightUser == userEmail {
 			logger.Info.Printf("Unsetting right position for user '%s' in meet %s", userEmail, meetName)
 			occ.RightUser = ""
+		} else {
+			return errors.New("user does not hold this position")
 		}
 	default:
 		err := errors.New("invalid position")

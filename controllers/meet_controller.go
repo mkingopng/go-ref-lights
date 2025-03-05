@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+var loadMeetsFunc = LoadMeets // ✅ Use a variable for easy mocking
+
 // LoadMeets loads the meet configuration from ./config/meets.json.
 func LoadMeets() (*models.MeetCreds, error) {
 	data, err := os.ReadFile("./config/meets.json")
@@ -25,7 +27,7 @@ func LoadMeets() (*models.MeetCreds, error) {
 
 // ShowMeets renders the meeting selection page.
 func ShowMeets(c *gin.Context) {
-	meetsData, err := LoadMeets()
+	meetsData, err := loadMeetsFunc() // ✅ Use mockable function
 	if err != nil {
 		logger.Error.Printf("ShowMeets: failed to load meets: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meets")

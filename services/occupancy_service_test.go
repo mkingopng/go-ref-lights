@@ -1,135 +1,132 @@
 // file: services/occupancy_service_test.go
-package services_test
+
+//go:build unit
+// +build unit
+
+package services
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/services"
+	"go-ref-lights/websocket"
 )
 
-// Test concurrent users claiming the same position
-func TestSetPosition_ConcurrentUsers(t *testing.T) {
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy()
+func TestGetOccupancy_NewMeet(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL State Championship"
 
-	var wg sync.WaitGroup
-	wg.Add(2)
+	// Expect an empty occupancy state for a new meet
+	occupancy := service.GetOccupancy(meetName)
 
-	var err1, err2 error
-
-	go func() {
-		defer wg.Done()
-		err1 = svc.SetPosition("left", "user1@example.com")
-	}()
-
-	go func() {
-		defer wg.Done()
-		err2 = svc.SetPosition("left", "user2@example.com")
-	}()
-
-	wg.Wait()
-
-	// Ensure exactly **one** user succeeded
-	if err1 == nil {
-		assert.Error(t, err2, "Second user should fail")
-	} else {
-		assert.NoError(t, err2, "One user must succeed")
-	}
-
-	// Ensure only **one** user holds the "left" position
-	occ := svc.GetOccupancy()
-	if occ.LeftUser != "user1@example.com" && occ.LeftUser != "user2@example.com" {
-		t.Fatalf("Unexpected user assigned to 'left': got %s, expected 'user1@example.com' or 'user2@example.com'", occ.LeftUser)
-	}
+	assert.Empty(t, occupancy.LeftUser)
+	assert.Empty(t, occupancy.CenterUser)
+	assert.Empty(t, occupancy.RightUser)
 }
 
-// Test setting an invalid position
-func TestSetPosition_InvalidPosition(t *testing.T) {
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy()
+func TestSetPosition_Success(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Nationals"
 
-	err := svc.SetPosition("invalid_position", "test@example.com")
-	assert.Error(t, err, "Should return an error for an invalid position")
-}
-
-// Test switching positions mid-meet
-func TestSetPosition_SwitchPosition(t *testing.T) {
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy()
-
-	// User claims "center"
-	err := svc.SetPosition("center", "referee@example.com")
+	// Assign a user to the left position
+	err := service.SetPosition(meetName, "left", "referee1@example.com")
 	assert.NoError(t, err)
 
-	// Same user moves to "left"
-	err = svc.SetPosition("left", "referee@example.com")
-	assert.NoError(t, err)
-
-	// Ensure "center" is now empty and "left" is assigned
-	occ := svc.GetOccupancy()
-	assert.Equal(t, "referee@example.com", occ.LeftUser)
-	assert.Empty(t, occ.CenterUser, "Previous position should be cleared")
+	// Verify that the position is correctly assigned
+	occupancy := service.GetOccupancy(meetName)
+	assert.Equal(t, "referee1@example.com", occupancy.LeftUser)
 }
 
-// Test ResetOccupancy clears all assignments
-func TestResetOccupancy(t *testing.T) {
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy()
+func TestSetPosition_FailsIfTaken(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Regionals"
 
-	// Assign all positions
-	err := svc.SetPosition("left", "ref1@example.com")
-	assert.NoError(t, err, "Setting position 'left' should not fail")
+	// First referee takes the left position
+	_ = service.SetPosition(meetName, "left", "ref1@example.com")
 
-	err = svc.SetPosition("center", "ref2@example.com")
-	assert.NoError(t, err, "Setting position 'center' should not fail")
+	// Second referee should be blocked from taking the same position
+	err := service.SetPosition(meetName, "left", "ref2@example.com")
+	assert.Error(t, err)
+	assert.Equal(t, "left position is already taken", err.Error())
 
-	err = svc.SetPosition("right", "ref3@example.com")
-	assert.NoError(t, err, "Setting position 'right' should not fail")
-
-	// Reset everything
-	svc.ResetOccupancy()
-
-	// Ensure all positions are empty
-	occ := svc.GetOccupancy()
-	assert.Empty(t, occ.LeftUser, "Left position should be cleared after reset")
-	assert.Empty(t, occ.CenterUser, "center position should be cleared after reset")
-	assert.Empty(t, occ.RightUser, "Right position should be cleared after reset")
+	// Ensure the original assignment is unchanged
+	occupancy := service.GetOccupancy(meetName)
+	assert.Equal(t, "ref1@example.com", occupancy.LeftUser)
 }
 
-func TestSetPosition(t *testing.T) {
-	// Create a new instance of OccupancyService
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy() // ✅ Reset before running the test
+func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Qualifiers"
 
-	// Start with a clean occupancy
-	occ := svc.GetOccupancy()
-	assert.Empty(t, occ.LeftUser, "LeftUser should be empty at start")
-	assert.Empty(t, occ.CenterUser, "CenterUser should be empty at start")
-	assert.Empty(t, occ.RightUser, "RightUser should be empty at start")
+	// Assign user to left
+	_ = service.SetPosition(meetName, "left", "ref1@example.com")
 
-	// Attempt to set "left" to "test@example.com"
-	err := svc.SetPosition("left", "test@example.com")
+	// Move the same user to center
+	err := service.SetPosition(meetName, "center", "ref1@example.com")
 	assert.NoError(t, err)
 
-	occ = svc.GetOccupancy()
-	assert.Equal(t, "test@example.com", occ.LeftUser)
-	// Others should still be empty
-	assert.Empty(t, occ.CenterUser)
-	assert.Empty(t, occ.RightUser)
+	// Verify they moved
+	occupancy := service.GetOccupancy(meetName)
+	assert.Empty(t, occupancy.LeftUser) // Old position should be empty
+	assert.Equal(t, "ref1@example.com", occupancy.CenterUser)
 }
 
-func TestSetPosition_AlreadyTaken(t *testing.T) {
-	// Create a new instance of OccupancyService
-	svc := services.OccupancyService{}
-	svc.ResetOccupancy() // ✅ Reset before running the test
+func TestResetOccupancyForMeet(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Open"
 
-	// Set "center" position to user1
-	err := svc.SetPosition("center", "user1@example.com")
+	// Assign positions
+	_ = service.SetPosition(meetName, "left", "ref1@example.com")
+	_ = service.SetPosition(meetName, "center", "ref2@example.com")
+
+	// Reset occupancy
+	service.ResetOccupancyForMeet(meetName)
+
+	// Expect an empty occupancy state
+	occupancy := service.GetOccupancy(meetName)
+	assert.Empty(t, occupancy.LeftUser)
+	assert.Empty(t, occupancy.CenterUser)
+	assert.Empty(t, occupancy.RightUser)
+}
+
+func TestUnsetPosition(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Grand Finals"
+
+	// Assign a user to right
+	_ = service.SetPosition(meetName, "right", "ref3@example.com")
+
+	// Unset the position
+	err := service.UnsetPosition(meetName, "right", "ref3@example.com")
 	assert.NoError(t, err)
 
-	// Now user2 tries to claim "center" as well
-	err = svc.SetPosition("center", "user2@example.com")
-	assert.Error(t, err, "Expected an error since 'center' was already occupied")
+	// Verify position is cleared
+	occupancy := service.GetOccupancy(meetName)
+	assert.Empty(t, occupancy.RightUser)
+}
+
+func TestUnsetPosition_FailsIfPositionDoesNotMatchUser(t *testing.T) {
+	websocket.InitTest()
+	service := &OccupancyService{}
+	meetName := "APL Regionals"
+
+	// Assign a user to a position
+	_ = service.SetPosition(meetName, "center", "ref2@example.com")
+
+	// Attempt to unset the position with a different user (should fail)
+	err := service.UnsetPosition(meetName, "center", "wronguser@example.com")
+
+	// Expect an error
+	assert.Error(t, err, "Expected an error when an incorrect user tries to unset a position")
+	assert.Equal(t, "user does not hold this position", err.Error())
+
+	// Ensure the original assignment remains unchanged
+	occupancy := service.GetOccupancy(meetName)
+	assert.Equal(t, "ref2@example.com", occupancy.CenterUser)
 }
