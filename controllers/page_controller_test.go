@@ -37,17 +37,9 @@ func (m *MockOccupancyService) ResetOccupancyForMeet(meetName string) {
 	m.Called(meetName)
 }
 
-func setupTestRouter() *gin.Engine {
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	store := sessions.NewCookieStore([]byte("test-secret"))
-	router.Use(sessions.Sessions("testsession", store))
-	return router
-}
-
 func TestHealth(t *testing.T) {
 	websocket.InitTest()
-	router := setupTestRouter()
+	router := setupTestRouter(t)
 	router.GET("/health", Health)
 
 	req, _ := http.NewRequest("GET", "/health", nil)
@@ -60,7 +52,7 @@ func TestHealth(t *testing.T) {
 
 func TestLogout(t *testing.T) {
 	websocket.InitTest()
-	router := setupTestRouter()
+	router := setupTestRouter(t)
 
 	mockService := new(MockOccupancyService)
 	mockService.On("UnsetPosition", "Test Meet", "center", "user@example.com").Return(nil)

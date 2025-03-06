@@ -5,19 +5,17 @@
 package controllers
 
 import (
-	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/models"
-	"go-ref-lights/websocket"
 	"golang.org/x/crypto/bcrypt"
+
+	"go-ref-lights/models"
 )
 
 // Mock data
@@ -38,18 +36,6 @@ func hashPassword(password string) string {
 	return string(hashed)
 }
 
-// Shared router setup
-func setupTestRouter() *gin.Engine {
-	websocket.InitTest()
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	store := cookie.NewStore([]byte("test-secret"))
-	router.Use(sessions.Sessions("testsession", store))
-	tmpl := template.Must(template.New("choose_meet.html").Parse(`Choose Meet`))
-	router.SetHTMLTemplate(tmpl)
-	return router
-}
-
 func TestComparePasswords(t *testing.T) {
 	hashed := hashPassword("securepassword")
 	assert.True(t, ComparePasswords(hashed, "securepassword"))
@@ -57,7 +43,7 @@ func TestComparePasswords(t *testing.T) {
 }
 
 func TestSetMeetHandler(t *testing.T) {
-	router := setupTestRouter()
+	router := setupTestRouter(t)
 	router.POST("/set-meet", SetMeetHandler)
 
 	reqBody := "meetName=TestMeet"
@@ -84,19 +70,23 @@ func TestLoadMeetCreds(t *testing.T) {
 }
 
 func TestLoginHandler_Success(t *testing.T) {
-	router := setupTestRouter()
+	router := setupTestRouter(t)
+
+	router.Use(func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set("meetName", "TestMeet")
+		if err := session.Save(); err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		c.Next()
+	})
+
 	router.POST("/login", LoginHandler)
 
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &testMeetCreds, nil
 	}
-
-	router.Use(func(c *gin.Context) {
-		session := sessions.Default(c)
-		session.Set("meetName", "TestMeet")
-		session.Save()
-		c.Next()
-	})
 
 	reqBody := "username=testuser&password=testpass"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))

@@ -55,7 +55,7 @@ func TestLoadMeets_FileNotFound(t *testing.T) {
 func TestShowMeets(t *testing.T) {
 	websocket.InitTest()
 	gin.SetMode(gin.TestMode)
-	router := setupTestRouter() // Now includes templates
+	router := setupTestRouter(t) // Now includes templates
 
 	// Attach ShowMeets route
 	router.GET("/meets", ShowMeets)
