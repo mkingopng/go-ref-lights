@@ -84,7 +84,6 @@ func LoginHandler(c *gin.Context) {
 	if username == "" || password == "" {
 		logger.Warn.Println("LoginHandler: Missing username or password")
 
-		// If in test mode, return JSON instead of HTML
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Please fill in all fields."})
 			return
@@ -97,32 +96,44 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Load credentials
-	creds, err := loadMeetCredsFunc()
-	if err != nil {
-		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
+	// First, check if the user is the designated admin.
+	adminUser := os.Getenv("ADMIN_USERNAME")
+	adminPassword := os.Getenv("ADMIN_PASSWORD") // set this in your .env
+	var valid bool
+	if username == adminUser {
+		// Compare admin password (for simplicity, using plain-text comparison here).
+		// In production, consider storing a hashed password.
+		if password == adminPassword {
+			valid = true
+		} else {
+			valid = false
+		}
+	} else {
+		// Load credentials for regular users.
+		creds, err := loadMeetCredsFunc()
+		if err != nil {
+			logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
 
-		// Return JSON in test mode
-		if gin.Mode() == gin.TestMode {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+			if gin.Mode() == gin.TestMode {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
+				return
+			}
+
+			c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+				"MeetName": meetName,
+				"Error":    "Internal error, please try again later.",
+			})
 			return
 		}
 
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Internal error, please try again later.",
-		})
-		return
-	}
-
-	// Validate credentials
-	var valid bool
-	for _, m := range creds.Meets {
-		if m.Name == meetName {
-			for _, user := range m.Users {
-				if user.Username == username && ComparePasswords(user.Password, password) {
-					valid = true
-					break
+		// Validate credentials against the meet's user list.
+		for _, m := range creds.Meets {
+			if m.Name == meetName {
+				for _, user := range m.Users {
+					if user.Username == username && ComparePasswords(user.Password, password) {
+						valid = true
+						break
+					}
 				}
 			}
 		}
@@ -131,7 +142,6 @@ func LoginHandler(c *gin.Context) {
 	if !valid {
 		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
 
-		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 			return
@@ -148,7 +158,6 @@ func LoginHandler(c *gin.Context) {
 	if activeUsers[username] {
 		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
 
-		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "This username is already logged in on another device."})
 			return
@@ -161,13 +170,19 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Mark user as logged in
+	// Mark user as logged in and set session user
 	activeUsers[username] = true
 	session.Set("user", username)
+
+	// If the user is the admin (either from env or designated in JSON), set the admin flag.
+	adminUser = os.Getenv("ADMIN_USERNAME")
+	if username == adminUser {
+		session.Set("isAdmin", true)
+	}
+
 	if err := session.Save(); err != nil {
 		logger.Error.Println("LoginHandler: Failed to save session:", err)
 
-		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return

@@ -85,10 +85,14 @@ func Index(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
+	// Check if the session has the admin flag.
+	isAdmin, _ := session.Get("isAdmin").(bool)
+
 	logger.Info.Printf("Rendering index page for meet %s", meetName)
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
+		"isAdmin":      isAdmin,
 	}
 	c.HTML(http.StatusOK, "index.html", data)
 }

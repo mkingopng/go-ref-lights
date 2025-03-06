@@ -132,13 +132,14 @@ func SetupRouter(env string) *gin.Engine {
 	occupancyService := &services.OccupancyService{}
 	pc := controllers.NewPositionController(occupancyService)
 
+	// instantiate admin controller
+	adminController := controllers.NewAdminController(occupancyService)
+
 	// Public routes.
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-
-	// No logout here! 🚨 Removed router.GET("/logout") from public routes
 
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
@@ -184,6 +185,14 @@ func SetupRouter(env string) *gin.Engine {
 		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
 		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
 		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+	}
+
+	adminRoutes := router.Group("/admin")
+	adminRoutes.Use(middleware.AdminRequired())
+	{
+		adminRoutes.GET("", adminController.AdminPanel)
+		adminRoutes.POST("/force-vacate", adminController.ForceVacate)
+		adminRoutes.POST("/reset-instance", adminController.ResetInstance)
 	}
 
 	// WebSocket route

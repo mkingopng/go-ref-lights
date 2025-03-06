@@ -28,6 +28,12 @@
   <a href="/positions" class="button-link">Select Referee Position</a>
 </div>
 
+  {{ if .isAdmin }}
+  <a href="/admin?meet={{ .meetName }}" class="btn btn-primary">
+    Admin Panel
+  </a>
+  {{ end }}
+
 <!--APL logo container-->
 <div class="logo-container">
   <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
