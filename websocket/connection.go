@@ -12,9 +12,6 @@ import (
 	"net"
 )
 
-// -----------------------------------------------------------------------------
-// Define an interface for the minimal WebSocket connection functionality.
-// This allows dependency injection for tests.
 type WSConn interface {
 	WriteMessage(messageType int, data []byte) error
 	SetWriteDeadline(t time.Time) error
@@ -28,14 +25,10 @@ type WSConn interface {
 
 // Connection represents a single WebSocket connection for one client.
 type Connection struct {
-	// Now using WSConn instead of a concrete *websocket.Conn.
-	conn WSConn
-	// Outbound messages are queued in this channel.
-	send chan []byte
-	// Each connection belongs to a specific meet.
+	conn     WSConn
+	send     chan []byte
 	meetName string
-	// The judge ID for this connection (set via a "registerRef" message).
-	judgeID string
+	judgeID  string
 }
 
 // Global map for active connections (replaces your old 'clients' and 'connectionMapping').
@@ -43,10 +36,10 @@ var connections = make(map[*Connection]bool)
 
 // Configuration constants.
 const (
-	writeWait      = 10 * time.Second    // Time allowed to write a message.
-	pongWait       = 60 * time.Second    // Time allowed to read the next pong.
-	pingPeriod     = (pongWait * 9) / 10 // Send pings at this period.
-	maxMessageSize = 2048                // Maximum message size from peer.
+	writeWait      = 10 * time.Second
+	pongWait       = 60 * time.Second
+	pingPeriod     = (pongWait * 9) / 10
+	maxMessageSize = 2048
 )
 
 // Upgrader upgrades HTTP requests to WebSocket connections.
@@ -200,38 +193,89 @@ type DecisionMessage struct {
 }
 
 // handleIncoming processes an inbound JSON message.
+// handleIncoming processes inbound messages.
 func handleIncoming(c *Connection, dm DecisionMessage) {
 	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s", dm.Action, dm.JudgeID, dm.MeetName)
 	switch dm.Action {
 	case "registerRef":
-		// Set the judgeID for this connection.
 		c.judgeID = dm.JudgeID
 		logger.Info.Printf("Referee %s registered on meet %s (conn=%v)", dm.JudgeID, dm.MeetName, c.conn.RemoteAddr())
-		// Optionally, broadcast updated referee health.
 		broadcastRefereeHealth(dm.MeetName)
-	default:
-		// Pass the message to processDecision for further handling.
+	case "startTimer":
+		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
+		msg := map[string]string{
+			"action":   "startTimer",
+			"meetName": dm.MeetName,
+		}
+		out, err := json.Marshal(msg)
+		if err != nil {
+			logger.Error.Printf("Error marshaling startTimer message: %v", err)
+		} else {
+			broadcastToMeet(dm.MeetName, out)
+		}
+	case "resetLights":
+		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
+		msg := map[string]string{
+			"action":   "resetLights",
+			"meetName": dm.MeetName,
+		}
+		out, err := json.Marshal(msg)
+		if err != nil {
+			logger.Error.Printf("Error marshaling resetLights message: %v", err)
+		} else {
+			broadcastToMeet(dm.MeetName, out)
+		}
+	case "resetTimer":
+		logger.Info.Printf("Received resetTimer from %v", c.conn.RemoteAddr())
+		msg := map[string]string{
+			"action":   "resetTimer",
+			"meetName": dm.MeetName,
+		}
+		out, err := json.Marshal(msg)
+		if err != nil {
+			logger.Error.Printf("Error marshaling resetTimer message: %v", err)
+		} else {
+			broadcastToMeet(dm.MeetName, out)
+		}
+	case "submitDecision":
 		processDecision(c, dm)
+	default:
+		logger.Debug.Printf("Unhandled action: %s", dm.Action)
 	}
 }
 
 // processDecision processes a judge decision message.
-// This function is kept for your business logic; update it as needed.
-// It now accepts a *Connection instead of a raw *websocket.Conn.
+// CHANGED: Now also records the decision in the MeetState and checks for completion.
 func processDecision(c *Connection, dm DecisionMessage) {
 	if dm.JudgeID == "" || dm.Decision == "" {
 		logger.Warn.Printf("Incomplete decision message received from %v; ignoring", c.conn.RemoteAddr())
 		return
 	}
-	// Insert your decision-processing logic here.
 	logger.Info.Printf("Processing decision from %s: %s (meet: %s)", dm.JudgeID, dm.Decision, dm.MeetName)
 
-	// Example: Broadcast a "judgeSubmitted" message to all connections for this meet.
+	// Fetch the current MeetState (this uses the injectable function getMeetStateFunc).
+	meetState := getMeetState(dm.MeetName)
+
+	// Record the judge's decision.
+	meetState.JudgeDecisions[dm.JudgeID] = dm.Decision
+
+	// Check if all three judges have submitted.
+	// (You might adjust the number '3' if your requirement differs.)
+	if len(meetState.JudgeDecisions) >= 3 {
+		// All required decisions are in—broadcast the final results.
+		broadcastFinalResults(dm.MeetName)
+	}
+
+	// Now broadcast that this judge has submitted his/her decision.
 	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": dm.JudgeID,
 	}
-	out, _ := json.Marshal(submission)
+	out, err := json.Marshal(submission)
+	if err != nil {
+		logger.Error.Printf("Error marshaling judgeSubmitted message: %v", err)
+		return
+	}
 	broadcastToMeet(dm.MeetName, out)
 }
 
@@ -242,7 +286,6 @@ func broadcastToMeet(meetName string, message []byte) {
 			select {
 			case c.send <- message:
 			default:
-				// If the send channel is full, drop the message or handle the overflow.
 				logger.Warn.Printf("Dropping message for connection %v", c.conn.RemoteAddr())
 			}
 		}
@@ -250,7 +293,6 @@ func broadcastToMeet(meetName string, message []byte) {
 }
 
 // broadcastRefereeHealth broadcasts the health for a given meet.
-// Declare it as a variable so it can be overridden in tests.
 var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
 	for c := range connections {

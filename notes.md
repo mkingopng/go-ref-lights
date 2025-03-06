@@ -13,14 +13,14 @@ run all tests
 go test -v ./...
 ```
 
-run unit tests in a specific directory
-```bash
-go test -v -tags=unit ./websocket
-```
-
 run unit tests
 ```bash
 go test -v -tags=unit ./...
+```
+
+run unit tests in a specific directory
+```bash
+go test -v -tags=unit ./websocket
 ```
 
 run integration tests

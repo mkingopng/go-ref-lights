@@ -1,7 +1,7 @@
-// static/js/lights.js
 "use strict";
 
 let socket;
+let resultsDisplayed = false; // Flag to indicate that displayResults has been processed
 
 // utility function for logging
 function log(message, level = 'debug') {
@@ -36,7 +36,14 @@ const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers")
 
 window.addEventListener("DOMContentLoaded", function () {
 
-    // 2) We still check meetName below, but we define judgeId ourselves
+    const leftCircle = document.getElementById("leftCircle");
+    const centerCircle = document.getElementById("centerCircle");
+    const rightCircle = document.getElementById("rightCircle");
+
+    const leftIndicator = document.getElementById("leftIndicator");
+    const centerIndicator = document.getElementById("centerIndicator");
+    const rightIndicator = document.getElementById("rightIndicator");
+
     // helper function to get a consistent meet name from the DOM/URL/sessionStorage
     function getMeetName() {
         let elem = document.getElementById("meetName");
@@ -55,12 +62,12 @@ window.addEventListener("DOMContentLoaded", function () {
         return meetName;
     }
 
-    //constants
+    // constants
     const meetName = getMeetName();  // use the verified meet name for later actions
     if (!meetName) return;
     const judgeId = "lights";
 
-    // initialise the global WebSocket object (do not shadow the global 'socket')
+    // initialise the global WebSocket object
     const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
     const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
     socket = new WebSocket(wsUrl);
@@ -69,7 +76,6 @@ window.addEventListener("DOMContentLoaded", function () {
     const timerDisplay = document.getElementById('timer');
     const healthEl = document.getElementById("healthStatus");
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
-    const multiNextAttemptTimers = document.getElementById('multiNextAttemptTimers');
 
     // set up WebSocket event handlers
     socket.onopen = function () {
@@ -79,7 +85,6 @@ window.addEventListener("DOMContentLoaded", function () {
             statusEl.innerText = "Connected";
             statusEl.style.color = "green";
         }
-        // for sending registerRef, so the server knows we are "lights"
         const registerMsg = {
             action: "registerRef",
             judgeId: judgeId,  // "lights"
@@ -104,7 +109,6 @@ window.addEventListener("DOMContentLoaded", function () {
 
     log("DOM fully loaded and parsed");
 
-    // define a single onmessage handler for the WebSocket
     socket.onmessage = function (event) {
         let data;
         try {
@@ -115,7 +119,6 @@ window.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // process messages based on their action
         switch (data.action) {
             case "refereeHealth":
                 const isConnected = data.connectedRefIDs.includes(judgeId);
@@ -130,15 +133,84 @@ window.addEventListener("DOMContentLoaded", function () {
                 break;
 
             case "startTimer":
-                log("🔵 Received startTimer from server, showing Platform Ready Timer");
+                log("🔵 Received startTimer from server, starting Platform Ready Timer countdown");
                 if (platformReadyTimerContainer) {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
+                // Start a local countdown from 60 seconds
+                let timeLeft = 60;
+                if (timerDisplay) {
+                    timerDisplay.innerText = `${timeLeft}s`;
+                }
+                const countdownInterval = setInterval(() => {
+                    timeLeft--;
+                    if (timerDisplay) {
+                        timerDisplay.innerText = `${timeLeft}s`;
+                    }
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        if (platformReadyTimerContainer) {
+                            platformReadyTimerContainer.classList.add("hidden");
+                        }
+                    }
+                }, 1000);
                 break;
 
-            case "updatePlatformReadyTime":
-                log(`Updating platform ready timer: ${data.timeLeft}s`);
-                if (timerDisplay) {timerDisplay.innerText = `${data.timeLeft}s`;
+            case "updateNextAttemptTime":
+                // Loop through all timer objects received
+                if (data.timers && Array.isArray(data.timers)) {
+                    data.timers.forEach(timer => {
+                        if (timer.ID === 1) {
+                            // If results have been displayed, treat timer ID 1 as the next attempt timer
+                            if (resultsDisplayed) {
+                                if (timer.TimeLeft <= 0) {
+                                    if (nextAttemptTimers[timer.ID]) {
+                                        multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
+                                        delete nextAttemptTimers[timer.ID];
+                                    }
+                                } else {
+                                    if (!nextAttemptTimers[timer.ID]) {
+                                        let newRow = document.createElement("div");
+                                        newRow.classList.add("timer");
+                                        multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
+                                        nextAttemptTimers[timer.ID] = newRow;
+                                    }
+                                    // Removed index number from the text content here
+                                    nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+                                    multiNextAttemptTimers.classList.remove("hidden");
+                                }
+                            } else {
+                                // Otherwise, update the platform ready timer as before
+                                log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
+                                if (timerDisplay) {
+                                    timerDisplay.innerText = `${timer.TimeLeft}s`;
+                                }
+                                if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
+                                    platformReadyTimerContainer.classList.add("hidden");
+                                } else if (platformReadyTimerContainer) {
+                                    platformReadyTimerContainer.classList.remove("hidden");
+                                }
+                            }
+                        } else {
+                            // For timer IDs other than 1, update the next attempt timer without an index
+                            if (timer.TimeLeft <= 0) {
+                                if (nextAttemptTimers[timer.ID]) {
+                                    multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
+                                    delete nextAttemptTimers[timer.ID];
+                                }
+                            } else {
+                                if (!nextAttemptTimers[timer.ID]) {
+                                    let newRow = document.createElement("div");
+                                    newRow.classList.add("timer");
+                                    multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
+                                    nextAttemptTimers[timer.ID] = newRow;
+                                }
+                                // Remove the index number from the text
+                                nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+                                multiNextAttemptTimers.classList.remove("hidden");
+                            }
+                        }
+                    });
                 }
                 break;
 
@@ -159,6 +231,8 @@ window.addEventListener("DOMContentLoaded", function () {
                 leftCircle.style.backgroundColor   = (data.leftDecision   === "white") ? "white" : "red";
                 centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
                 rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
+                // Mark that the results have been displayed so that next attempt timers are handled separately
+                resultsDisplayed = true;
                 break;
 
             case "platformReadyExpired":
@@ -183,33 +257,6 @@ window.addEventListener("DOMContentLoaded", function () {
                 leftCircle.style.backgroundColor   = "black";
                 centerCircle.style.backgroundColor = "black";
                 rightCircle.style.backgroundColor  = "black";
-                break;
-
-            case "updateNextAttemptTime":
-                if (!data.index) break; // guard
-                if (data.timeLeft <= 0) {
-                    let row = nextAttemptTimers[data.index];
-                    if (row) {
-                        multiNextAttemptTimers.removeChild(row);
-                        delete nextAttemptTimers[data.index];
-                    }
-                } else {
-                    if (!nextAttemptTimers[data.index]) {
-                        let newRow = document.createElement("div");
-                        newRow.classList.add("timer");
-                        multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
-                        nextAttemptTimers[data.index] = newRow;
-                    }
-                    nextAttemptTimers[data.index].textContent = `Next Attempt #${data.index}: ${data.timeLeft}s`;
-                    multiNextAttemptTimers.classList.remove("hidden");
-                }
-                break;
-
-            case "nextAttemptExpired":
-                if (data.index && nextAttemptTimers[data.index]) {
-                    multiNextAttemptTimers.removeChild(nextAttemptTimers[data.index]);
-                    delete nextAttemptTimers[data.index];
-                }
                 break;
 
             default:

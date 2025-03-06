@@ -9,7 +9,6 @@ import (
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
-	"log"
 	"net/http"
 )
 
@@ -113,7 +112,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		logger.Warn.Printf("ClaimPosition: Unknown position %s; redirecting to /positions", position)
 		c.Redirect(http.StatusFound, "/positions")
 	}
-	go pc.broadcastOccupancy(meetName)
+	go pc.BroadcastOccupancy(meetName)
 }
 
 // VacatePosition function
@@ -152,16 +151,16 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 	}
 
 	logger.Info.Printf("VacatePosition: user %s vacated seat %s for meet %s", userEmail, position, meetName)
-	go pc.broadcastOccupancy(meetName)
+	go pc.BroadcastOccupancy(meetName)
 	c.Redirect(http.StatusFound, "/positions")
 }
 
-// broadcastOccupancy sends a JSON payload indicating which seats are occupied.
+// BroadcastOccupancy sends a JSON payload indicating which seats are occupied.
 // Any clients listening for "occupancyChanged" can update their UI accordingly.
-func (pc *PositionController) broadcastOccupancy(meetName string) {
-	log.Printf("DEBUG: Entering broadcastOccupancy for meet: %s", meetName)
+func (pc *PositionController) BroadcastOccupancy(meetName string) {
+	logger.Debug.Printf("DEBUG: Entering broadcastOccupancy for meet: %s", meetName)
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	log.Printf("DEBUG: broadcastOccupancy fetched occupancy: %+v", occ)
+	logger.Debug.Printf("DEBUG: broadcastOccupancy fetched occupancy: %+v", occ)
 
 	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
@@ -171,10 +170,13 @@ func (pc *PositionController) broadcastOccupancy(meetName string) {
 		"meetName":   meetName,
 	}
 	jsonBytes, _ := json.Marshal(msg)
-	log.Printf("DEBUG: broadcastOccupancy sending message: %s", string(jsonBytes))
-	websocket.SendBroadcastMessage(jsonBytes)
+	logger.Debug.Printf("DEBUG: broadcastOccupancy sending message: %s", string(jsonBytes))
 
-	log.Printf("DEBUG: Finished broadcastOccupancy for meet: %s", meetName)
+	go func() {
+		websocket.SendBroadcastMessage(jsonBytes)
+	}()
+
+	logger.Debug.Printf("DEBUG: Finished broadcastOccupancy for meet: %s", meetName)
 }
 
 // GetOccupancyAPI provides a JSON endpoint to retrieve the current occupancy.

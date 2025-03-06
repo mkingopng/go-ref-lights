@@ -10,6 +10,9 @@
 </head>
 
 <body>
+
+  {{template "header.html" .}}
+
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
 
 <p id="visibleMeetName">{{ .meetName }}</p>
@@ -28,13 +31,9 @@
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
-  <button id="startTimerButton" class="action-button">Platform Ready</button>
-</div>
-
-<!--vacate button form -->
-<div class="button-container">
-  <form action="/position/vacate" method="POST">
-    <button type="submit" class="action-button">Vacate Position</button>
+  <button id="platformReadyButton" class="action-button">Platform Ready</button>
+  <form action="/position/vacate" method="POST" class="action-button">
+    <button type="submit" class="action-button vacate-button">Vacate Position</button>
   </form>
 </div>
 

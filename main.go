@@ -3,6 +3,8 @@ package main
 
 import (
 	"fmt"
+	"go-ref-lights/services"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -127,12 +129,23 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
+	occupancyService := services.NewOccupancyService() // Ensure function exists
+	positionController := controllers.NewPositionController(occupancyService)
+	adminController := controllers.NewAdminController(occupancyService, positionController)
+
+	occupancyService = &services.OccupancyService{}
+	pc := controllers.NewPositionController(occupancyService)
+
+	// instantiate admin controller
+	adminController = controllers.NewAdminController(occupancyService, positionController)
+
 	// Public routes.
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/logout", controllers.Logout)
+
+	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
 	// Middleware to ensure "meetName" is set.
 	router.Use(func(c *gin.Context) {
@@ -162,13 +175,32 @@ func SetupRouter(env string) *gin.Engine {
 	protected.Use(middleware.PositionRequired())
 	{
 		protected.GET("/dashboard", controllers.Index)
-		// ... additional protected routes can be added here.
+		protected.GET("/qrcode", controllers.GetQRCode)
+		protected.GET("/lights", controllers.Lights)
+		protected.GET("/positions", controllers.ShowPositionsPage)
+		protected.POST("/position/claim", pc.ClaimPosition)
+		protected.GET("/left", controllers.Left)
+		protected.GET("/center", controllers.Center)
+		protected.GET("/right", controllers.Right)
+		protected.GET("/occupancy", pc.GetOccupancyAPI)
+		protected.POST("/position/vacate", pc.VacatePosition)
+
+		protected.GET("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
+		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
+		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
 	}
 
-	// WebSocket route.
-	router.GET("/referee-updates", func(c *gin.Context) {
-		websocket.ServeWs(c.Writer, c.Request)
-	})
+	adminRoutes := router.Group("/admin")
+	adminRoutes.Use(middleware.AdminRequired())
+	{
+		adminRoutes.GET("", adminController.AdminPanel)
+		adminRoutes.POST("/force-vacate", adminController.ForceVacate)
+		adminRoutes.POST("/reset-instance", adminController.ResetInstance)
+	}
+
+	// WebSocket route
+	router.GET("/referee-updates", func(c *gin.Context) { websocket.ServeWs(c.Writer, c.Request) })
 
 	// Serve static files.
 	router.Static("/static", "./static")

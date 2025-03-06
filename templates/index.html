@@ -12,6 +12,9 @@
 </head>
 
 <body>
+
+  {{template "header.html" .}}
+
 <h1>Scan To Log-in</h1>
 
 <!--QR Code container-->
@@ -23,6 +26,9 @@
 <div class="button-container">
   <a href="/lights" class="button-link">Lights</a>
   <a href="/positions" class="button-link">Select Referee Position</a>
+  {{ if .isAdmin }}
+  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+  {{ end }}
 </div>
 
 <!--APL logo container-->

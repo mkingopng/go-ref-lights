@@ -8,6 +8,9 @@ import (
 	"go-ref-lights/logger"
 )
 
+var occupancyMutex sync.Mutex
+var occupancyMap = make(map[string]*Occupancy)
+
 // Occupancy defines the struct to track referee positions
 type Occupancy struct {
 	LeftUser   string
@@ -15,19 +18,27 @@ type Occupancy struct {
 	RightUser  string
 }
 
-var occupancyMutex sync.Mutex
-var occupancyMap = make(map[string]*Occupancy)
-
 type OccupancyServiceInterface interface {
 	GetOccupancy(meetName string) Occupancy
 	SetPosition(meetName, position, userEmail string) error
 	ResetOccupancyForMeet(meetName string)
-	// ADD: We'll explicitly reference UnsetPosition in the interface too:
+	// todo: ADD: We'll explicitly reference UnsetPosition in the interface too:
 	UnsetPosition(meetName, position, userEmail string) error
 }
 
-type OccupancyService struct{}
+type OccupancyService struct {
+	mu        sync.Mutex
+	occupancy map[string]*Occupancy
+}
 
+// NewOccupancyService creates a new OccupancyService instance.
+func NewOccupancyService() *OccupancyService {
+	return &OccupancyService{
+		occupancy: make(map[string]*Occupancy), // ✅ Initialize the map
+	}
+}
+
+// GetOccupancy returns the current occupancy state for a given meet
 func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -40,6 +51,7 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	return *occ
 }
 
+// SetPosition assigns a referee to a position for a given meet
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -51,7 +63,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	}
 	logger.Info.Printf("Attempting to assign position '%s' to user '%s' for meet %s", position, userEmail, meetName)
 
-	// Validate position
+	// validate position
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
 		err := errors.New("invalid position selected, please choose left, center, or right")
@@ -59,7 +71,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		return err
 	}
 
-	// Check if already taken
+	// check if already taken
 	switch position {
 	case "left":
 		if occ.LeftUser != "" {
@@ -81,7 +93,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		}
 	}
 
-	// Clear any old seat this user had
+	// clear any old seat this user had
 	if occ.LeftUser == userEmail {
 		occ.LeftUser = ""
 	}
@@ -92,7 +104,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = ""
 	}
 
-	// Assign new seat
+	// assign new seat
 	switch position {
 	case "left":
 		occ.LeftUser = userEmail
@@ -107,14 +119,21 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	return nil
 }
 
+// ResetOccupancyForMeet clears all assigned referee positions for a given meet
 func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
-	occupancyMutex.Lock()
+	occupancyMutex.Lock() // ✅ Use the global mutex
 	defer occupancyMutex.Unlock()
-	occupancyMap[meetName] = &Occupancy{}
-	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetName)
+
+	logger.Info.Printf("ResetOccupancyForMeet: Clearing all positions for meet '%s'", meetName)
+
+	if occ, exists := occupancyMap[meetName]; exists {
+		occ.LeftUser = ""
+		occ.CenterUser = ""
+		occ.RightUser = ""
+	}
 }
 
-// We define UnsetPosition as part of our service interface.
+// UnsetPosition We define UnsetPosition as part of our service interface.
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()

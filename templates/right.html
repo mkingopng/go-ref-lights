@@ -9,8 +9,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
-
 <body>
+  {{template "header.html" .}}
+
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
 <p id="visibleMeetName">{{ .meetName }}</p>
 <div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
@@ -24,10 +25,6 @@
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
-</div>
-
-<!--vacate button form -->
-<div class="button-container">
   <form action="/position/vacate" method="POST">
     <button type="submit" class="action-button">Vacate Position</button>
   </form>

@@ -22,8 +22,7 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// mock Occupancy Service
-var mockOccupancyService = &services.MockOccupancyService{}
+var mockOccupancyService = new(services.MockOccupancyService)
 var positionController = NewPositionController(mockOccupancyService)
 
 // setup router for PositionController tests

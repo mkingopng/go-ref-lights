@@ -106,17 +106,3 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 func SendBroadcastMessage(data []byte) {
 	broadcast <- data
 }
-
-// broadcastAllNextAttemptTimers iterates over the provided timers and sends each active timer as a JSON message.
-func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
-	for _, timer := range timers {
-		if timer.Active {
-			msg, err := json.Marshal(timer)
-			if err != nil {
-				logger.Error.Printf("Error marshalling timer: %v", err)
-				continue
-			}
-			broadcast <- msg
-		}
-	}
-}

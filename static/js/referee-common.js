@@ -106,8 +106,14 @@ document.addEventListener('DOMContentLoaded', function() {
             data = JSON.parse(event.data);
         } catch (e) {
             log(`Invalid JSON: ${event.data} - ${e.message}`, "error");
+            return;
         }
+
         switch (data.action) {
+            case "occupancyChanged":
+                console.log("Occupancy update received:", data);
+                updateOccupancyUI(data);
+                break;
             case "refereeHealth":
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
@@ -122,6 +128,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 log(`Unhandled action: ${data.action}`, "debug");
         }
     };
+
+// Function to update the UI
+    function updateOccupancyUI(data) {
+        document.getElementById("leftUser").innerText = data.leftUser || "Vacant";
+        document.getElementById("centerUser").innerText = data.centerUser || "Vacant";
+        document.getElementById("rightUser").innerText = data.rightUser || "Vacant";
+    }
 
     // webSocket event: onerror
     socket.onerror = function(error) {

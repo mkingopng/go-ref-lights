@@ -1,0 +1,69 @@
+<!-- templates/admin.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <title>Admin Panel for Meet: {{ .meetName }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+<h1>Admin Panel for Meet: {{ .meetName }}</h1>
+
+<h2>Referee Positions</h2>
+<table border="1">
+  <tr>
+    <th>Position</th>
+    <th>Occupant</th>
+    <th>Action</th>
+  </tr>
+  <tr>
+    <td>Left</td>
+    <td>{{ .occupancy.LeftUser }}</td>
+    <td>
+      {{ if .occupancy.LeftUser }}
+      <form method="POST" action="/admin/force-vacate">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="left">
+        <button type="submit">Force Vacate</button>
+      </form>
+      {{ else }}Vacant{{ end }}
+    </td>
+  </tr>
+  <tr>
+    <td>Center</td>
+    <td>{{ .occupancy.CenterUser }}</td>
+    <td>
+      {{ if .occupancy.CenterUser }}
+      <form method="POST" action="/admin/force-vacate">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="center">
+        <button type="submit">Force Vacate</button>
+      </form>
+      {{ else }}Vacant{{ end }}
+    </td>
+  </tr>
+  <tr>
+    <td>Right</td>
+    <td>{{ .occupancy.RightUser }}</td>
+    <td>
+      {{ if .occupancy.RightUser }}
+      <form method="POST" action="/admin/force-vacate">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="right">
+        <button type="submit">Force Vacate</button>
+      </form>
+      {{ else }}Vacant{{ end }}
+    </td>
+  </tr>
+</table>
+
+<h2>Full Instance Reset</h2>
+<p>This will clear all active sessions and reset occupancy for the meet.</p>
+<form method="POST" action="/admin/reset-instance">
+  <input type="hidden" name="meetName" value="{{ .meetName }}">
+  <button type="submit">Reset Meet</button>
+</form>
+</body>
+</html>
