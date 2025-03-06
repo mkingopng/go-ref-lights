@@ -129,11 +129,15 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	occupancyService := &services.OccupancyService{}
+	occupancyService := services.NewOccupancyService() // ✅ Ensure function exists
+	positionController := controllers.NewPositionController(occupancyService)
+	adminController := controllers.NewAdminController(occupancyService, positionController)
+
+	occupancyService = &services.OccupancyService{}
 	pc := controllers.NewPositionController(occupancyService)
 
 	// instantiate admin controller
-	adminController := controllers.NewAdminController(occupancyService)
+	adminController = controllers.NewAdminController(occupancyService, positionController)
 
 	// Public routes.
 	router.GET("/", controllers.ShowMeets)

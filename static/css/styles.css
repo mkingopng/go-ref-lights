@@ -410,3 +410,47 @@ input[type="submit"]:hover {
 .site-header nav a:hover {
     text-decoration: underline;
 }
+
+/* Navigation bar container */
+.nav-container {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+    justify-content: center; /* Center the buttons horizontally */
+    align-items: center;
+    background-color: #333; /* Dark gray background */
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Remove form styling for navigation */
+.nav-form {
+    background-color: transparent !important;
+    padding: 0;
+    margin: 0;
+    border: none;
+    display: inline-block;
+}
+
+/* Navigation button styling */
+.nav-button {
+    background-color: #666; /* Gray background */
+    color: white;
+    width: 80px; /* Square shape */
+    height: 50px; /* Square shape */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+    padding: 5px;
+}
+
+/* Button hover effect */
+.nav-button:hover {
+    background-color: #888; /* Lighter gray on hover */
+}

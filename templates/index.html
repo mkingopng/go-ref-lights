@@ -26,13 +26,10 @@
 <div class="button-container">
   <a href="/lights" class="button-link">Lights</a>
   <a href="/positions" class="button-link">Select Referee Position</a>
-</div>
-
   {{ if .isAdmin }}
-  <a href="/admin?meet={{ .meetName }}" class="btn btn-primary">
-    Admin Panel
-  </a>
+  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
   {{ end }}
+</div>
 
 <!--APL logo container-->
 <div class="logo-container">

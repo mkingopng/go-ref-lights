@@ -8,15 +8,15 @@ import (
 	"go-ref-lights/logger"
 )
 
+var occupancyMutex sync.Mutex
+var occupancyMap = make(map[string]*Occupancy)
+
 // Occupancy defines the struct to track referee positions
 type Occupancy struct {
 	LeftUser   string
 	CenterUser string
 	RightUser  string
 }
-
-var occupancyMutex sync.Mutex
-var occupancyMap = make(map[string]*Occupancy)
 
 type OccupancyServiceInterface interface {
 	GetOccupancy(meetName string) Occupancy
@@ -26,8 +26,19 @@ type OccupancyServiceInterface interface {
 	UnsetPosition(meetName, position, userEmail string) error
 }
 
-type OccupancyService struct{}
+type OccupancyService struct {
+	mu        sync.Mutex
+	occupancy map[string]*Occupancy
+}
 
+// NewOccupancyService creates a new OccupancyService instance.
+func NewOccupancyService() *OccupancyService {
+	return &OccupancyService{
+		occupancy: make(map[string]*Occupancy), // ✅ Initialize the map
+	}
+}
+
+// GetOccupancy returns the current occupancy state for a given meet
 func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -40,6 +51,7 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	return *occ
 }
 
+// SetPosition assigns a referee to a position for a given meet
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -107,11 +119,18 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	return nil
 }
 
+// ResetOccupancyForMeet clears all assigned referee positions for a given meet
 func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
-	occupancyMutex.Lock()
+	occupancyMutex.Lock() // ✅ Use the global mutex
 	defer occupancyMutex.Unlock()
-	occupancyMap[meetName] = &Occupancy{}
-	logger.Info.Printf("Occupancy state for meet %s has been reset.", meetName)
+
+	logger.Info.Printf("ResetOccupancyForMeet: Clearing all positions for meet '%s'", meetName)
+
+	if occ, exists := occupancyMap[meetName]; exists {
+		occ.LeftUser = ""
+		occ.CenterUser = ""
+		occ.RightUser = ""
+	}
 }
 
 // UnsetPosition We define UnsetPosition as part of our service interface.

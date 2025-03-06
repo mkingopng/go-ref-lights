@@ -83,50 +83,24 @@ func LoginHandler(c *gin.Context) {
 
 	if username == "" || password == "" {
 		logger.Warn.Println("LoginHandler: Missing username or password")
-
-		if gin.Mode() == gin.TestMode {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Please fill in all fields."})
-			return
-		}
-
-		c.HTML(http.StatusBadRequest, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Please fill in all fields.",
-		})
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{"MeetName": meetName, "Error": "Please fill in all fields."})
 		return
 	}
 
-	// First, check if the user is the designated admin.
 	adminUser := os.Getenv("ADMIN_USERNAME")
-	adminPassword := os.Getenv("ADMIN_PASSWORD") // set this in your .env
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
 	var valid bool
-	if username == adminUser {
-		// Compare admin password (for simplicity, using plain-text comparison here).
-		// In production, consider storing a hashed password.
-		if password == adminPassword {
-			valid = true
-		} else {
-			valid = false
-		}
+
+	if username == adminUser && password == adminPassword {
+		valid = true
 	} else {
-		// Load credentials for regular users.
 		creds, err := loadMeetCredsFunc()
 		if err != nil {
 			logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
-
-			if gin.Mode() == gin.TestMode {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
-				return
-			}
-
-			c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-				"MeetName": meetName,
-				"Error":    "Internal error, please try again later.",
-			})
+			c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again later."})
 			return
 		}
 
-		// Validate credentials against the meet's user list.
 		for _, m := range creds.Meets {
 			if m.Name == meetName {
 				for _, user := range m.Users {
@@ -141,32 +115,13 @@ func LoginHandler(c *gin.Context) {
 
 	if !valid {
 		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
-
-		if gin.Mode() == gin.TestMode {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
-			return
-		}
-
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Invalid username or password.",
-		})
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "Invalid username or password."})
 		return
 	}
 
-	// Single login enforcement
 	if activeUsers[username] {
 		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
-
-		if gin.Mode() == gin.TestMode {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "This username is already logged in on another device."})
-			return
-		}
-
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "This username is already logged in on another device.",
-		})
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "This username is already logged in on another device."})
 		return
 	}
 
@@ -174,27 +129,18 @@ func LoginHandler(c *gin.Context) {
 	activeUsers[username] = true
 	session.Set("user", username)
 
-	// If the user is the admin (either from env or designated in JSON), set the admin flag.
-	adminUser = os.Getenv("ADMIN_USERNAME")
-	if username == adminUser {
-		session.Set("isAdmin", true)
-	}
+	// ✅ Check if user is admin and explicitly log the result
+	isAdmin := (username == adminUser)
+	session.Set("isAdmin", isAdmin)
+
+	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
 
 	if err := session.Save(); err != nil {
 		logger.Error.Println("LoginHandler: Failed to save session:", err)
-
-		if gin.Mode() == gin.TestMode {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
-			return
-		}
-
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Internal error, please try again.",
-		})
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again."})
 		return
 	}
 
-	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s", username, meetName)
+	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
 	c.Redirect(http.StatusFound, "/dashboard")
 }

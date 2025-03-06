@@ -9,16 +9,12 @@
 </head>
 <body>
 <header class="site-header">
-    <nav>
-        <form action="/home" method="POST" style="display:inline;">
-            <button type="submit" class="nav-button">
-                <i class="fa fa-home"></i> Home
-            </button>
+    <nav class="nav-container">
+        <form action="/home" method="POST" class="nav-form">
+            <button type="submit" class="nav-button">Home</button>
         </form>
-        <form action="/logout" method="POST" style="display:inline;">
-            <button type="submit" style="margin-left:10px;" class="logout-button">
-                Logout
-            </button>
+        <form action="/logout" method="POST" class="nav-form">
+            <button type="submit" class="nav-button">Logout</button>
         </form>
     </nav>
 </header>
