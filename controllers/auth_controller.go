@@ -84,7 +84,7 @@ func LoginHandler(c *gin.Context) {
 	if username == "" || password == "" {
 		logger.Warn.Println("LoginHandler: Missing username or password")
 
-		// ✅ If in test mode, return JSON instead of HTML
+		// If in test mode, return JSON instead of HTML
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Please fill in all fields."})
 			return
@@ -102,7 +102,7 @@ func LoginHandler(c *gin.Context) {
 	if err != nil {
 		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
 
-		// ✅ Return JSON in test mode
+		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
@@ -131,7 +131,7 @@ func LoginHandler(c *gin.Context) {
 	if !valid {
 		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
 
-		// ✅ Return JSON in test mode
+		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 			return
@@ -148,7 +148,7 @@ func LoginHandler(c *gin.Context) {
 	if activeUsers[username] {
 		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
 
-		// ✅ Return JSON in test mode
+		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "This username is already logged in on another device."})
 			return
@@ -167,7 +167,7 @@ func LoginHandler(c *gin.Context) {
 	if err := session.Save(); err != nil {
 		logger.Error.Println("LoginHandler: Failed to save session:", err)
 
-		// ✅ Return JSON in test mode
+		// Return JSON in test mode
 		if gin.Mode() == gin.TestMode {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error"})
 			return
@@ -182,28 +182,4 @@ func LoginHandler(c *gin.Context) {
 
 	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s", username, meetName)
 	c.Redirect(http.StatusFound, "/dashboard")
-}
-
-// LogoutHandler Provide a logout function that removes the user from activeUsers, so they can log in again from another device.
-func LogoutHandler(c *gin.Context) {
-	session := sessions.Default(c)
-
-	// Attempt to get the username from session
-	user, hasUser := session.Get("user").(string)
-	if hasUser && user != "" {
-		// Remove the user from the activeUsers map
-		delete(activeUsers, user)
-		logger.Info.Printf("LogoutHandler: Removed user %s from active list", user)
-	}
-
-	// Clear out all session data
-	session.Clear()
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("LogoutHandler: Error saving session during logout: %v", err)
-	} else {
-		logger.Info.Println("LogoutHandler: Session cleared successfully")
-	}
-
-	// You can redirect to a "logged out" page or back to choose-meet, etc.
-	c.Redirect(http.StatusFound, "/choose-meet")
 }

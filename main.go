@@ -137,7 +137,9 @@ func SetupRouter(env string) *gin.Engine {
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/logout", controllers.Logout)
+
+	// No logout here! 🚨 Removed router.GET("/logout") from public routes
+
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
 	// Middleware to ensure "meetName" is set.
@@ -178,12 +180,14 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
 		protected.POST("/position/vacate", pc.VacatePosition)
 
+		protected.GET("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
+		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
+		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
 	}
 
-	// WebSocket route.
-	router.GET("/referee-updates", func(c *gin.Context) {
-		websocket.ServeWs(c.Writer, c.Request)
-	})
+	// WebSocket route
+	router.GET("/referee-updates", func(c *gin.Context) { websocket.ServeWs(c.Writer, c.Request) })
 
 	// Serve static files.
 	router.Static("/static", "./static")

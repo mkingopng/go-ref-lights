@@ -1,13 +1,26 @@
+<!-- templates/header.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
 </head>
-<!-- templates/header.html -->
+<body>
 <header class="site-header">
     <nav>
-        <a href="/dashboard" class="nav-button">Home</a>
-        <a href="/logout" class="nav-button">Logout</a>
+        <form action="/home" method="POST" style="display:inline;">
+            <button type="submit" class="nav-button">
+                <i class="fa fa-home"></i> Home
+            </button>
+        </form>
+        <form action="/logout" method="POST" style="display:inline;">
+            <button type="submit" style="margin-left:10px;" class="logout-button">
+                Logout
+            </button>
+        </form>
     </nav>
 </header>
+</body>
+</html>

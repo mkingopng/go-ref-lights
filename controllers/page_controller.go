@@ -21,31 +21,62 @@ func Health(c *gin.Context) {
 	c.String(http.StatusOK, "OK")
 }
 
-// Logout ✅ FIX for: Unresolved reference 'Logout'
-func Logout(c *gin.Context) {
+// Home redirects the user to dashboard and vacates their position.
+func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	session := sessions.Default(c)
-	userEmail := session.Get("user")
-	refPosition := session.Get("refPosition")
-	meetName, ok := session.Get("meetName").(string)
 
-	if userEmail != nil && refPosition != nil && ok && meetName != "" {
-		logger.Info.Printf("Logout: Logging out user %s from position %s", userEmail, refPosition)
-		// Remove user position from the session
-		session.Delete("user")
-		session.Delete("refPosition")
+	userEmail, ok1 := session.Get("user").(string)
+	position, ok2 := session.Get("refPosition").(string)
+	meetName, ok3 := session.Get("meetName").(string)
+
+	if ok1 && ok2 && ok3 {
+		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
+			logger.Error.Printf("Home: error vacating position: %v", err)
+		} else {
+			logger.Info.Printf("Home: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+			session.Delete("refPosition")
+			err := session.Save()
+			if err != nil {
+				return
+			}
+		}
+	} else {
+		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
+	c.Redirect(http.StatusFound, "/dashboard")
+}
 
+// Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login page.
+// controllers/page_controller.go
+func Logout(c *gin.Context, occupancyService *services.OccupancyService) {
+	session := sessions.Default(c)
+
+	userEmail, hasUser := session.Get("user").(string)
+	position, hasPosition := session.Get("refPosition").(string)
+	meetName, hasMeet := session.Get("meetName").(string)
+
+	if hasUser && hasPosition && hasMeet {
+		err := occupancyService.UnsetPosition(meetName, position, userEmail)
+		if err != nil {
+			logger.Error.Printf("Logout: error vacating position: %v", err)
+		} else {
+			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+		}
+		delete(activeUsers, userEmail)
+		logger.Info.Printf("Logout: User %s removed from active users list", userEmail)
+	} else {
+		logger.Warn.Println("Logout: Missing user, refPosition, or meetName from session.")
+	}
 	session.Clear()
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("Logout: Error saving session during logout: %v", err)
+		logger.Error.Printf("Logout: Error saving session: %v", err)
 	} else {
 		logger.Info.Println("Logout: Session cleared successfully")
 	}
-
-	c.Redirect(http.StatusFound, "/login")
+	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
-// Index ✅ FIX for: Unresolved reference 'Index'
+// Index renders the main application page
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
@@ -62,7 +93,7 @@ func Index(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// ShowPositionsPage ✅ FIX for: Unresolved reference 'ShowPositionsPage'
+// ShowPositionsPage renders the positions page
 func ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
@@ -94,7 +125,7 @@ func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
 
 	// Actually generate real PNG data:
-	qrBytes, err := services.GenerateQRCode(300, 300, services.QRCodeEncoder(qrcode.Encode))
+	qrBytes, err := services.GenerateQRCode(300, 300, qrcode.Encode)
 	if err != nil {
 		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
 		c.String(http.StatusInternalServerError, "QR generation failed")
