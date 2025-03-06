@@ -48,7 +48,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login page.
 // controllers/page_controller.go
-func Logout(c *gin.Context, occupancyService *services.OccupancyService) {
+func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
 
 	userEmail, hasUser := session.Get("user").(string)
