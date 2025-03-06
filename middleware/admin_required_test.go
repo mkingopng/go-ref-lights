@@ -1,4 +1,4 @@
-// middleware/admin_required_test.go
+// file: middleware/admin_required_test.go
 
 //go:build unit
 // +build unit

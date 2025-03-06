@@ -171,7 +171,11 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 	}
 	jsonBytes, _ := json.Marshal(msg)
 	logger.Debug.Printf("DEBUG: broadcastOccupancy sending message: %s", string(jsonBytes))
-	websocket.SendBroadcastMessage(jsonBytes)
+
+	go func() {
+		websocket.SendBroadcastMessage(jsonBytes)
+	}()
+
 	logger.Debug.Printf("DEBUG: Finished broadcastOccupancy for meet: %s", meetName)
 }
 

@@ -10,11 +10,6 @@ import (
 	"go-ref-lights/services"
 )
 
-var (
-	occupancyService   = services.NewOccupancyService()
-	positionController = NewPositionController(occupancyService)
-)
-
 // AdminController provides admin operations.
 type AdminController struct {
 	OccupancyService   services.OccupancyServiceInterface
@@ -130,7 +125,6 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// Use isAdmin instead of checking user == "admin"
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
 		logger.Warn.Println("ResetInstance: Unauthorized attempt")
@@ -140,6 +134,9 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
+		meetName, _ = session.Get("meetName").(string)
+	}
+	if meetName == "" {
 		logger.Warn.Println("ResetInstance: No meet specified")
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
@@ -147,13 +144,9 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	logger.Info.Printf("ResetInstance: Resetting meet '%s'", meetName)
 
-	// Clear all active users.
 	activeUsers = make(map[string]bool)
+	ac.OccupancyService.ResetOccupancyForMeet(meetName) // ✅ Ensure this is called
 
-	// Reset the occupancy for the meet.
-	ac.OccupancyService.ResetOccupancyForMeet(meetName)
-
-	// Broadcast update so UI updates properly
 	ac.PositionController.BroadcastOccupancy(meetName)
 
 	logger.Info.Printf("ResetInstance: Meet '%s' reset successfully", meetName)

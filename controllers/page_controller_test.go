@@ -12,30 +12,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"go-ref-lights/services"
 	"go-ref-lights/websocket"
 )
-
-type MockOccupancyService struct {
-	mock.Mock
-}
-
-func (m *MockOccupancyService) UnsetPosition(meetName, position, userEmail string) error {
-	return m.Called(meetName, position, userEmail).Error(0)
-}
-
-func (m *MockOccupancyService) SetPosition(meetName, position, userEmail string) error {
-	return m.Called(meetName, position, userEmail).Error(0)
-}
-
-func (m *MockOccupancyService) GetOccupancy(meetName string) services.Occupancy {
-	return m.Called(meetName).Get(0).(services.Occupancy)
-}
-
-func (m *MockOccupancyService) ResetOccupancyForMeet(meetName string) {
-	m.Called(meetName)
-}
 
 func TestHealth(t *testing.T) {
 	websocket.InitTest()

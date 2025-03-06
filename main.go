@@ -129,7 +129,7 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	occupancyService := services.NewOccupancyService() // ✅ Ensure function exists
+	occupancyService := services.NewOccupancyService() // Ensure function exists
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 
