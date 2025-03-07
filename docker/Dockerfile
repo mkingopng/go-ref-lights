@@ -11,7 +11,7 @@ ENV GO111MODULE=on \
 WORKDIR /app
 
 # Copy go.mod and go.sum files
-COPY ../go.mod go.sum ./
+COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download

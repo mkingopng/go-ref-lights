@@ -47,7 +47,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t referee-lights:latest -f docker/Dockerfile docker/
+          docker build -t referee-lights:latest -f docker/Dockerfile .
 
       - name: Synthesize CDK Stack
         run: poetry run cdk synth
