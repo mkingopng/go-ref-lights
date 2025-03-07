@@ -98,13 +98,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-2
 
-      - name: Clean CDK output
-        run: rm -rf referee_lights_cdk/cdk.out  # ✅ Remove old artifacts before deploy
+      - name: Clean CDK output (aggressive)
+        run: |
+          rm -rf referee_lights_cdk/cdk.out
+          rm -rf referee_lights_cdk/.cdk.staging  # ✅ Ensure staging assets are removed
 
       # Deploy the CDK stack using Poetry
       - name: Deploy CDK Stack
         working-directory: referee_lights_cdk
-        run: poetry run cdk deploy --app "python ../app.py" --require-approval never
+        run: poetry run cdk deploy --app "python ../app.py" --require-approval never --output /tmp/cdk.out
 
       # Notify Slack channel of deployment.
       - name: Notify Slack on Success
