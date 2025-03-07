@@ -101,7 +101,7 @@ jobs:
       # Deploy the CDK stack using Poetry
       - name: Deploy CDK Stack
         working-directory: referee_lights_cdk
-        run: poetry run cdk deploy --app "python app.py" --require-approval never
+        run: poetry run cdk deploy --app "python ../app.py" --require-approval never
 
       # Notify Slack channel of deployment.
       - name: Notify Slack on Success
