@@ -1,5 +1,5 @@
-// Package websocket - websocket/connection.go
-
+// Package websocket provides the WebSocket server and connection handling.
+// file: websocket/connection.go
 package websocket
 
 import (
@@ -12,6 +12,7 @@ import (
 	"net"
 )
 
+// WSConn is an interface for the WebSocket connection.
 type WSConn interface {
 	WriteMessage(messageType int, data []byte) error
 	SetWriteDeadline(t time.Time) error

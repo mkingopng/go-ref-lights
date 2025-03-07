@@ -28,6 +28,12 @@ run precommit hooks:
 pre-commit run --all-files
 ```
 
+before committing, run:
+```bash
+poetry run pre-commit run --all-files
+go test -v -tags=unit ./...
+```
+
 run integration tests
 ```bash
 go test -v -tags=integration ./...

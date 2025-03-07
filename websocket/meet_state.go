@@ -1,4 +1,5 @@
-// Package websocket: websocket/meet_state.go
+// Package websocket manages referee connections, meet state tracking, and real-time data updates.
+// file: websocket/meet_state.go
 package websocket
 
 import (

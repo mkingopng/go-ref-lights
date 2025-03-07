@@ -1,9 +1,10 @@
-// Package websocket file: websocket/test_helpers.go
+// Package websocket contains the WebSocket server and client code for the meet.
+// file: websocket/test_helpers.go
 package websocket
 
 import "time"
 
-// initTest resets globals to their default (or test) values. Call this at the beginning of your tests.
+// InitTest sets up the test environment for WebSocket-based meet state handling.
 func InitTest() {
 	// Flush the broadcast channel if necessary.
 	for len(broadcast) > 0 {
