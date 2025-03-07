@@ -79,7 +79,7 @@ class RefereeLightsCdkStack(Stack):
         docker_image_asset = ecr_assets.DockerImageAsset(
             self,
             "RefereeLightsDockerImage",
-            directory=str(project_root),
+            directory=str(project_root / "docker"),
             exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging"]
         )
 
