@@ -47,8 +47,8 @@ func SetMeetHandler(c *gin.Context) {
 
 // LoadMeetCreds loads meet credentials from JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	_, _, _, _ = runtime.Caller(0) // Unused variable fix
-	credPath := "./config/meet_creds.json"
+	_, _, _, _ = runtime.Caller(0)         // Unused variable fix
+	credPath := "./config/meet_creds.json" // #nosec G101
 
 	data, err := os.ReadFile(credPath)
 	if err != nil {

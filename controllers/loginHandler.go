@@ -1,4 +1,5 @@
-// Package controllers: controllers/loginHandler.go
+// Package controllers handles user authentication and session management
+// file: controllers/loginHandler.go
 package controllers
 
 import (

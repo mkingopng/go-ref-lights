@@ -23,6 +23,11 @@ run unit tests in a specific directory
 go test -v -tags=unit ./websocket
 ```
 
+run precommit hooks:
+```bash
+pre-commit run --all-files
+```
+
 run integration tests
 ```bash
 go test -v -tags=integration ./...
@@ -34,7 +39,7 @@ go test -v -tags=integration ./websocket
 ```
 ---
 # Best Practices for Maintaining Unit Tests**
-Since we’re writing **a large number of tests**, here are **best practices** to 
+Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
 
 ### Follow the Given-When-Then Structure
@@ -84,19 +89,19 @@ Write tests in a **clear, structured way**:
 # tasks
 1. Integration tests
     - Login + Session Management → Ensure login persists a session.
-    - Meet Creation + Role Assignment → Verify a user can create a meet and 
+    - Meet Creation + Role Assignment → Verify a user can create a meet and
       assign roles.
-    - Position Claiming + Websocket Broadcast → User claims a position → UI 
+    - Position Claiming + Websocket Broadcast → User claims a position → UI
       updates via broadcast.
-    - Referee Actions + State Updates → A referee gives a lift decision → 
+    - Referee Actions + State Updates → A referee gives a lift decision →
       The state updates correctly.
-   
+
     - broadcast_integration_test.go
     - auth_integration_test.go
     - page_integration_test.go
     - position_integration_tst.go
     - api_integration_test.go
-    - 
+    -
 
 2. Smoke tests
 3. Load tests

@@ -11,11 +11,13 @@ import (
 )
 
 var (
+	// ApplicationURL is the base URL of the application
 	ApplicationURL string
-	WebsocketURL   string
+	// WebsocketURL is the URL for the WebSocket server
+	WebsocketURL string
 )
 
-// Health ✅ FIX for: Unresolved reference 'Health'
+// Health is a simple health check endpoint
 func Health(c *gin.Context) {
 	logger.Info.Println("Health: Health check requested")
 	c.String(http.StatusOK, "OK")

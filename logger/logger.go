@@ -19,11 +19,12 @@ var (
 
 // InitLogger sets up the logging system.
 func InitLogger() error {
-	if err := os.MkdirAll("./logs", 0755); err != nil {
+	if err := os.MkdirAll("./logs", 0700); err != nil {
 		return err
 	}
 	logFileName := filepath.Join("logs", time.Now().Format("2006-01-02_15-04-05")+".log")
-	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600) // #nosec G304
+
 	if err != nil {
 		return err
 	}

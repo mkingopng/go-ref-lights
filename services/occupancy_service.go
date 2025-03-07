@@ -1,4 +1,5 @@
-// Package services: services/occupancy_service.go
+// Package services handles the business logic of the application.
+// file: services/occupancy_service.go
 package services
 
 import (
@@ -8,7 +9,10 @@ import (
 	"go-ref-lights/logger"
 )
 
+// occupancyMutex is a global mutex to protect the occupancyMap
 var occupancyMutex sync.Mutex
+
+// occupancyMap is a global map to store the current occupancy state for each meet
 var occupancyMap = make(map[string]*Occupancy)
 
 // Occupancy defines the struct to track referee positions
@@ -18,6 +22,7 @@ type Occupancy struct {
 	RightUser  string
 }
 
+// OccupancyServiceInterface defines the methods that the OccupancyService must implement
 type OccupancyServiceInterface interface {
 	GetOccupancy(meetName string) Occupancy
 	SetPosition(meetName, position, userEmail string) error
@@ -26,6 +31,7 @@ type OccupancyServiceInterface interface {
 	UnsetPosition(meetName, position, userEmail string) error
 }
 
+// OccupancyService is a struct that implements the OccupancyServiceInterface
 type OccupancyService struct {
 	mu        sync.Mutex
 	occupancy map[string]*Occupancy

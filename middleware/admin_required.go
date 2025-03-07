@@ -1,3 +1,5 @@
+// Package middleware description is Middleware that checks if the user is an admin.
+// file: middleware/admin_required.go
 package middleware
 
 import (
@@ -7,6 +9,7 @@ import (
 	"net/http"
 )
 
+// AdminRequired is a middleware that checks if the user is an admin.
 func AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
@@ -22,6 +25,6 @@ func AdminRequired() gin.HandlerFunc {
 		}
 
 		logger.Debug.Println("AdminRequired Middleware - Passed, continuing request")
-		c.Next() // 🟢 Pass request forward
+		c.Next()
 	}
 }

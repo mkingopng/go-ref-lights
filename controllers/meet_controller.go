@@ -1,4 +1,5 @@
-// Package controllers: controllers/meet_controller.go
+// Package controllers handles user authentication and session management
+// file: controllers/meet_controller.go
 package controllers
 
 import (
