@@ -22,18 +22,18 @@ tests-mypy = ["mypy (>=1.11.1)", "pytest-mypy-plugins"]
 
 [[package]]
 name = "aws-cdk-asset-awscli-v1"
-version = "2.2.225"
+version = "2.2.226"
 description = "A library that contains the AWS CLI for use in Lambda Layers"
 optional = false
 python-versions = "~=3.8"
 groups = ["main"]
 files = [
-    {file = "aws_cdk.asset_awscli_v1-2.2.225-py3-none-any.whl", hash = "sha256:130bdf46f4b23802e46124ef2857dcbd945e1305938f872f205efb3dd6c1be08"},
-    {file = "aws_cdk_asset_awscli_v1-2.2.225.tar.gz", hash = "sha256:0ac8806a17c79dc1ce1123cf4c1072ed46e1fc3210c8c750276bf0be6a821d03"},
+    {file = "aws_cdk.asset_awscli_v1-2.2.226-py3-none-any.whl", hash = "sha256:44ed602ec0eb665a83d44005137e81023066701fe4ef6a9aaa0e55ad43b0242b"},
+    {file = "aws_cdk_asset_awscli_v1-2.2.226.tar.gz", hash = "sha256:5507338fa5169365d443a9daa6949a475d64f5220c3c0ca17ac141ecc0ca8228"},
 ]
 
 [package.dependencies]
-jsii = ">=1.107.0,<2.0.0"
+jsii = ">=1.108.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<4.3.0"
 
@@ -56,37 +56,37 @@ typeguard = ">=2.13.3,<5.0.0"
 
 [[package]]
 name = "aws-cdk-cloud-assembly-schema"
-version = "39.2.20"
-description = "Cloud Assembly Schema"
+version = "40.7.0"
+description = "Schema for the protocol between CDK framework and CDK CLI"
 optional = false
 python-versions = "~=3.8"
 groups = ["main"]
 files = [
-    {file = "aws_cdk.cloud_assembly_schema-39.2.20-py3-none-any.whl", hash = "sha256:7b1ab0593fbfaac4ff0d5d0aa6a3b54185e0286f4aa68376557cac2d50c59183"},
-    {file = "aws_cdk_cloud_assembly_schema-39.2.20.tar.gz", hash = "sha256:e110b22f961d15c25a9099590375280c0b45637c8325ade9b570a0ef11e6e907"},
+    {file = "aws_cdk.cloud_assembly_schema-40.7.0-py3-none-any.whl", hash = "sha256:a86de4f46a72f9445f0a0ae646c348702041047c72d10b76e3b4c8dc5e460ee1"},
+    {file = "aws_cdk_cloud_assembly_schema-40.7.0.tar.gz", hash = "sha256:8269a74cce261e56750290a2492f04d0e6825913d321a8ab17ba3b5f872fc193"},
 ]
 
 [package.dependencies]
-jsii = ">=1.106.0,<2.0.0"
+jsii = ">=1.108.0,<2.0.0"
 publication = ">=0.0.3"
 typeguard = ">=2.13.3,<4.3.0"
 
 [[package]]
 name = "aws-cdk-lib"
-version = "2.181.1"
+version = "2.182.0"
 description = "Version 2 of the AWS Cloud Development Kit library"
 optional = false
 python-versions = "~=3.8"
 groups = ["main"]
 files = [
-    {file = "aws_cdk_lib-2.181.1-py3-none-any.whl", hash = "sha256:c4246dc6689dd46b0f666b98ce3049ab2b1faf390c50eeb9c6ba0a83cd53970e"},
-    {file = "aws_cdk_lib-2.181.1.tar.gz", hash = "sha256:59356371569797f57bc2832d97dc70802d479244822e84e509739b1d41b2b4c5"},
+    {file = "aws_cdk_lib-2.182.0-py3-none-any.whl", hash = "sha256:73b46fb789c7fe138f5ec15afa23c588fee706827edd056dd5fa8571e3d725dd"},
+    {file = "aws_cdk_lib-2.182.0.tar.gz", hash = "sha256:907a2969d7c48605f597b47e47adb0b58ac17bb8de71d4a97761513c76cb3aa8"},
 ]
 
 [package.dependencies]
 "aws-cdk.asset-awscli-v1" = ">=2.2.208,<3.0.0"
 "aws-cdk.asset-node-proxy-agent-v6" = ">=2.1.0,<3.0.0"
-"aws-cdk.cloud-assembly-schema" = ">=39.2.0,<40.0.0"
+"aws-cdk.cloud-assembly-schema" = ">=40.6.0,<41.0.0"
 constructs = ">=10.0.0,<11.0.0"
 jsii = ">=1.106.0,<2.0.0"
 publication = ">=0.0.3"
@@ -338,14 +338,14 @@ typeguard = ">=2.13.3,<2.14.0"
 
 [[package]]
 name = "cssselect2"
-version = "0.7.0"
+version = "0.8.0"
 description = "CSS selectors for Python ElementTree"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "cssselect2-0.7.0-py3-none-any.whl", hash = "sha256:fd23a65bfd444595913f02fc71f6b286c29261e354c41d722ca7a261a49b5969"},
-    {file = "cssselect2-0.7.0.tar.gz", hash = "sha256:1ccd984dab89fc68955043aca4e1b03e0cf29cad9880f6e28e3ba7a74b14aa5a"},
+    {file = "cssselect2-0.8.0-py3-none-any.whl", hash = "sha256:46fc70ebc41ced7a32cd42d58b1884d72ade23d21e5a4eaaf022401c13f0e76e"},
+    {file = "cssselect2-0.8.0.tar.gz", hash = "sha256:7674ffb954a3b46162392aee2a3a0aedb2e14ecf99fcc28644900f4e6e3e9d3a"},
 ]
 
 [package.dependencies]
@@ -353,8 +353,8 @@ tinycss2 = "*"
 webencodings = "*"
 
 [package.extras]
-doc = ["sphinx", "sphinx_rtd_theme"]
-test = ["flake8", "isort", "pytest"]
+doc = ["furo", "sphinx"]
+test = ["pytest", "ruff"]
 
 [[package]]
 name = "defusedxml"
@@ -769,14 +769,14 @@ files = [
 
 [[package]]
 name = "virtualenv"
-version = "20.29.2"
+version = "20.29.3"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.8"
 groups = ["main", "dev"]
 files = [
-    {file = "virtualenv-20.29.2-py3-none-any.whl", hash = "sha256:febddfc3d1ea571bdb1dc0f98d7b45d24def7428214d4fb73cc486c9568cce6a"},
-    {file = "virtualenv-20.29.2.tar.gz", hash = "sha256:fdaabebf6d03b5ba83ae0a02cfe96f48a716f4fae556461d180825866f75b728"},
+    {file = "virtualenv-20.29.3-py3-none-any.whl", hash = "sha256:3e3d00f5807e83b234dfb6122bf37cfadf4be216c53a49ac059d02414f819170"},
+    {file = "virtualenv-20.29.3.tar.gz", hash = "sha256:95e39403fcf3940ac45bc717597dba16110b74506131845d9b687d5e73d947ac"},
 ]
 
 [package.dependencies]
