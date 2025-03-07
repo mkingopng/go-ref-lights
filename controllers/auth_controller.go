@@ -93,3 +93,56 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 
 	return &creds, nil
 }
+
+// ForceLogoutHandler logs out a user forcibly (admin action)
+func ForceLogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin")
+
+	// Only admins can force logout users
+	if isAdmin == nil || isAdmin != true {
+		logger.Warn.Println("Unauthorized attempt to force logout a user.")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	// Extract username from request
+	username := c.PostForm("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
+		return
+	}
+
+	// Ensure the user exists in activeUsers
+	if _, exists := activeUsers[username]; !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
+		return
+	}
+
+	// Remove user session and mark them as logged out
+	delete(activeUsers, username)
+	logger.Info.Printf("Admin forcibly logged out user: %s", username)
+
+	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
+}
+
+// ActiveUsersHandler returns a list of active users (admin action)
+func ActiveUsersHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin")
+
+	// Only admins can see active users
+	if isAdmin == nil || isAdmin != true {
+		logger.Warn.Println("Unauthorized attempt to view active users.")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	// Convert activeUsers map keys to a list
+	var userList []string
+	for user := range activeUsers {
+		userList = append(userList, user)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": userList})
+}

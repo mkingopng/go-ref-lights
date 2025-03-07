@@ -189,6 +189,9 @@ func SetupRouter(env string) *gin.Engine {
 		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
 		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
 		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+		protected.POST("/force-logout", controllers.ForceLogoutHandler) // Only admin users can access this route.
+		protected.GET("/active-users", controllers.ActiveUsersHandler)
+
 	}
 
 	adminRoutes := router.Group("/admin")

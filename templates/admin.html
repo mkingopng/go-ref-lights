@@ -11,59 +11,73 @@
 <body>
 <h1>Admin Panel for Meet: {{ .meetName }}</h1>
 
-<h2>Referee Positions</h2>
-<table border="1">
-  <tr>
-    <th>Position</th>
-    <th>Occupant</th>
-    <th>Action</th>
-  </tr>
-  <tr>
-    <td>Left</td>
-    <td>{{ .occupancy.LeftUser }}</td>
-    <td>
-      {{ if .occupancy.LeftUser }}
-      <form method="POST" action="/admin/force-vacate">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="left">
-        <button type="submit">Force Vacate</button>
-      </form>
-      {{ else }}Vacant{{ end }}
-    </td>
-  </tr>
-  <tr>
-    <td>Center</td>
-    <td>{{ .occupancy.CenterUser }}</td>
-    <td>
-      {{ if .occupancy.CenterUser }}
-      <form method="POST" action="/admin/force-vacate">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="center">
-        <button type="submit">Force Vacate</button>
-      </form>
-      {{ else }}Vacant{{ end }}
-    </td>
-  </tr>
-  <tr>
-    <td>Right</td>
-    <td>{{ .occupancy.RightUser }}</td>
-    <td>
-      {{ if .occupancy.RightUser }}
-      <form method="POST" action="/admin/force-vacate">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="right">
-        <button type="submit">Force Vacate</button>
-      </form>
-      {{ else }}Vacant{{ end }}
-    </td>
-  </tr>
-</table>
+<h2>Currently Logged-In Users</h2>
+<p>Select a user to forcefully log them out:</p>
+
+<form id="forceLogoutForm">
+  <label for="username">Username:</label>
+  <select id="username" name="username">
+    <!-- Dynamically populated via JavaScript -->
+  </select>
+  <button type="submit">Force Logout</button>
+</form>
+
+<p id="logoutStatus"></p>
 
 <h2>Full Instance Reset</h2>
-<p>This will clear all active sessions and reset occupancy for the meet.</p>
+<p>This will log out all users and reset referee positions.</p>
 <form method="POST" action="/admin/reset-instance">
   <input type="hidden" name="meetName" value="{{ .meetName }}">
   <button type="submit">Reset Meet</button>
 </form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    // Fetch the list of active users
+    fetch("/active-users")
+            .then(response => response.json())
+            .then(data => {
+              let select = document.getElementById("username");
+              select.innerHTML = ""; // Clear previous options
+              data.users.forEach(user => {
+                let option = document.createElement("option");
+                option.value = user;
+                option.textContent = user;
+                select.appendChild(option);
+              });
+            })
+            .catch(error => console.error("Error fetching active users:", error));
+
+    // Handle Force Logout submission
+    document.getElementById("forceLogoutForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      let username = document.getElementById("username").value;
+
+      fetch("/force-logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `username=${encodeURIComponent(username)}`
+      })
+              .then(response => response.json())
+              .then(data => {
+                document.getElementById("logoutStatus").textContent = data.message || data.error;
+                // Refresh user list after logout
+                return fetch("/active-users");
+              })
+              .then(response => response.json())
+              .then(data => {
+                let select = document.getElementById("username");
+                select.innerHTML = ""; // Clear previous options
+                data.users.forEach(user => {
+                  let option = document.createElement("option");
+                  option.value = user;
+                  option.textContent = user;
+                  select.appendChild(option);
+                });
+              })
+              .catch(error => console.error("Error forcing logout:", error));
+    });
+  });
+</script>
 </body>
 </html>
