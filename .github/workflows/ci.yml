@@ -37,6 +37,7 @@ jobs:
       - name: Install Go dependencies
         run: go mod download
 
+
       - name: Lint and Static Analysis
         run: |
           go install golang.org/x/lint/golint@latest
