@@ -16,7 +16,7 @@ COPY ./go.mod ./go.sum ./
 RUN go mod download
 
 # Copy the entire project (only what's needed)
-COPY docker .
+COPY . .
 
 # Tidy up modules (ensure no unused dependencies)
 RUN go mod tidy
