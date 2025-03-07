@@ -153,3 +153,28 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
 }
+
+// ForceLogout logs out a user forcibly (admin action)
+func (ac *AdminController) ForceLogout(c *gin.Context) {
+	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin")
+
+	if isAdmin == nil || isAdmin != true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	username := c.PostForm("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
+		return
+	}
+
+	if _, exists := activeUsers[username]; !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
+		return
+	}
+
+	delete(activeUsers, username)
+	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
+}
