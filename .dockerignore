@@ -1,3 +1,4 @@
+# .dockerignore
 /cdk.out/
 .gitignore
 .idea
@@ -7,3 +8,7 @@
 *.log
 __pycache__/
 react-app/
+referee_lights_cdk/cdk.out/
+cdk.context.json
+cdk*.json
+cdk.staging

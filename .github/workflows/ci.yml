@@ -82,6 +82,7 @@ jobs:
 
       - name: Clean CDK output
         run: |
+          rm -rf cdk.out
           rm -rf referee_lights_cdk/cdk.out
           rm -rf referee_lights_cdk/.cdk.staging
           rm -rf referee_lights_cdk/node_modules
