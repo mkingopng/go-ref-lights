@@ -80,7 +80,7 @@ class RefereeLightsCdkStack(Stack):
             self,
             "RefereeLightsDockerImage",
             directory=str(project_root),
-            exclude=["cdk.out"]
+            exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging"]
         )
 
         # define Fargate Task Definition
