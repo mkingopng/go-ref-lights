@@ -228,9 +228,41 @@ window.addEventListener("DOMContentLoaded", function () {
             case "displayResults":
                 log(`Final decisions: L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`);
                 log(`[lights.js] displayResults received: left=${data.leftDecision}, center=${data.centerDecision}, right=${data.rightDecision}`);
+
                 leftCircle.style.backgroundColor   = (data.leftDecision   === "white") ? "white" : "red";
                 centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
                 rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
+
+                // Determine the message to display
+                let whiteCount = 0;
+                let redCount = 0;
+
+                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(decision => {
+                    if (decision === "white") {
+                        whiteCount++;
+                    } else {
+                        redCount++;
+                    }
+                });
+
+                const messageEl = document.getElementById("message");
+
+                if (whiteCount >= 2) {
+                    messageEl.innerText = "Good Lift";
+                    messageEl.style.color = "green";
+                } else {
+                    messageEl.innerText = "No Lift";
+                    messageEl.style.color = "red";
+                }
+
+                messageEl.classList.add("flash");
+
+                // Clear message after 15 seconds
+                setTimeout(() => {
+                    messageEl.innerText = "";
+                    messageEl.classList.remove("flash");
+                }, 15000);
+
                 // Mark that the results have been displayed so that next attempt timers are handled separately
                 resultsDisplayed = true;
                 break;
@@ -250,6 +282,10 @@ window.addEventListener("DOMContentLoaded", function () {
                 leftIndicator.style.backgroundColor   = "grey";
                 centerIndicator.style.backgroundColor = "grey";
                 rightIndicator.style.backgroundColor  = "grey";
+
+                // Clear message
+                messageEl.innerText = "";
+                messageEl.classList.remove("flash");
                 break;
 
             case "resetLights":

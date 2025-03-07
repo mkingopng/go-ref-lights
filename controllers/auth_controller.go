@@ -11,7 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
-	"runtime"
 )
 
 var activeUsers = make(map[string]bool)
@@ -46,8 +45,8 @@ func SetMeetHandler(c *gin.Context) {
 }
 
 // LoadMeetCreds loads meet credentials from JSON file
+// LoadMeetCreds loads meet credentials from JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	_, _, _, _ = runtime.Caller(0)         // Unused variable fix
 	credPath := "./config/meet_creds.json" // #nosec G101
 
 	data, err := os.ReadFile(credPath)
@@ -55,92 +54,95 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 		return nil, err
 	}
 
-	var creds models.MeetCreds
-	if err := json.Unmarshal(data, &creds); err != nil {
-		return nil, err
+	var raw map[string]interface{} // Load raw JSON first
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
 	}
 
-	// Debug print to confirm meets are loaded correctly
-	fmt.Println("Loaded meets:", creds.Meets)
+	// Convert "isadmin" from string to boolean if needed
+	meetsData, _ := raw["meets"].([]interface{})
+	for _, meet := range meetsData {
+		meetMap := meet.(map[string]interface{})
+		usersData, _ := meetMap["users"].([]interface{})
 
-	return &creds, nil
-}
-
-// LoginHandler verifies the username and password, enforces single login,
-// and stores session data if successful.
-func LoginHandler(c *gin.Context) {
-	session := sessions.Default(c)
-	meetNameRaw := session.Get("meetName")
-	meetName, ok := meetNameRaw.(string)
-	if !ok || meetName == "" {
-		logger.Warn.Println("LoginHandler: No meet selected, redirecting to /choose-meet")
-		c.Redirect(http.StatusFound, "/choose-meet")
-		return
-	}
-
-	username := c.PostForm("username")
-	password := c.PostForm("password")
-
-	if username == "" || password == "" {
-		logger.Warn.Println("LoginHandler: Missing username or password")
-		c.HTML(http.StatusBadRequest, "login.html", gin.H{"MeetName": meetName, "Error": "Please fill in all fields."})
-		return
-	}
-
-	adminUser := os.Getenv("ADMIN_USERNAME")
-	adminPassword := os.Getenv("ADMIN_PASSWORD")
-	var valid bool
-
-	if username == adminUser && password == adminPassword {
-		valid = true
-	} else {
-		creds, err := loadMeetCredsFunc()
-		if err != nil {
-			logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
-			c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again later."})
-			return
-		}
-
-		for _, m := range creds.Meets {
-			if m.Name == meetName {
-				for _, user := range m.Users {
-					if user.Username == username && ComparePasswords(user.Password, password) {
-						valid = true
-						break
-					}
-				}
+		for _, user := range usersData {
+			userMap := user.(map[string]interface{})
+			if isAdminStr, ok := userMap["isadmin"].(string); ok {
+				userMap["isadmin"] = (isAdminStr == "True" || isAdminStr == "true")
 			}
 		}
 	}
 
-	if !valid {
-		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "Invalid username or password."})
+	// Convert back to models.MeetCreds
+	parsedData, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to re-encode JSON: %w", err)
+	}
+
+	var creds models.MeetCreds
+	if err := json.Unmarshal(parsedData, &creds); err != nil {
+		return nil, fmt.Errorf("failed to parse corrected JSON: %w", err)
+	}
+
+	// ✅ Debug print to confirm "isadmin" is correctly parsed
+	for _, meet := range creds.Meets {
+		for _, user := range meet.Users {
+			fmt.Printf("Loaded user: %s (Admin: %t)\n", user.Username, user.IsAdmin)
+		}
+	}
+
+	return &creds, nil
+}
+
+// ForceLogoutHandler logs out a user forcibly (admin action)
+func ForceLogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin")
+
+	// Only admins can force logout users
+	if isAdmin == nil || isAdmin != true {
+		logger.Warn.Println("Unauthorized attempt to force logout a user.")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
 
-	if activeUsers[username] {
-		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
-		c.HTML(http.StatusUnauthorized, "login.html", gin.H{"MeetName": meetName, "Error": "This username is already logged in on another device."})
+	// Extract username from request
+	username := c.PostForm("username")
+	if username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
 		return
 	}
 
-	// Mark user as logged in and set session user
-	activeUsers[username] = true
-	session.Set("user", username)
-
-	// ✅ Check if user is admin and explicitly log the result
-	isAdmin := (username == adminUser)
-	session.Set("isAdmin", isAdmin)
-
-	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
-
-	if err := session.Save(); err != nil {
-		logger.Error.Println("LoginHandler: Failed to save session:", err)
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{"MeetName": meetName, "Error": "Internal error, please try again."})
+	// Ensure the user exists in activeUsers
+	if _, exists := activeUsers[username]; !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
-	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
-	c.Redirect(http.StatusFound, "/dashboard")
+	// Remove user session and mark them as logged out
+	delete(activeUsers, username)
+	logger.Info.Printf("Admin forcibly logged out user: %s", username)
+
+	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
+}
+
+// ActiveUsersHandler returns a list of active users (admin action)
+func ActiveUsersHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin")
+
+	// Only admins can see active users
+	if isAdmin == nil || isAdmin != true {
+		logger.Warn.Println("Unauthorized attempt to view active users.")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	// Convert activeUsers map keys to a list
+	var userList []string
+	for user := range activeUsers {
+		userList = append(userList, user)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"users": userList})
 }

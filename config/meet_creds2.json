@@ -4,30 +4,34 @@
       "name": "Complete Strength Open",
       "date": "March 1",
       "users": [
-        {"username": "complete_strength_open_1", "password": "zjhYXF"},
-        {"username": "complete_strength_open_2", "password": "HUP9sS"},
-        {"username": "complete_strength_open_3", "password": "nMjkaf"},
-        {"username": "complete_strength_open_4", "password": "FVebAC"}
+        {"username": "complete_strength_open_center", "password": "zjhYXF", "isadmin": false},
+        {"username": "complete_strength_open_left", "password": "HUP9sS", "isadmin": false},
+        {"username": "complete_strength_open_right", "password": "nMjkaf", "isadmin":  false},
+        {"username": "complete_strength_open_lights", "password": "FVebAC", "isadmin":  false},
+        {"username": "complete_strength_open_admin", "password": "admin", "isadmin":  true}
       ]
     },
     {
       "name": "South Australian State Championships",
       "date": "March 2",
       "users": [
-        {"username": "south_australian_state_championships_1", "password": "JQaHxB"},
-        {"username": "south_australian_state_championships_2", "password": "Ku2WDQ"},
-        {"username": "south_australian_state_championships_3", "password": "CwekKD"},
-        {"username": "south_australian_state_championships_4", "password": "yM9u3v"}
+        {"username": "south_australian_state_championships_center", "password": "JQaHxB", "isadmin": false},
+        {"username": "south_australian_state_championships_left", "password": "Ku2WDQ", "isadmin": false},
+        {"username": "south_australian_state_championships_right", "password": "CwekKD", "isadmin": false},
+        {"username": "south_australian_state_championships_lights", "password": "yM9u3v", "isadmin": false},
+        {"username": "south_australian_state_championships_admin", "password": "admin", "isadmin": true}
+
       ]
     },
     {
       "name": "Metal Mayham",
       "date": "March 2",
       "users": [
-        {"username": "metal_mayham_1", "password": "hM5Cek"},
-        {"username": "metal_mayham_2", "password": "e5aLBB"},
-        {"username": "metal_mayham_3", "password": "fEqYFv"},
-        {"username": "metal_mayham_4", "password": "yy7xgn"}
+        {"username": "metal_mayham_center", "password": "hM5Cek", "isadmin": false},
+        {"username": "metal_mayham_left", "password": "e5aLBB", "isadmin": false},
+        {"username": "metal_mayham_right", "password": "fEqYFv", "isadmin": false},
+        {"username": "metal_mayham_lights", "password": "yy7xgn", "isadmin": false},
+        {"username": "metal_mayham_admin", "password": "admin", "isadmin": true}
       ]
     }
   ]

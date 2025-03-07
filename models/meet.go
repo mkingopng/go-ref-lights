@@ -5,6 +5,7 @@ package models
 type User struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	IsAdmin  bool   `json:"isadmin"`
 }
 
 // Meet represents a powerlifting meet with associated users

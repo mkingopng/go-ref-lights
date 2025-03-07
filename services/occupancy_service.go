@@ -27,7 +27,7 @@ type OccupancyServiceInterface interface {
 	GetOccupancy(meetName string) Occupancy
 	SetPosition(meetName, position, userEmail string) error
 	ResetOccupancyForMeet(meetName string)
-	// todo: ADD: We'll explicitly reference UnsetPosition in the interface too:
+	// UnsetPosition todo: ADD: We'll explicitly reference UnsetPosition in the interface too:
 	UnsetPosition(meetName, position, userEmail string) error
 }
 
