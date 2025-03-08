@@ -1,5 +1,4 @@
 // file: websocket/broadcast_test.go
-
 //go:build unit
 // +build unit
 
@@ -57,8 +56,8 @@ func TestBroadcastFinalResults(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
 
-	// Set up a MeetState with predefined JudgeDecisions.
-	mockMeetState := getMeetState("APL Test Meet")
+	// Set up a MeetState with predefined JudgeDecisions using the unified function.
+	mockMeetState := GetMeetState("APL Test Meet")
 	mockMeetState.JudgeDecisions = map[string]string{
 		"left":   "good",
 		"center": "no lift",
@@ -96,12 +95,10 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 			"right":  "good",
 		},
 	}
-	// Override getMeetStateFunc to return our controlled MeetState.
-	origGetMeetState := getMeetStateFunc
-	getMeetStateFunc = func(meetName string) *MeetState {
-		return mockState
-	}
-	defer func() { getMeetStateFunc = origGetMeetState }()
+	// Insert our controlled state into the global map.
+	meetsMutex.Lock()
+	meets["APL Test Meet"] = mockState
+	meetsMutex.Unlock()
 
 	// Override sleepFunc to simulate an immediate timeout.
 	origSleep := sleepFunc
@@ -110,6 +107,7 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 
 	broadcastFinalResults("APL Test Meet")
 
+	// First message should be displayResults.
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
@@ -120,6 +118,7 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 		t.Fatal("Expected displayResults broadcast, but got none")
 	}
 
+	// Then, the clearResults message should be sent.
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string

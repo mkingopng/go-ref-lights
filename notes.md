@@ -77,7 +77,7 @@ Write tests in a **clear, structured way**:
 
 ### Write Self-Contained Tests
 - **Each test should be independent**.
-- **Tests should NOT rely on global state** (e.g., shared session data, database entries).
+- **Tests should NOT rely on global state** (e.g. shared session data, database entries).
 - **Prevents flaky test failures**.
 
 ### Use Meaningful Test Names

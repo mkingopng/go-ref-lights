@@ -12,7 +12,7 @@ import (
 var sleepFunc = time.Sleep
 
 // Allow tests to override the function used to get a MeetState.
-var getMeetStateFunc = getMeetState
+//var getMeetStateFunc = getMeetState
 
 // HandleMessages listens for messages on the broadcast channel and distributes them to connections.
 func HandleMessages() {
@@ -62,7 +62,7 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 // broadcastFinalResults sends the final decisions to all connections in a meet.
 // It then starts the next attempt timer and, after a timeout, broadcasts a "clearResults" message.
 func broadcastFinalResults(meetName string) {
-	meetState := getMeetStateFunc(meetName) // fetch the current meet state
+	meetState := DefaultStateProvider.GetMeetState(meetName) // fetch the current meet state
 
 	// prepare the decision submission message
 	submission := map[string]string{
@@ -84,7 +84,7 @@ func broadcastFinalResults(meetName string) {
 	broadcast <- resultMsg
 
 	// start the next attempt timer
-	StartNextAttemptTimer(meetState)
+	//StartNextAttemptTimer(meetState)
 
 	// after a timeout, send a message to clear results
 	go func() {

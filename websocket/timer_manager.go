@@ -12,6 +12,9 @@ import (
 
 // -------------- timer manager setup --------------
 
+// platformReadyTimer represents a timer for the next attempt
+var platformReadyTimer *time.Timer
+
 // Default instance of TimerManager.
 var defaultTimerManager *TimerManager
 
@@ -32,11 +35,56 @@ type TimerManager struct {
 // init sets up the default timer manager.
 func init() {
 	defaultTimerManager = &TimerManager{
-		Provider:              defaultStateProvider,
+		Provider:              DefaultStateProvider,
 		Messenger:             defaultMessenger,
 		TickerInterval:        1 * time.Second, // default to 1s interval
 		NextAttemptStartValue: 60,              // default next attempt timer to 60s
 	}
+}
+
+// --------------------- timer action handler ---------------------
+
+// HandleTimerAction processes different timer actions.
+func (tm *TimerManager) HandleTimerAction(action, meetName string) {
+	logger.Info.Printf("[HandleTimerAction] Received '%s' for meet '%s'", action, meetName)
+	// Now using the unified state provider.
+	meetState := tm.Provider.GetMeetState(meetName)
+	logger.Info.Printf("[HandleTimerAction] Using unified MeetState pointer %p for meet '%s'", meetState, meetName)
+
+	switch action {
+	case "startTimer":
+		// Clear previous decisions and notify clients.
+		logger.Info.Printf("[HandleTimerAction] Clearing old decisions, sending 'clearResults' broadcast")
+		meetState.JudgeDecisions = make(map[string]string)
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		tm.Messenger.BroadcastRaw(clearJSON)
+
+		// Start the Platform Ready timer.
+		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
+		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet '%s'", meetName)
+		tm.startPlatformReadyTimer(meetState)
+
+	case "resetTimer":
+		logger.Info.Printf("🔄 Processing resetTimer action for meet: %s", meetName)
+		tm.resetPlatformReadyTimer(meetState)
+		meetState.JudgeDecisions = make(map[string]string)
+		clearMsg := map[string]string{"action": "clearResults"}
+		clearJSON, _ := json.Marshal(clearMsg)
+		tm.Messenger.BroadcastRaw(clearJSON)
+
+	case "startNextAttemptTimer":
+		logger.Info.Printf("[HandleTimerAction] Now calling startNextAttemptTimer for meet '%s'", meetName)
+		tm.startNextAttemptTimer(meetState)
+
+	case "updatePlatformReadyTime":
+		logger.Debug.Printf("Ignoring timer update echo from client for meet: %s", meetName)
+		return
+
+	default:
+		logger.Debug.Printf("[HandleTimerAction] Action '%s' not recognized", action)
+	}
+	logger.Info.Printf("[HandleTimerAction] Finished processing action '%s' for meet '%s'", action, meetName)
 }
 
 // -------------------- platform ready timer management --------------------
@@ -193,57 +241,4 @@ func (tm *TimerManager) interval() time.Duration {
 		return tm.TickerInterval
 	}
 	return 1 * time.Second
-}
-
-// --------------------- timer action handler ---------------------
-
-// HandleTimerAction processes different timer actions.
-func (tm *TimerManager) HandleTimerAction(action, meetName string) {
-	logger.Info.Printf("[HandleTimerAction] Received '%s' for meet '%s'", action, meetName)
-	meetState := tm.Provider.GetMeetState(meetName)
-	logger.Info.Printf("[HandleTimerAction] Got MeetState pointer %p for meet '%s'", meetState, meetName)
-
-	switch action {
-	case "startTimer":
-		// Clear previous decisions and notify clients.
-		logger.Info.Printf("[HandleTimerAction] Clearing old decisions, sending 'clearResults' broadcast")
-		meetState.JudgeDecisions = make(map[string]string)
-		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
-		tm.Messenger.BroadcastRaw(clearJSON)
-
-		// Start platform ready timer.
-		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
-		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet '%s'", meetName)
-		tm.startPlatformReadyTimer(meetState)
-
-	case "resetTimer":
-		logger.Info.Printf("🔄 Processing resetTimer action for meet: %s", meetName)
-		tm.resetPlatformReadyTimer(meetState)
-		meetState.JudgeDecisions = make(map[string]string)
-		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
-		tm.Messenger.BroadcastRaw(clearJSON)
-
-	case "startNextAttemptTimer":
-		logger.Info.Printf("[HandleTimerAction] Now calling startNextAttemptTimer for meet '%s'", meetName)
-		tm.startNextAttemptTimer(meetState)
-
-	case "updatePlatformReadyTime":
-		logger.Debug.Printf("Ignoring timer update echo from client for meet: %s", meetName)
-		return
-
-	default:
-		logger.Debug.Printf("[HandleTimerAction] Action '%s' not recognized", action)
-	}
-	logger.Info.Printf("[HandleTimerAction] Finished processing action '%s' for meet '%s'", action, meetName)
-}
-
-// StartNextAttemptTimer is a wrapper for legacy calls
-func StartNextAttemptTimer(meetState *MeetState) {
-	if defaultTimerManager == nil {
-		logger.Error.Println("defaultTimerManager is nil!")
-		return
-	}
-	defaultTimerManager.startNextAttemptTimer(meetState)
 }
