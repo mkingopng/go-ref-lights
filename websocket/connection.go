@@ -204,16 +204,17 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		broadcastRefereeHealth(dm.MeetName)
 	case "startTimer":
 		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
-		msg := map[string]string{
-			"action":   "startTimer",
-			"meetName": dm.MeetName,
-		}
-		out, err := json.Marshal(msg)
-		if err != nil {
-			logger.Error.Printf("Error marshaling startTimer message: %v", err)
-		} else {
-			broadcastToMeet(dm.MeetName, out)
-		}
+		defaultTimerManager.HandleTimerAction("startTimer", dm.MeetName)
+	//	msg := map[string]string{
+	//		"action":   "startTimer",
+	//		"meetName": dm.MeetName,
+	//	}
+	//	out, err := json.Marshal(msg)
+	//	if err != nil {
+	//		logger.Error.Printf("Error marshaling startTimer message: %v", err)
+	//	} else {
+	//		broadcastToMeet(dm.MeetName, out)
+	//	}
 	case "resetLights":
 		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
@@ -281,7 +282,8 @@ func processDecision(c *Connection, dm DecisionMessage) {
 }
 
 // broadcastToMeet sends a message to all connections in the given meet.
-func broadcastToMeet(meetName string, message []byte) {
+// broadcastToMeet sends a message to all connections in the given meet.
+var broadcastToMeet = func(meetName string, message []byte) {
 	for c := range connections {
 		if c.meetName == meetName {
 			select {

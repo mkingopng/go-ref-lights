@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -26,6 +27,11 @@ type MeetState struct {
 	PlatformReadyTimeLeft int
 	PlatformReadyEnd      time.Time
 	NextAttemptTimers     []NextAttemptTimer
+
+	// New fields for context cancellation
+	PlatformReadyCtx     context.Context
+	PlatformReadyCancel  context.CancelFunc
+	PlatformReadyTimerID int
 }
 
 // a global map storing meetName -> *MeetState
@@ -41,18 +47,31 @@ func getMeetState(meetName string) *MeetState {
 
 	state, exists := meets[meetName]
 	if !exists {
-		logger.Info.Printf("Creating new MeetState for meet: %s", meetName)
+		logger.Info.Printf("[getMeetState] Creating new MeetState for meet: %s", meetName)
 		state = &MeetState{
-			MeetName:              meetName, // ← This is the added field!
+			MeetName:              meetName,
 			RefereeSessions:       make(map[string]*websocket.Conn),
 			JudgeDecisions:        make(map[string]string),
 			PlatformReadyActive:   false,
 			PlatformReadyTimeLeft: 60,
 			NextAttemptTimers:     []NextAttemptTimer{},
+			PlatformReadyCancel:   nil,
 		}
 		meets[meetName] = state
 	} else {
-		logger.Debug.Printf("Retrieved existing MeetState for meet: %s", meetName)
+		logger.Debug.Printf("[getMeetState] Retrieved existing MeetState for meet: %s", meetName)
+	}
+
+	// Log before cancelling old timers
+	logger.Debug.Printf("[getMeetState] Active Timer: %v, CancelFunc Exists: %v",
+		state.PlatformReadyActive, state.PlatformReadyCancel != nil)
+
+	// Prevent duplicate timers
+	if state.PlatformReadyCancel != nil {
+		logger.Info.Printf("[getMeetState] Cancelling old timer for meet: %s", meetName)
+		state.PlatformReadyCancel()
+		state.PlatformReadyCancel = nil
+		state.PlatformReadyActive = false
 	}
 	return state
 }
