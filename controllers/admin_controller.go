@@ -1,4 +1,5 @@
-// Package controllers controllers/admin_controller.go
+// Package controllers provides HTTP handlers for various admin operations.
+// File: controllers/admin_controller.go
 package controllers
 
 import (
@@ -10,13 +11,15 @@ import (
 	"go-ref-lights/services"
 )
 
-// AdminController provides admin operations.
+// ---------------- Admin Controller ----------------
+
+// AdminController provides admin operations for managing meets, referees, and users
 type AdminController struct {
 	OccupancyService   services.OccupancyServiceInterface
 	PositionController *PositionController
 }
 
-// NewAdminController creates a new instance of AdminController.
+// NewAdminController initializes a new instance of AdminController
 func NewAdminController(service services.OccupancyServiceInterface, posController *PositionController) *AdminController {
 	return &AdminController{
 		OccupancyService:   service,
@@ -24,40 +27,54 @@ func NewAdminController(service services.OccupancyServiceInterface, posControlle
 	}
 }
 
-// AdminPanel renders admin panel page and requires that the user is an admin
+// ---------------- admin panel management ----------------
+
+// AdminPanel renders the admin panel page, ensuring the user has admin privileges.
+// If the user is not an admin, they receive an HTTP 401 Unauthorized response.
+// Requires a meet name to be specified via query parameters or session.
 func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
 	logger.Debug.Printf("AdminPanel: isAdmin value in session: %v", adminVal)
+
 	isAdmin, ok := adminVal.(bool)
+
 	if !ok || !isAdmin {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
-	// Determine the meet name—either from query params or session.
+	// Retrieve meet name from query parameters or session
 	meetName := c.Query("meet")
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
 	}
+
 	if meetName == "" {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
 
-	occ := ac.OccupancyService.GetOccupancy(meetName)
+	occupancy := ac.OccupancyService.GetOccupancy(meetName)
+
 	data := gin.H{
 		"meetName":  meetName,
-		"occupancy": occ,
+		"occupancy": occupancy,
 	}
+
 	c.HTML(http.StatusOK, "admin.html", data)
 }
 
-// ForceVacate allows an admin to force a referee position to be vacated.
+// ---------------- referee position management ----------------
+
+// ForceVacate allows an admin to forcibly vacate a referee from their assigned position.
+// Requires:
+// - `meetName` and `position` from the POST request body.
+// - The user to have admin privileges.
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// Check if user is an admin
+	// Ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
 		logger.Warn.Println("ForceVacate: Unauthorized attempt")
@@ -68,14 +85,15 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	meetName := c.PostForm("meetName")
 	position := c.PostForm("position")
 
+	// validate input parameters
 	if meetName == "" || position == "" {
 		c.String(http.StatusBadRequest, "Missing parameters")
 		return
 	}
 
 	// Ensure `GetOccupancy` returns a valid object
-	occ := ac.OccupancyService.GetOccupancy(meetName)
-	if occ == (services.Occupancy{}) { // Empty struct check
+	occupancy := ac.OccupancyService.GetOccupancy(meetName)
+	if occupancy == (services.Occupancy{}) { // Check if meet exists
 		c.String(http.StatusNotFound, "Meet not found")
 		return
 	}
@@ -83,49 +101,56 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	var occupant string
 	switch position {
 	case "left":
-		occupant = occ.LeftUser
-		occ.LeftUser = ""
+		occupant = occupancy.LeftUser
+		occupancy.LeftUser = ""
+
 	case "center":
-		occupant = occ.CenterUser
-		occ.CenterUser = ""
+		occupant = occupancy.CenterUser
+		occupancy.CenterUser = ""
+
 	case "right":
-		occupant = occ.RightUser
-		occ.RightUser = ""
+		occupant = occupancy.RightUser
+		occupancy.RightUser = ""
+
 	default:
 		c.String(http.StatusBadRequest, "Invalid position")
 		return
 	}
 
-	// Prevent vacating an already empty position
+	// ensure there is an occupant before vacating
 	if occupant == "" {
 		c.String(http.StatusBadRequest, "Position already vacant")
 		return
 	}
 
-	// Remove user from active users
+	// remove user from the active list
 	delete(activeUsers, occupant)
 
-	// Save the new occupancy state
+	// update occupancy state
 	if err := ac.OccupancyService.UnsetPosition(meetName, position, occupant); err != nil {
 		c.String(http.StatusInternalServerError, "Error vacating position: "+err.Error())
 		return
 	}
 
-	// Ensure WebSocket Broadcast Function is Called Correctly
-	ac.PositionController.BroadcastOccupancy(meetName) // all BroadcastOccupancy
+	// ensure WebSocket Broadcast function is called Correctly
+	ac.PositionController.BroadcastOccupancy(meetName) // broadcast updated occupancy
 
 	logger.Info.Printf("ForceVacate: Admin forcibly removed %s from %s position in %s", occupant, position, meetName)
 
-	// Redirect back to admin panel
+	// Redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
 }
 
-// ResetInstance forces a full reset of the meet instance.
-// This clears the active users map and resets occupancy.
+// ---------------- meet management ----------------
+
+// ResetInstance performs a full reset of the meet instance.
+// This clears active users and resets all referee positions.
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
 
+	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
+
 	if !ok || !isAdmin {
 		logger.Warn.Println("ResetInstance: Unauthorized attempt")
 		c.String(http.StatusUnauthorized, "Unauthorized")
@@ -136,6 +161,7 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
 	}
+
 	if meetName == "" {
 		logger.Warn.Println("ResetInstance: No meet specified")
 		c.String(http.StatusBadRequest, "Meet not specified")
@@ -144,21 +170,29 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	logger.Info.Printf("ResetInstance: Resetting meet '%s'", meetName)
 
-	activeUsers = make(map[string]bool)
-	ac.OccupancyService.ResetOccupancyForMeet(meetName) // ✅ Ensure this is called
+	activeUsers = make(map[string]bool) // clear active users
+	ac.OccupancyService.ResetOccupancyForMeet(meetName)
 
+	// broadcast updated occupancy state
 	ac.PositionController.BroadcastOccupancy(meetName)
 
 	logger.Info.Printf("ResetInstance: Meet '%s' reset successfully", meetName)
 
+	// redirect back to admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
 }
 
-// ForceLogout logs out a user forcibly (admin action)
+// ---------------- user management ----------------
+
+// ForceLogout forcibly logs out a user (admin action).
+// requires:
+// - `username` from the POST request body.
+// - the user to have admin privileges.
 func (ac *AdminController) ForceLogout(c *gin.Context) {
 	session := sessions.Default(c)
-	isAdmin := session.Get("isAdmin")
 
+	// ensure user is an admin
+	isAdmin := session.Get("isAdmin")
 	if isAdmin == nil || isAdmin != true {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
@@ -170,11 +204,14 @@ func (ac *AdminController) ForceLogout(c *gin.Context) {
 		return
 	}
 
+	// check if user is logged in
 	if _, exists := activeUsers[username]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
+	// remove user from the active list
 	delete(activeUsers, username)
+
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
