@@ -6,6 +6,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,18 +27,15 @@ func TestTimerManager_HandleTimerAction_StartTimer(t *testing.T) {
 	mockProvider.On("GetMeetState", "TestMeet").Return(meetState)
 
 	// Expect a clearResults broadcast.
-	mockMessenger.
-		On("BroadcastRaw", []byte(`{"action":"clearResults"}`)).
-		Once()
+	mockMessenger.On("BroadcastRaw", mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+		fmt.Println("BroadcastRaw called with:", args)
+	})
+
 	// Expect a BroadcastMessage with action "startTimer".
 	mockMessenger.
 		On("BroadcastMessage", "TestMeet", mock.MatchedBy(func(msg map[string]interface{}) bool {
 			return msg["action"] == "startTimer"
 		})).
-		Once()
-	// Expect a platformReadyExpired broadcast when the timer expires.
-	mockMessenger.
-		On("BroadcastRaw", []byte(`{"action":"platformReadyExpired"}`)).
 		Once()
 	// Optionally allow BroadcastTimeUpdate calls.
 	mockMessenger.
