@@ -281,7 +281,8 @@ func processDecision(c *Connection, dm DecisionMessage) {
 }
 
 // broadcastToMeet sends a message to all connections in the given meet.
-func broadcastToMeet(meetName string, message []byte) {
+// broadcastToMeet sends a message to all connections in the given meet.
+var broadcastToMeet = func(meetName string, message []byte) {
 	for c := range connections {
 		if c.meetName == meetName {
 			select {

@@ -3,6 +3,7 @@
 package websocket
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -26,6 +27,10 @@ type MeetState struct {
 	PlatformReadyTimeLeft int
 	PlatformReadyEnd      time.Time
 	NextAttemptTimers     []NextAttemptTimer
+	// New fields for context cancellation
+	PlatformReadyCtx     context.Context
+	PlatformReadyCancel  context.CancelFunc
+	PlatformReadyTimerID int
 }
 
 // a global map storing meetName -> *MeetState
@@ -49,6 +54,7 @@ func getMeetState(meetName string) *MeetState {
 			PlatformReadyActive:   false,
 			PlatformReadyTimeLeft: 60,
 			NextAttemptTimers:     []NextAttemptTimer{},
+			PlatformReadyCancel:   nil,
 		}
 		meets[meetName] = state
 	} else {
