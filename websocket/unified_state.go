@@ -1,4 +1,4 @@
-// Package websocket unified_state.go
+// unified_state.go
 package websocket
 
 import (
@@ -19,7 +19,7 @@ type StateProvider interface {
 type MeetState struct {
 	MeetName              string                     // Name of the meet.
 	RefereeSessions       map[string]*websocket.Conn // Active referee WebSocket connections.
-	JudgeDecisions        map[string]string          // Judge decisions (e.g. left, center, right).
+	JudgeDecisions        map[string]string          // Judge decisions (e.g., left, center, right).
 	PlatformReadyActive   bool                       // Is the Platform Ready timer active?
 	PlatformReadyTimeLeft int                        // Remaining seconds on the timer.
 	PlatformReadyEnd      time.Time                  // Time when the timer expires.
@@ -44,7 +44,7 @@ var (
 
 // GetMeetState returns the MeetState for a given meetName.
 // If none exists, it creates a new one.
-// It also cancels any previous platform ready timer to avoid duplicates.
+// (Note: Cancellation of active timers is no longer performed here.)
 func GetMeetState(meetName string) *MeetState {
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
@@ -64,15 +64,22 @@ func GetMeetState(meetName string) *MeetState {
 		logger.Debug.Printf("[GetMeetState] Retrieved existing MeetState for meet: %s", meetName)
 	}
 
-	// Ensure no duplicate platform ready timers exist.
-	if state.PlatformReadyCancel != nil {
-		logger.Info.Printf("[GetMeetState] Cancelling existing platform ready timer for meet: %s", meetName)
-		state.PlatformReadyCancel()
-		state.PlatformReadyCancel = nil
-		state.PlatformReadyActive = false
-	}
-
 	return state
+}
+
+// CancelPlatformReadyTimer explicitly cancels any active platform ready timer for the given meet.
+func CancelPlatformReadyTimer(meetName string) {
+	meetsMutex.Lock()
+	defer meetsMutex.Unlock()
+
+	if state, exists := meets[meetName]; exists {
+		if state.PlatformReadyCancel != nil {
+			logger.Info.Printf("[CancelPlatformReadyTimer] Cancelling existing platform ready timer for meet: %s", meetName)
+			state.PlatformReadyCancel()
+			state.PlatformReadyCancel = nil
+			state.PlatformReadyActive = false
+		}
+	}
 }
 
 // ClearMeetState removes a MeetState for a given meetName.

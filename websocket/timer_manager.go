@@ -60,6 +60,9 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 		clearJSON, _ := json.Marshal(clearMsg)
 		tm.Messenger.BroadcastRaw(clearJSON)
 
+		// Explicitly cancel any active platform ready timer.
+		CancelPlatformReadyTimer(meetName)
+
 		// Start the Platform Ready timer.
 		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
 		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet '%s'", meetName)
