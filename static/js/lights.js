@@ -1,6 +1,8 @@
+// static/js/lights.js
 "use strict";
 
 let socket;
+let platformReadyInterval = null;
 let resultsDisplayed = false; // Flag to indicate that displayResults has been processed
 
 // utility function for logging
@@ -60,6 +62,62 @@ window.addEventListener("DOMContentLoaded", function () {
             window.location.href = "/meets";
         }
         return meetName;
+    }
+
+    // Helper function to update the platform ready timer UI
+    function updatePlatformReadyTimer(timer) {
+        log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
+        if (timerDisplay) {
+            timerDisplay.innerText = `${timer.TimeLeft}s`;
+        }
+        // Hide the container if the timer ran out
+        if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.add("hidden");
+        } else if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.remove("hidden");
+        }
+    }
+
+    // Helper function to update a next attempt timer UI element
+    function updateNextAttemptTimer(timer, container, timersMap) {
+        // If time is up, remove the timer element
+        if (timer.TimeLeft <= 0) {
+            if (timersMap[timer.ID]) {
+                container.removeChild(timersMap[timer.ID]);
+                delete timersMap[timer.ID];
+            }
+        } else {
+            // Create the timer element if it doesn't exist
+            if (!timersMap[timer.ID]) {
+                let newRow = document.createElement("div");
+                newRow.classList.add("timer");
+                container.insertBefore(newRow, container.firstChild);
+                timersMap[timer.ID] = newRow;
+            }
+            // Update the timer element's text without the index number
+            timersMap[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+            container.classList.remove("hidden");
+        }
+    }
+
+    // Main handler for the "updateNextAttemptTime" action
+    function handleUpdateNextAttemptTime(data) {
+        if (data.timers && Array.isArray(data.timers)) {
+            data.timers.forEach(timer => {
+                if (timer.ID === 1) {
+                    if (resultsDisplayed) {
+                        // When results are displayed, treat timer ID 1 as a next attempt timer
+                        updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
+                    } else {
+                        // Otherwise, update the platform ready timer
+                        updatePlatformReadyTimer(timer);
+                    }
+                } else {
+                    // For other timer IDs, update the next attempt timer normally
+                    updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
+                }
+            });
+        }
     }
 
     // constants
@@ -134,84 +192,55 @@ window.addEventListener("DOMContentLoaded", function () {
 
             case "startTimer":
                 log("🔵 Received startTimer from server, starting Platform Ready Timer countdown");
+
+                resultsDisplayed = false;
+
+                if (platformReadyInterval) {
+                    clearInterval(platformReadyInterval);
+                    platformReadyInterval = null;
+                    }
+
+                Object.keys(nextAttemptTimers).forEach((id => {
+                    if (multiNextAttemptTimers && nextAttemptTimers[id]) {
+                        multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
+                    }
+                    delete nextAttemptTimers[id];
+                }));
+                if (multiNextAttemptTimers) {
+                    multiNextAttemptTimers.classList.add("hidden");
+                }
                 if (platformReadyTimerContainer) {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
-                // Start a local countdown from 60 seconds
-                let timeLeft = 60;
                 if (timerDisplay) {
-                    timerDisplay.innerText = `${timeLeft}s`;
+                    timerDisplay.innerText = `${data.timeLeft}s`;
                 }
-                const countdownInterval = setInterval(() => {
-                    timeLeft--;
+                break;
+
+            case "updatePlatformReadyTime":
+                log(`⌛ Handling updatePlatformReadyTime: ${data.timeLeft}s left`, "debug");
+
+                // If you want to share logic with the "startTimer" local countdown,
+                // you can either replicate the code or unify them. For a quick fix:
+                if (data.timeLeft <= 0) {
+                    // Hide the timer since it's expired
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.add("hidden");
+                    }
+                } else {
+                    // Show the timer container if hidden
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.remove("hidden");
+                    }
                     if (timerDisplay) {
-                        timerDisplay.innerText = `${timeLeft}s`;
+                        timerDisplay.innerText = `${data.timeLeft}s`;
                     }
-                    if (timeLeft <= 0) {
-                        clearInterval(countdownInterval);
-                        if (platformReadyTimerContainer) {
-                            platformReadyTimerContainer.classList.add("hidden");
-                        }
-                    }
-                }, 1000);
+                }
                 break;
 
             case "updateNextAttemptTime":
-                // Loop through all timer objects received
-                if (data.timers && Array.isArray(data.timers)) {
-                    data.timers.forEach(timer => {
-                        if (timer.ID === 1) {
-                            // If results have been displayed, treat timer ID 1 as the next attempt timer
-                            if (resultsDisplayed) {
-                                if (timer.TimeLeft <= 0) {
-                                    if (nextAttemptTimers[timer.ID]) {
-                                        multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
-                                        delete nextAttemptTimers[timer.ID];
-                                    }
-                                } else {
-                                    if (!nextAttemptTimers[timer.ID]) {
-                                        let newRow = document.createElement("div");
-                                        newRow.classList.add("timer");
-                                        multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
-                                        nextAttemptTimers[timer.ID] = newRow;
-                                    }
-                                    // Removed index number from the text content here
-                                    nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
-                                    multiNextAttemptTimers.classList.remove("hidden");
-                                }
-                            } else {
-                                // Otherwise, update the platform ready timer as before
-                                log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
-                                if (timerDisplay) {
-                                    timerDisplay.innerText = `${timer.TimeLeft}s`;
-                                }
-                                if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
-                                    platformReadyTimerContainer.classList.add("hidden");
-                                } else if (platformReadyTimerContainer) {
-                                    platformReadyTimerContainer.classList.remove("hidden");
-                                }
-                            }
-                        } else {
-                            // For timer IDs other than 1, update the next attempt timer without an index
-                            if (timer.TimeLeft <= 0) {
-                                if (nextAttemptTimers[timer.ID]) {
-                                    multiNextAttemptTimers.removeChild(nextAttemptTimers[timer.ID]);
-                                    delete nextAttemptTimers[timer.ID];
-                                }
-                            } else {
-                                if (!nextAttemptTimers[timer.ID]) {
-                                    let newRow = document.createElement("div");
-                                    newRow.classList.add("timer");
-                                    multiNextAttemptTimers.insertBefore(newRow, multiNextAttemptTimers.firstChild);
-                                    nextAttemptTimers[timer.ID] = newRow;
-                                }
-                                // Remove the index number from the text
-                                nextAttemptTimers[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
-                                multiNextAttemptTimers.classList.remove("hidden");
-                            }
-                        }
-                    });
-                }
+                log("✅ Entering handleUpdateNextAttemptTime", "debug");
+                handleUpdateNextAttemptTime(data);
                 break;
 
             case "judgeSubmitted":
@@ -286,6 +315,7 @@ window.addEventListener("DOMContentLoaded", function () {
                 // Clear message
                 messageEl.innerText = "";
                 messageEl.classList.remove("flash");
+                resultsDisplayed = false;
                 break;
 
             case "resetLights":

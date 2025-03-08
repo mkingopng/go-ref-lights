@@ -204,16 +204,17 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		broadcastRefereeHealth(dm.MeetName)
 	case "startTimer":
 		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
-		msg := map[string]string{
-			"action":   "startTimer",
-			"meetName": dm.MeetName,
-		}
-		out, err := json.Marshal(msg)
-		if err != nil {
-			logger.Error.Printf("Error marshaling startTimer message: %v", err)
-		} else {
-			broadcastToMeet(dm.MeetName, out)
-		}
+		defaultTimerManager.HandleTimerAction("startTimer", dm.MeetName)
+	//	msg := map[string]string{
+	//		"action":   "startTimer",
+	//		"meetName": dm.MeetName,
+	//	}
+	//	out, err := json.Marshal(msg)
+	//	if err != nil {
+	//		logger.Error.Printf("Error marshaling startTimer message: %v", err)
+	//	} else {
+	//		broadcastToMeet(dm.MeetName, out)
+	//	}
 	case "resetLights":
 		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
