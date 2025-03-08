@@ -1,29 +1,38 @@
-// Package controllers file: controllers/page_controller.go
+// Package controllers handles various page rendering and session management functions.
+// File: controllers/page_controller.go
 package controllers
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
-	"net/http"
 )
+
+// -------------------- global configuration --------------------
 
 var (
 	// ApplicationURL is the base URL of the application
 	ApplicationURL string
+
 	// WebsocketURL is the URL for the WebSocket server
 	WebsocketURL string
 )
 
-// Health is a simple health check endpoint
+// -------------------- health check endpoint --------------------
+
+// Health provides a simple endpoint to check server health.
 func Health(c *gin.Context) {
 	logger.Info.Println("Health: Health check requested")
 	c.String(http.StatusOK, "OK")
 }
 
-// Home redirects the user to dashboard and vacates their position.
+// -------------------- user navigation and logout --------------------
+
+// Home redirects the user to the dashboard and vacates their referee position.
 func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	session := sessions.Default(c)
 
@@ -48,8 +57,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	c.Redirect(http.StatusFound, "/dashboard")
 }
 
-// Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login page.
-// controllers/page_controller.go
+// Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
 
@@ -78,6 +86,8 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
+// -------------------- page rendering --------------------
+
 // Index renders the main application page
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
@@ -87,7 +97,7 @@ func Index(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	// Check if the session has the admin flag.
+
 	isAdmin, _ := session.Get("isAdmin").(bool)
 
 	logger.Info.Printf("Rendering index page for meet %s", meetName)
@@ -99,7 +109,7 @@ func Index(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// ShowPositionsPage renders the positions page
+// ShowPositionsPage renders the positions selection page.
 func ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
@@ -114,7 +124,7 @@ func ShowPositionsPage(c *gin.Context) {
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
 		"Positions": map[string]interface{}{
-			"LeftOccupied":   false, // Example data, replace with actual occupancy logic
+			"LeftOccupied":   false, // todo: Example data, replace with actual occupancy logic
 			"LeftUser":       "",
 			"centerOccupied": false,
 			"centerUser":     "",
@@ -126,11 +136,10 @@ func ShowPositionsPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "positions.html", data)
 }
 
-// GetQRCode displays a QR code for the application URL
+// GetQRCode generates and returns a QR code for the application URL.
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
 
-	// Actually generate real PNG data:
 	qrBytes, err := services.GenerateQRCode(300, 300, qrcode.Encode)
 	if err != nil {
 		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
@@ -140,18 +149,19 @@ func GetQRCode(c *gin.Context) {
 
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
-	// Write the binary PNG bytes to the response
 	if _, err := c.Writer.Write(qrBytes); err != nil {
 		logger.Error.Printf("GetQRCode: Error writing QR code bytes: %v", err)
 	}
 }
 
-// SetConfig sets global application and WebSocket URLs
+// SetConfig updates the global application and WebSocket URLs.
 func SetConfig(appURL, wsURL string) {
 	ApplicationURL = appURL
 	WebsocketURL = wsURL
 	logger.Info.Printf("SetConfig: Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
 }
+
+// -------------------- referee view rendering --------------------
 
 // PerformLogin processes user authentication
 func PerformLogin(c *gin.Context) {

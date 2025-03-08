@@ -1,5 +1,4 @@
-// Package websocket contains the WebSocket server and client code for the meet.
-// file: websocket/test_helpers.go
+// Package websocket test_helpers.go
 package websocket
 
 import "time"
@@ -10,8 +9,12 @@ func InitTest() {
 	for len(broadcast) > 0 {
 		<-broadcast
 	}
-	resultsDisplayDuration = 15     // Reset the results display duration if needed.
-	sleepFunc = time.Sleep          // Reset the sleep function to the standard one.
-	getMeetStateFunc = getMeetState // Reset the getMeetStateFunc if you’ve overridden it.
-	nextAttemptIDCounter = 0        // Reset the nextAttemptIDCounter.
+	resultsDisplayDuration = 15 // Reset the results display duration if needed.
+	sleepFunc = time.Sleep      // Reset the sleep function to the standard one.
+	// No need to reset getMeetStateFunc since we now use DefaultStateProvider.GetMeetState.
+
+	// Reset the next attempt timer counter if the default timer manager is initialized.
+	if defaultTimerManager != nil {
+		defaultTimerManager.nextAttemptIDCounter = 0
+	}
 }
