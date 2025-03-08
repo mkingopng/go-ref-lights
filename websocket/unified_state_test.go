@@ -37,18 +37,22 @@ func TestGetMeetStateRetrievesExistingState(t *testing.T) {
 
 // TestGetMeetStateCancelsExistingTimer verifies that an active timer is cancelled on a later call.
 func TestGetMeetStateCancelsExistingTimer(t *testing.T) {
+	// Ensure no state exists for "TestMeet3"
 	ClearMeetState("TestMeet3")
 	state := GetMeetState("TestMeet3")
-	// Set a dummy cancel function that sets a flag.
+
+	// Set a dummy cancel function to simulate an active timer.
 	cancelled := false
 	state.PlatformReadyCancel = func() { cancelled = true }
 	state.PlatformReadyActive = true
 
-	// Calling GetMeetState should cancel the existing timer.
-	newState := GetMeetState("TestMeet3")
+	// Instead of calling GetMeetState (which no longer cancels timers),
+	// we now explicitly cancel the timer.
+	CancelPlatformReadyTimer("TestMeet3")
+
 	assert.True(t, cancelled, "Existing timer should have been cancelled")
-	assert.False(t, newState.PlatformReadyActive, "PlatformReadyActive should be false after cancellation")
-	assert.Nil(t, newState.PlatformReadyCancel, "PlatformReadyCancel should be nil after cancellation")
+	assert.False(t, state.PlatformReadyActive, "PlatformReadyActive should be false after cancellation")
+	assert.Nil(t, state.PlatformReadyCancel, "PlatformReadyCancel should be nil after cancellation")
 }
 
 // TestClearMeetState verifies that ClearMeetState removes a MeetState.

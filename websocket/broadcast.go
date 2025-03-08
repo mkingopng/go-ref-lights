@@ -11,8 +11,14 @@ import (
 // Allow tests to override the sleep behaviour.
 var sleepFunc = time.Sleep
 
-// Allow tests to override the function used to get a MeetState.
-//var getMeetStateFunc = getMeetState
+// StartNextAttemptTimer is an exported wrapper that triggers the next attempt timer for the given meet.
+func StartNextAttemptTimer(meetState *MeetState) {
+	if defaultTimerManager == nil {
+		logger.Error.Println("defaultTimerManager is nil!")
+		return
+	}
+	defaultTimerManager.startNextAttemptTimer(meetState)
+}
 
 // HandleMessages listens for messages on the broadcast channel and distributes them to connections.
 func HandleMessages() {
@@ -84,7 +90,7 @@ func broadcastFinalResults(meetName string) {
 	broadcast <- resultMsg
 
 	// start the next attempt timer
-	//StartNextAttemptTimer(meetState)
+	StartNextAttemptTimer(meetState)
 
 	// after a timeout, send a message to clear results
 	go func() {
