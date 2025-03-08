@@ -1,4 +1,4 @@
-// Package websocket provides the WebSocket server and connection handling.
+// Package websocket provides WebSocket server functionality and connection handling.
 // file: websocket/connection.go
 package websocket
 
@@ -12,7 +12,9 @@ import (
 	"net"
 )
 
-// WSConn is an interface for the WebSocket connection.
+// ------------------------- websocket connection interface ------------------
+
+// WSConn defines the interface for a WebSocket connection.
 type WSConn interface {
 	WriteMessage(messageType int, data []byte) error
 	SetWriteDeadline(t time.Time) error
@@ -24,7 +26,9 @@ type WSConn interface {
 	SetPongHandler(h func(string) error)
 }
 
-// Connection represents a single WebSocket connection for one client.
+// ------------------------- websocket connection struct ------------------
+
+// Connection represents an individual WebSocket connection.
 type Connection struct {
 	conn     WSConn
 	send     chan []byte
@@ -32,10 +36,11 @@ type Connection struct {
 	judgeID  string
 }
 
-// Global map for active connections (replaces your old 'clients' and 'connectionMapping').
+// Global map to store active WebSocket connections.
 var connections = make(map[*Connection]bool)
 
-// Configuration constants.
+// ------------------------- websocket configuration constants  --------------
+
 const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
@@ -43,7 +48,7 @@ const (
 	maxMessageSize = 2048
 )
 
-// Upgrader upgrades HTTP requests to WebSocket connections.
+// WebSocket upgrader settings.
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// Allow all connections for now. Adjust for production if needed.
@@ -51,7 +56,9 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// ServeWs upgrades the HTTP request to a WebSocket connection and starts the read and write pumps.
+// ------------------------- websocket server initialisation  ------------------
+
+// ServeWs upgrades an HTTP request to a WebSocket connection and starts read/write pumps.
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	meetName := r.URL.Query().Get("meetName")
 	if meetName == "" {
@@ -68,23 +75,24 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create our Connection object.
-	c := &Connection{
+	// create and register new WebSocket connection.
+	conn := &Connection{
 		conn:     wsConn,
 		send:     make(chan []byte, 256),
 		meetName: meetName,
 		judgeID:  "", // Will be set when a "registerRef" message is received.
 	}
 
-	// Register this connection globally.
-	registerConnection(c)
+	registerConnection(conn)
 
-	// Start the readPump and writePump goroutines.
-	go c.readPump()
-	go c.writePump()
+	// start goroutines for handling read and write operations.
+	go conn.readPump()
+	go conn.writePump()
 }
 
-// readPump handles inbound messages from the client.
+// ------------------------ websocket read/write handlers ------------------
+
+// readPump listens for incoming messages from the WebSocket client
 func (c *Connection) readPump() {
 	defer func() {
 		unregisterConnection(c)
@@ -113,6 +121,7 @@ func (c *Connection) readPump() {
 			logger.Warn.Printf("[readPump] Read error from %v: %v", c.conn.RemoteAddr(), err)
 			break
 		}
+
 		if messageType != websocket.TextMessage {
 			logger.Debug.Printf("[readPump] Ignoring non-text messageType=%d", messageType)
 			continue
@@ -127,7 +136,7 @@ func (c *Connection) readPump() {
 	}
 }
 
-// writePump handles outbound messages to the client, including periodic pings.
+// writePump handles outgoing messages to the WebSocket client
 func (c *Connection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -145,23 +154,26 @@ func (c *Connection) writePump() {
 			if err != nil {
 				return
 			}
+
 			if !ok {
-				// The channel was closed.
+				// channel was closed
 				logger.Debug.Printf("[writePump] Send channel closed for %v", c.conn.RemoteAddr())
 				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
+
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				logger.Warn.Printf("[writePump] Error writing to %v: %v", c.conn.RemoteAddr(), err)
 				return
 			}
 
 		case <-ticker.C:
-			// Send a ping.
+			// send periodic ping messages
 			err := c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err != nil {
 				return
 			}
+
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				logger.Warn.Printf("[writePump] Ping error for %v: %v", c.conn.RemoteAddr(), err)
 				return
@@ -170,17 +182,21 @@ func (c *Connection) writePump() {
 	}
 }
 
-// registerConnection adds the given connection to the global connections map.
+// ------------------------ connection management -----------------------
+
+// registerConnection adds a new WebSocket connection to the global connections map
 func registerConnection(c *Connection) {
 	connections[c] = true
 }
 
-// unregisterConnection removes the given connection from the global connections map.
+// unregisterConnection removes a WebSocket connection from the global connections map
 func unregisterConnection(c *Connection) {
 	if _, ok := connections[c]; ok {
 		delete(connections, c)
 	}
 }
+
+// ------------------------ message handling -----------------------
 
 // DecisionMessage represents the JSON structure of messages from clients.
 type DecisionMessage struct {
@@ -193,28 +209,20 @@ type DecisionMessage struct {
 	RightDecision  string `json:"rightDecision"`
 }
 
-// handleIncoming processes an inbound JSON message.
-// handleIncoming processes inbound messages.
+// handleIncoming processes incoming WebSocket messages.
 func handleIncoming(c *Connection, dm DecisionMessage) {
 	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s", dm.Action, dm.JudgeID, dm.MeetName)
+
 	switch dm.Action {
 	case "registerRef":
 		c.judgeID = dm.JudgeID
 		logger.Info.Printf("Referee %s registered on meet %s (conn=%v)", dm.JudgeID, dm.MeetName, c.conn.RemoteAddr())
 		broadcastRefereeHealth(dm.MeetName)
+
 	case "startTimer":
 		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
 		defaultTimerManager.HandleTimerAction("startTimer", dm.MeetName)
-	//	msg := map[string]string{
-	//		"action":   "startTimer",
-	//		"meetName": dm.MeetName,
-	//	}
-	//	out, err := json.Marshal(msg)
-	//	if err != nil {
-	//		logger.Error.Printf("Error marshaling startTimer message: %v", err)
-	//	} else {
-	//		broadcastToMeet(dm.MeetName, out)
-	//	}
+
 	case "resetLights":
 		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
@@ -227,6 +235,7 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
+
 	case "resetTimer":
 		logger.Info.Printf("Received resetTimer from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
@@ -239,15 +248,16 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
+
 	case "submitDecision":
 		processDecision(c, dm)
+
 	default:
 		logger.Debug.Printf("Unhandled action: %s", dm.Action)
 	}
 }
 
-// processDecision processes a judge decision message.
-// CHANGED: Now also records the decision in the MeetState and checks for completion.
+// processDecision handles judge decisions and checks if all decisions are received.
 func processDecision(c *Connection, dm DecisionMessage) {
 	if dm.JudgeID == "" || dm.Decision == "" {
 		logger.Warn.Printf("Incomplete decision message received from %v; ignoring", c.conn.RemoteAddr())
@@ -255,20 +265,16 @@ func processDecision(c *Connection, dm DecisionMessage) {
 	}
 	logger.Info.Printf("Processing decision from %s: %s (meet: %s)", dm.JudgeID, dm.Decision, dm.MeetName)
 
-	// Fetch the current MeetState (this uses the injectable function getMeetStateFunc).
 	meetState := getMeetState(dm.MeetName)
-
-	// Record the judge's decision.
 	meetState.JudgeDecisions[dm.JudgeID] = dm.Decision
 
-	// Check if all three judges have submitted.
-	// (You might adjust the number '3' if your requirement differs.)
+	// check if all three judges have submitted
 	if len(meetState.JudgeDecisions) >= 3 {
-		// All required decisions are in—broadcast the final results.
+		// all required decisions are in—broadcast the final results.
 		broadcastFinalResults(dm.MeetName)
 	}
 
-	// Now broadcast that this judge has submitted his/her decision.
+	// broadcast that this judge has submitted his/her decision.
 	submission := map[string]string{
 		"action":  "judgeSubmitted",
 		"judgeId": dm.JudgeID,
@@ -281,8 +287,9 @@ func processDecision(c *Connection, dm DecisionMessage) {
 	broadcastToMeet(dm.MeetName, out)
 }
 
-// broadcastToMeet sends a message to all connections in the given meet.
-// broadcastToMeet sends a message to all connections in the given meet.
+// ------------------------ broadcast functions ----------------------------
+
+// broadcastToMeet sends a message to all clients in a given meet.
 var broadcastToMeet = func(meetName string, message []byte) {
 	for c := range connections {
 		if c.meetName == meetName {
@@ -298,17 +305,20 @@ var broadcastToMeet = func(meetName string, message []byte) {
 // broadcastRefereeHealth broadcasts the health for a given meet.
 var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
+
 	for c := range connections {
 		if c.meetName == meetName && c.judgeID != "" {
 			connectedIDs = append(connectedIDs, c.judgeID)
 		}
 	}
+
 	msg := map[string]interface{}{
 		"action":            "refereeHealth",
 		"connectedRefIDs":   connectedIDs,
 		"connectedReferees": len(connectedIDs),
-		"requiredReferees":  3, // Adjust as needed.
+		"requiredReferees":  3,
 	}
+
 	out, _ := json.Marshal(msg)
 	broadcastToMeet(meetName, out)
 }
