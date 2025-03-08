@@ -43,6 +43,7 @@ run integration tests in a specific directory
 ```bash
 go test -v -tags=integration ./websocket
 ```
+
 ---
 # Best Practices for Maintaining Unit Tests**
 Since we’re writing **a large number of tests**, here are **best practices** to
