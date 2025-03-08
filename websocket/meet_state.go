@@ -11,36 +11,42 @@ import (
 	"go-ref-lights/logger"
 )
 
-// NextAttemptTimer structure used to track next attempt timers.
+// ------------- meet state structure --------------------------------
+
+// NextAttemptTimer represents a timer tracking the countdown for the next attempt.
 type NextAttemptTimer struct {
-	ID       int
-	TimeLeft int
-	Active   bool
+	ID       int  // Unique ID for identifying the timer
+	TimeLeft int  // Time remaining in seconds
+	Active   bool // Indicates if the timer is currently active
 }
 
-// MeetState holds per-meet, in-memory data.
+// MeetState manages real-time, in-memory data for an active meet.
 type MeetState struct {
-	MeetName              string
-	RefereeSessions       map[string]*websocket.Conn
-	JudgeDecisions        map[string]string
-	PlatformReadyActive   bool
-	PlatformReadyTimeLeft int
-	PlatformReadyEnd      time.Time
-	NextAttemptTimers     []NextAttemptTimer
+	MeetName              string                     // Name of the meet
+	RefereeSessions       map[string]*websocket.Conn // Active referee WebSocket connections
+	JudgeDecisions        map[string]string          // Stores decisions from judges (left, center, right)
+	PlatformReadyActive   bool                       // Indicates if the "Platform Ready" timer is active
+	PlatformReadyTimeLeft int                        // Remaining time for platform readiness
+	PlatformReadyEnd      time.Time                  // Timestamp when platform readiness ends
+	NextAttemptTimers     []NextAttemptTimer         // List of next attempt timers
 
-	// New fields for context cancellation
+	// Context for managing the platform readiness timer
 	PlatformReadyCtx     context.Context
 	PlatformReadyCancel  context.CancelFunc
 	PlatformReadyTimerID int
 }
 
-// a global map storing meetName -> *MeetState
+// ------------- meet state storage --------------------------------
+
+// Global storage for meet states.
 var (
 	meets      = make(map[string]*MeetState)
 	meetsMutex = &sync.Mutex{}
 )
 
-// getMeetState fetches or creates a MeetState for the given meetName.
+// ------------- meet state management --------------------------------
+
+// getMeetState retrieves or initialises a MeetState for the given meetName
 func getMeetState(meetName string) *MeetState {
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
@@ -53,7 +59,7 @@ func getMeetState(meetName string) *MeetState {
 			RefereeSessions:       make(map[string]*websocket.Conn),
 			JudgeDecisions:        make(map[string]string),
 			PlatformReadyActive:   false,
-			PlatformReadyTimeLeft: 60,
+			PlatformReadyTimeLeft: 60, // default to 60s todo: move to const
 			NextAttemptTimers:     []NextAttemptTimer{},
 			PlatformReadyCancel:   nil,
 		}
@@ -62,11 +68,10 @@ func getMeetState(meetName string) *MeetState {
 		logger.Debug.Printf("[getMeetState] Retrieved existing MeetState for meet: %s", meetName)
 	}
 
-	// Log before cancelling old timers
-	logger.Debug.Printf("[getMeetState] Active Timer: %v, CancelFunc Exists: %v",
-		state.PlatformReadyActive, state.PlatformReadyCancel != nil)
+	// log before cancelling old timers
+	logger.Debug.Printf("[getMeetState] Active Timer: %v, CancelFunc Exists: %v", state.PlatformReadyActive, state.PlatformReadyCancel != nil)
 
-	// Prevent duplicate timers
+	// ensure no duplicate timers are running
 	if state.PlatformReadyCancel != nil {
 		logger.Info.Printf("[getMeetState] Cancelling old timer for meet: %s", meetName)
 		state.PlatformReadyCancel()
@@ -76,9 +81,8 @@ func getMeetState(meetName string) *MeetState {
 	return state
 }
 
-// ClearMeetState removes the MeetState for the given meetName.
-// This can be used when a meet is finished, or if an error condition warrants
-// clean-up.
+// ClearMeetState removes the MeetState for a given meetName.
+// Used when a meet is completed or in case of an error requiring clean-up.
 func ClearMeetState(meetName string) {
 	meetsMutex.Lock()
 	defer meetsMutex.Unlock()
