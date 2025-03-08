@@ -1,27 +1,37 @@
-// Package controllers controllers/auth_controller.go
+// Package controllers provides authentication and session management for users.
+// File: controllers/auth_controller.go
 package controllers
 
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/models"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
-	"os"
 )
 
+// ---------- global variables ----------
+
+// activeUsers tracks currently logged-in users.
 var activeUsers = make(map[string]bool)
 
+// loadMeetCredsFunc allows dependency injection for testing.
 var loadMeetCredsFunc = LoadMeetCreds // Assign to a variable for easier testing
+
+// ----------------------- authentication utilities -----------------------
 
 // ComparePasswords checks if the given password matches the hashed password
 func ComparePasswords(hashedPassword, plainPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
 	return err == nil
 }
+
+// ----------------------- meet selection ----------------------------------
 
 // SetMeetHandler saves the selected meetName in session.
 func SetMeetHandler(c *gin.Context) {
@@ -44,10 +54,13 @@ func SetMeetHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/login")
 }
 
-// LoadMeetCreds loads meet credentials from JSON file
-// LoadMeetCreds loads meet credentials from JSON file
+// ----------------------- credentials management ---------------------------
+
+// LoadMeetCreds loads meet credentials from a JSON file.
+// This function ensures that the `isadmin` field is properly converted
+// from string to boolean when necessary.
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	credPath := "./config/meet_creds.json" // #nosec G101
+	credPath := "./config/meet_creds.json" // #nosec G101 - This is a known, controlled file path.
 
 	data, err := os.ReadFile(credPath)
 	if err != nil {
@@ -84,7 +97,7 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 		return nil, fmt.Errorf("failed to parse corrected JSON: %w", err)
 	}
 
-	// ✅ Debug print to confirm "isadmin" is correctly parsed
+	// Debug print to confirm "isadmin" is correctly parsed
 	for _, meet := range creds.Meets {
 		for _, user := range meet.Users {
 			fmt.Printf("Loaded user: %s (Admin: %t)\n", user.Username, user.IsAdmin)
@@ -94,7 +107,12 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 	return &creds, nil
 }
 
-// ForceLogoutHandler logs out a user forcibly (admin action)
+// ----------------------- admin actions -----------------------------------
+
+// ForceLogoutHandler forcibly logs out a user (admin action).
+// Requires:
+// - `username` from the POST request body.
+// - The user to have admin privileges.
 func ForceLogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
@@ -126,7 +144,10 @@ func ForceLogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
 
-// ActiveUsersHandler returns a list of active users (admin action)
+// --------------------- active user tracking ------------------------------
+
+// ActiveUsersHandler returns a list of active users (admin action).
+// Requires admin privileges.
 func ActiveUsersHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
