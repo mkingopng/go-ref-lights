@@ -1,3 +1,4 @@
+# .gitignore
 # IDE-specific files
 .idea/
 .vscode/
@@ -54,4 +55,12 @@ config.yaml
 # Exclude generated files from Repomix or other tools
 /repomix-output.txt
 
-/reflights_client_secret_apps.googleusercontent.com.json
+/logs/
+
+/services/logs/
+/websocket/logs/
+/middleware/logs/
+/logger/logs/
+/controllers/logs/
+/models/logs/
+__pycache__/

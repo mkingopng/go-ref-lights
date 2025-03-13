@@ -1,0 +1,38 @@
+{
+  "meets": [
+    {
+      "name": "Complete Strength Open",
+      "date": "March 1",
+      "users": [
+        {"username": "complete_strength_open_center", "password": "zjhYXF", "isadmin": false},
+        {"username": "complete_strength_open_left", "password": "HUP9sS", "isadmin": false},
+        {"username": "complete_strength_open_right", "password": "nMjkaf", "isadmin":  false},
+        {"username": "complete_strength_open_lights", "password": "FVebAC", "isadmin":  false},
+        {"username": "complete_strength_open_admin", "password": "admin", "isadmin":  true}
+      ]
+    },
+    {
+      "name": "South Australian State Championships",
+      "date": "March 2",
+      "users": [
+        {"username": "south_australian_state_championships_center", "password": "JQaHxB", "isadmin": false},
+        {"username": "south_australian_state_championships_left", "password": "Ku2WDQ", "isadmin": false},
+        {"username": "south_australian_state_championships_right", "password": "CwekKD", "isadmin": false},
+        {"username": "south_australian_state_championships_lights", "password": "yM9u3v", "isadmin": false},
+        {"username": "south_australian_state_championships_admin", "password": "admin", "isadmin": true}
+
+      ]
+    },
+    {
+      "name": "Metal Mayham",
+      "date": "March 2",
+      "users": [
+        {"username": "metal_mayham_center", "password": "hM5Cek", "isadmin": false},
+        {"username": "metal_mayham_left", "password": "e5aLBB", "isadmin": false},
+        {"username": "metal_mayham_right", "password": "fEqYFv", "isadmin": false},
+        {"username": "metal_mayham_lights", "password": "yy7xgn", "isadmin": false},
+        {"username": "metal_mayham_admin", "password": "admin", "isadmin": true}
+      ]
+    }
+  ]
+}

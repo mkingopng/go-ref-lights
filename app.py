@@ -1,4 +1,4 @@
-# /usr/bin/env python3
+# app.py
 """
 boilerplate to make CDK work
 """

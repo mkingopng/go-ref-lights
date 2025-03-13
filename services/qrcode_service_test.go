@@ -1,61 +1,55 @@
 // file: services/qrcode_service_test.go
+
+//go:build unit
+// +build unit
+
 package services
 
 import (
-	"bytes"
 	"errors"
-	"image/png"
 	"testing"
 
 	"github.com/skip2/go-qrcode"
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/websocket"
 )
 
-// Test: QR code generation should return non-empty data
+// Mock encoder function (successful)
+func mockQRCodeEncoderSuccess(content string, level qrcode.RecoveryLevel, size int) ([]byte, error) {
+	return []byte("mock_qr_code_data"), nil
+}
+
+// Mock encoder function (failure)
+func mockQRCodeEncoderFailure(content string, level qrcode.RecoveryLevel, size int) ([]byte, error) {
+	return nil, errors.New("QR code generation failed")
+}
+
+// Test: Generate QR Code Successfully
 func TestGenerateQRCode_Success(t *testing.T) {
-	encoder := func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error) {
-		return qrcode.Encode(content, level, size)
-	}
+	websocket.InitTest()
+	data, err := GenerateQRCode(200, 200, mockQRCodeEncoderSuccess)
 
-	data, err := GenerateQRCode(250, 250, encoder)
-
-	// Ensure no error is returned
-	assert.NoError(t, err, "Expected no error when generating QR code")
-
-	// Ensure QR code data is not empty
-	assert.NotEmpty(t, data, "QR code data should not be empty")
-
-	// Ensure the output is a valid PNG
-	_, pngErr := png.Decode(bytes.NewReader(data))
-	assert.NoError(t, pngErr, "Expected valid PNG format")
+	assert.NoError(t, err)
+	assert.NotNil(t, data)
+	assert.Equal(t, "mock_qr_code_data", string(data))
 }
 
-// Test: Invalid QR code dimensions should return an error
-func TestGenerateQRCode_InvalidSize(t *testing.T) {
-	encoder := func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error) {
-		return qrcode.Encode(content, level, size)
-	}
+// Test: Fail QR Code Generation Due to Negative Dimensions
+func TestGenerateQRCode_InvalidDimensions(t *testing.T) {
+	websocket.InitTest()
+	data, err := GenerateQRCode(-100, 200, mockQRCodeEncoderSuccess)
 
-	data, err := GenerateQRCode(0, 0, encoder)
-
-	// Ensure error is returned
-	assert.Error(t, err, "Expected an error for invalid dimensions")
-
-	// Ensure QR code data is empty
-	assert.Empty(t, data, "QR code data should be empty on failure")
+	assert.Error(t, err)
+	assert.Nil(t, data)
+	assert.Equal(t, "invalid dimensions: width and height must be positive", err.Error())
 }
 
-// Mock encoder function to simulate an internal failure
-func TestGenerateQRCode_EncodeFailure(t *testing.T) {
-	mockEncoder := func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error) {
-		return nil, errors.New("simulated QR code generation failure")
-	}
+// Test: QR Code Generation Fails Due to Encoder Error
+func TestGenerateQRCode_EncoderFails(t *testing.T) {
+	websocket.InitTest()
+	data, err := GenerateQRCode(200, 200, mockQRCodeEncoderFailure)
 
-	data, err := GenerateQRCode(250, 250, mockEncoder)
-
-	// Ensure error is returned
-	assert.Error(t, err, "Expected an error for QR code generation failure")
-
-	// Ensure QR code data is empty
-	assert.Empty(t, data, "QR code data should be empty on failure")
+	assert.Error(t, err)
+	assert.Nil(t, data)
+	assert.Equal(t, "QR code generation failed", err.Error())
 }

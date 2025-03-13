@@ -80,6 +80,7 @@ class RefereeLightsCdkStack(Stack):
             self,
             "RefereeLightsDockerImage",
             directory=str(project_root),
+            exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging", "**/cdk.out/**"]
         )
 
         # define Fargate Task Definition
@@ -154,7 +155,7 @@ class RefereeLightsCdkStack(Stack):
             "idle_timeout.timeout_seconds",
             # "3600" # 60 minutes
             # "1800" # 30 minutes
-            "300" # 5 minutes
+            "300"
         )
 
         # output ALB DNS Name

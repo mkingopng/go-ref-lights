@@ -1,0 +1,29 @@
+URL: https://referee-lights.michaelkingston.com.au
+
+Login details for meets:
+- name: Complete Strength Open
+- date: March 1,
+- users:
+    - username: complete_strength_open_center, password: zjhYXF
+    - username: complete_strength_open_left, password: HUP9sS,
+    - username: complete_strength_open_right, password: nMjkaf
+    - username: complete_strength_open_lights, password: FVebAC
+    - username: complete_strength_open_admin, password: admin
+
+- name: South Australian State Championships
+- date: March 2
+- users:
+    - username: south_australian_state_championships_center, password: JQaHxB
+    - username: south_australian_state_championships_left, password: Ku2WDQ
+    - username: south_australian_state_championships_right, password: CwekKD
+    - username: south_australian_state_championships_lights, password: yM9u3v
+    - username: south_australian_state_championships_admin, password: admin
+
+- name: Metal Mayham
+- date: March 2
+- users:
+    - username: metal_mayham_center, password: hM5Cek
+    - username: metal_mayham_left, password: e5aLBB
+    - username: metal_mayham_right, password: fEqYFv
+    - username: metal_mayham_lights, password: yy7xgn
+    - username: metal_mayham_admin, password: admin

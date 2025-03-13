@@ -1,76 +1,84 @@
-compile
-```bash
-go build ./...
-```
+# RefLights
 
+## Overview
+RefLights is a referee lighting system designed for powerlifting competitions. It provides a real-time, synchronized referee light system that enables fair and efficient judging for lifters and meet directors. The application is now **deployed to AWS** and is currently in **production**.
 
-run app
-```bash
-go run main.go
-```
+## Features
+- **Multi-meet functionality**: Supports multiple competitions running in parallel.
+- **Single login enforcement**: Prevents users from logging in from multiple devices simultaneously.
+- **Real-time referee decisions**: Judges can submit lift decisions, which are instantly reflected on the lighting system.
+- **WebSocket communication**: Ensures seamless real-time updates for referee actions.
+- **Dynamic meet and position assignment**: Referees can claim and vacate positions easily.
+- **Platform ready & next attempt timers**: Countdown timers for lifter readiness and next attempts.
+- **Secure authentication**: Password-based login with bcrypt hashing.
+- **AWS deployment**: Hosted using **AWS Fargate, ECS, ALB, and CloudWatch** for monitoring.
 
-run all tests
+## Installation (Local Development)
+### Prerequisites
+- Go (>= 1.20)
+- Python (>= 3.10) with Poetry
+- AWS CDK (for deployment)
+- Docker (for containerized deployment)
+- Node.js & NPM (for frontend dependencies, if needed)
+
+### Build and Run
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourrepo/referee-lights.git
+   cd referee-lights
+   ```
+2. Install dependencies:
+   ```bash
+   go mod tidy
+   poetry install
+   ```
+3. Build the application:
+   ```bash
+   go build ./...
+   ```
+4. Run locally:
+   ```bash
+   go run main.go
+   ```
+
+## Running Tests
+To execute all tests, run:
 ```bash
 go test -v ./...
 ```
 
----
-# Issues identified during testing
-- the claim positions page (http://localhost:8080/positions) needs formatting/styling.
-- the lights page is showing the "platform ready" button. it should not
-- the next lifter timer should be triggered and appear on the lights page once the 3 referee decisions are received and displayed. This is not happening. No "next lifter" timer is displayed.
-- we have the "time out" message appearing on the lights page. This is now obsolete, and should be removed.
-- the "reset" button on the center referee page is not working. It should reset the decisions and the timer.
-- each referee position should show a message indicating the results of the health check. Maybe "connected" in green or "disconnected" in red.
+## Deployment to AWS
+1. Ensure AWS CLI is configured.
+2. Deploy using AWS CDK:
+   ```bash
+   cdk deploy
+   ```
+3. The service is accessible at:
+   ```
+   https://referee-lights.michaelkingston.com.au
+   ```
 
-# What’s Left To Do
+## Usage
+### Logging in
+1. Select a meet from the list.
+2. Enter provided referee credentials.
+3. Claim a referee position (Left, Center, Right).
+4. Use the interface to submit lift decisions.
 
-1. Health Check Mechanism
-   - Status: Partially done.
-       - You’ve implemented logic that checks whether left, centre, and right are connected (and blocks timer starts if any are missing).
-       - If you need a more thorough health-check flow (e.g. show a “Not ready” banner, notify meet directors, or auto-stop an active lift if a ref disconnects), that’s still a next-level enhancement.
+### Referee Lights Interface
+- **White Button**: Signals a good lift.
+- **Red Button**: Signals a failed lift.
+- **Platform Ready Timer**: Initiated for lifter readiness.
+- **Vacate Position**: Frees up a referee slot.
 
-2. Referee Position Control
-   - Status: Improved but still open for refinement.
-       - You have single-session enforcement plus a mechanism so referees can’t double-book a position.
-       - For truly robust role switching (e.g. requiring admin approval, or automatically removing a ref after prolonged disconnection), you may still need more logic.
+## Future Enhancements
+- Integration with OpenLifter for automated lift decisions.
 
-3. Multiple Meets / Scalability
-   - Status: You’ve just taken a big step toward multi-meet support by scoping timers and referees to a `meetName`.
-       - If you want to complete the feature, you might:
-           - Provide a UI or admin page to manage meets (create, list, archive).
-           - Persist meet states in DynamoDB (or another DB) so they survive restarts.
-           - Thoroughly test running two meets in parallel.
+## Contributing
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes and test thoroughly.
+4. Submit a pull request.
 
-4. Detailed Logging & Centralized Monitoring
-   - Status: Still open.
-       - You have basic logging to stdout.
-       - For production readiness, consider structured logs (JSON), log aggregation (CloudWatch, ELK), and more informative levels (INFO, WARN, ERROR).
-
-5. User Instructions & Docs
-   - Status: Not addressed yet.
-       - You might create a simple doc or web page explaining:
-           - How referees log in and claim positions,
-           - What the lights mean,
-           - The role of the meet director (how they start and end meets, manage referees, etc.).
-
-6. Auto-Reset Decisions After 15s
-   - Status: Partially addressed or easy to adjust.
-       - You currently wait 15 seconds after final decisions.
-       - If you need a different time, adjust `resultsDisplayDuration`.
-
-7. UI Tweaks
-   - Status: Up to you.
-       - Increase green dot size, keep text messages for 15 seconds, and do any other styling improvements.
-       - These are quick adjustments in your CSS and JavaScript.
-
-8. Upgrade to Full OAuth 2.0
-   - Status: You do have a basic Google OAuth flow, so you’re partway there.
-       - If you need advanced OAuth scenarios, like offline tokens, refresh tokens, or a custom OAuth provider, that could be the next step.
-
-9. Deploy to Cloud
-   - Status: Possibly partial or planned.
-       - You have a Dockerfile and some AWS CDK scripts.
-       - If your goal is to set up a fully automated CI/CD pipeline and run in ECS, you can finalise your build pipeline, environment configs, and domain (like `referee-lights.michaelkingston.com.au`).
-
----
+## Contact
+For any issues or inquiries, please contact **michael.kenneth.kingston@gmail.com**.

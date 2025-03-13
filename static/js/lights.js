@@ -1,286 +1,332 @@
 // static/js/lights.js
-document.addEventListener('DOMContentLoaded', () => {
-    // cache references to DOM elements
-    const platformReadyButton = document.getElementById('platformReadyButton');
-    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
-    const timerDisplay = document.getElementById('timer');
-    const messageElement = document.getElementById('message');
-    const connectionStatusElement = document.getElementById('connectionStatus');
+"use strict";
 
-    // store judge decisions in an object
-    const judgeDecisions = {
-        left: null,
-        centre: null,
-        right: null
-    };
+let socket;
+let platformReadyInterval = null;
+let resultsDisplayed = false; // Flag to indicate that displayResults has been processed
 
-    // track how many refs are connected (0..3)
-    let connectedReferees = 0;
+// utility function for logging
+function log(message, level = 'debug') {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
 
-    // check for the global websocketUrl
-    if (typeof websocketUrl === 'undefined') {
-        console.error("❌ websocketUrl is not defined. WebSocket connection cannot be established.");
-        return;
+    // log to console
+    switch (level) {
+        case 'error':
+            console.error(logMessage);
+            break;
+        case 'warn':
+            console.warn(logMessage);
+            break;
+        case 'debug':
+            console.debug(logMessage);
+            break;
+        default:
+            console.log(logMessage);
     }
 
-    // initialize the WebSocket connection
-    const socket = new WebSocket(websocketUrl);
+    // send logs to a server for saving to a file
+    fetch('/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: logMessage, level: level }),
+    }).catch(error => console.error('Failed to send log to server:', error));
+}
 
-    socket.onopen = () => {
-        console.log(`✅ WebSocket connection established (Lights) at: ${websocketUrl}`);
-    };
-    socket.onerror = (error) => {
-        console.error(`⚠️ WebSocket error (Lights):`, error);
-    };
-    socket.onclose = (event) => {
-        console.warn(`🔴 WebSocket closed (Lights). Code: ${event.code}, Reason: ${event.reason || "Unknown"}`);
+let nextAttemptTimers = {};
+const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
+
+window.addEventListener("DOMContentLoaded", function () {
+
+    const leftCircle = document.getElementById("leftCircle");
+    const centerCircle = document.getElementById("centerCircle");
+    const rightCircle = document.getElementById("rightCircle");
+
+    const leftIndicator = document.getElementById("leftIndicator");
+    const centerIndicator = document.getElementById("centerIndicator");
+    const rightIndicator = document.getElementById("rightIndicator");
+
+    // helper function to get a consistent meet name from the DOM/URL/sessionStorage
+    function getMeetName() {
+        let elem = document.getElementById("meetName");
+        let meetName = elem ? elem.dataset.meetName : null;
+        if (!meetName) {
+            meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
+        }
+        if (meetName) {
+            sessionStorage.setItem("meetName", meetName);
+            log(`✅ Meet name set: ${meetName}`, "info");
+        } else {
+            log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
+            alert("Error: No meet selected. Redirecting.");
+            window.location.href = "/meets";
+        }
+        return meetName;
+    }
+
+    // Helper function to update the platform ready timer UI
+    function updatePlatformReadyTimer(timer) {
+        log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
+        if (timerDisplay) {
+            timerDisplay.innerText = `${timer.TimeLeft}s`;
+        }
+        // Hide the container if the timer ran out
+        if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.add("hidden");
+        } else if (platformReadyTimerContainer) {
+            platformReadyTimerContainer.classList.remove("hidden");
+        }
+    }
+
+    // Helper function to update a next attempt timer UI element
+    function updateNextAttemptTimer(timer, container, timersMap) {
+        // If time is up, remove the timer element
+        if (timer.TimeLeft <= 0) {
+            if (timersMap[timer.ID]) {
+                container.removeChild(timersMap[timer.ID]);
+                delete timersMap[timer.ID];
+            }
+        } else {
+            // Create the timer element if it doesn't exist
+            if (!timersMap[timer.ID]) {
+                let newRow = document.createElement("div");
+                newRow.classList.add("timer");
+                container.insertBefore(newRow, container.firstChild);
+                timersMap[timer.ID] = newRow;
+            }
+            // Update the timer element's text without the index number
+            timersMap[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+            container.classList.remove("hidden");
+        }
+    }
+
+    // Main handler for the "updateNextAttemptTime" action
+    function handleUpdateNextAttemptTime(data) {
+        if (data.timers && Array.isArray(data.timers)) {
+            data.timers.forEach(timer => {
+                if (timer.ID === 1) {
+                    if (resultsDisplayed) {
+                        // When results are displayed, treat timer ID 1 as a next attempt timer
+                        updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
+                    } else {
+                        // Otherwise, update the platform ready timer
+                        updatePlatformReadyTimer(timer);
+                    }
+                } else {
+                    // For other timer IDs, update the next attempt timer normally
+                    updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
+                }
+            });
+        }
+    }
+
+    // constants
+    const meetName = getMeetName();  // use the verified meet name for later actions
+    if (!meetName) return;
+    const judgeId = "lights";
+
+    // initialise the global WebSocket object
+    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
+    socket = new WebSocket(wsUrl);
+
+    // grab common DOM elements
+    const timerDisplay = document.getElementById('timer');
+    const healthEl = document.getElementById("healthStatus");
+    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+
+    // set up WebSocket event handlers
+    socket.onopen = function () {
+        log("✅ WebSocket connection established (Lights).", "info");
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Connected";
+            statusEl.style.color = "green";
+        }
+        const registerMsg = {
+            action: "registerRef",
+            judgeId: judgeId,  // "lights"
+            meetName: meetName
+        };
+        socket.send(JSON.stringify(registerMsg));
+        log(`Sent registerRef for lights with meetName=${meetName}`, "info");
     };
 
-    // listen for messages from the server
-    socket.onmessage = (event) => {
-        console.log(`📩 Received WebSocket message at ${new Date().toISOString()}:`, event.data);
+    socket.onclose = function (event) {
+        log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
+        const statusEl = document.getElementById("connectionStatus");
+        if (statusEl) {
+            statusEl.innerText = "Disconnected";
+            statusEl.style.color = "red";
+        }
+    };
+
+    socket.onerror = function (error) {
+        log(`⚠️ WebSocket error: ${error}`, "error");
+    };
+
+    log("DOM fully loaded and parsed");
+
+    socket.onmessage = function (event) {
         let data;
         try {
             data = JSON.parse(event.data);
+            log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
         } catch (e) {
-            console.error(`❌ Invalid JSON from server:`, event.data);
+            log(`Invalid JSON from server: ${event.data}`, 'error');
             return;
         }
 
-        // check the action
         switch (data.action) {
-            // server-driven timer updates
-            case "updatePlatformReadyTime":
-                console.log(`⏳ Platform Ready Timer Update: ${data.timeLeft}s`);
-                updatePlatformReadyTimerOnUI(data.timeLeft);
-                break;
-            case "platformReadyExpired":
-                console.log(`⏳ Platform Ready Timer Expired.`);
-                handlePlatformReadyExpired();
-                break;
-            case "updateNextAttemptTime":
-                console.log(`⏳ updated Next Attempt Timer Expired.`);
-                updateNextAttemptTimerOnUI(data.timeLeft, data.index);
-                break;
-            case "nextAttemptExpired":
-                console.log(`Received nextAttemptExpired event for index: ${data.index}`);
-                handleNextAttemptExpired(data.index);
-                break;
-
-            // judge decision Handling
-            case "judgeSubmitted":
-                console.log(`🎯 Judge submission received from: ${data.judgeId}`);
-                showJudgeSubmissionIndicator(data.judgeId);
-                break;
-            case "displayResults":
-                console.log(`🏆 Displaying final results.`);
-                displayResults(data);
-                break;
-            case "clearResults":
-                console.log(`🗑 Clearing results from UI.`);
-                clearResultsUI();
-                break;
-
-            // health check
             case "refereeHealth":
-                console.log(`💡 Referee Health Update: ${data.connectedReferees}/${data.requiredReferees} connected.`);
-                updateHealthStatus(data.connectedReferees, data.requiredReferees);
+                const isConnected = data.connectedRefIDs.includes(judgeId);
+                if (healthEl) {
+                    healthEl.innerText = isConnected ? "Connected" : "Disconnected";
+                    healthEl.style.color = isConnected ? "green" : "red";
+                }
                 break;
 
             case "healthError":
-                // if user tried to start timer but not all refs connected
-                displayMessage(data.message, "red");
+                alert(data.message);
+                break;
+
+            case "startTimer":
+                log("🔵 Received startTimer from server, starting Platform Ready Timer countdown");
+
+                resultsDisplayed = false;
+
+                if (platformReadyInterval) {
+                    clearInterval(platformReadyInterval);
+                    platformReadyInterval = null;
+                    }
+
+                Object.keys(nextAttemptTimers).forEach((id => {
+                    if (multiNextAttemptTimers && nextAttemptTimers[id]) {
+                        multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
+                    }
+                    delete nextAttemptTimers[id];
+                }));
+                if (multiNextAttemptTimers) {
+                    multiNextAttemptTimers.classList.add("hidden");
+                }
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.remove("hidden");
+                }
+                if (timerDisplay) {
+                    timerDisplay.innerText = `${data.timeLeft}s`;
+                }
+                break;
+
+            case "updatePlatformReadyTime":
+                log(`⌛ Handling updatePlatformReadyTime: ${data.timeLeft}s left`, "debug");
+
+                // If you want to share logic with the "startTimer" local countdown,
+                // you can either replicate the code or unify them. For a quick fix:
+                if (data.timeLeft <= 0) {
+                    // Hide the timer since it's expired
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.add("hidden");
+                    }
+                } else {
+                    // Show the timer container if hidden
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.remove("hidden");
+                    }
+                    if (timerDisplay) {
+                        timerDisplay.innerText = `${data.timeLeft}s`;
+                    }
+                }
+                break;
+
+            case "updateNextAttemptTime":
+                log("✅ Entering handleUpdateNextAttemptTime", "debug");
+                handleUpdateNextAttemptTime(data);
+                break;
+
+            case "judgeSubmitted":
+                log(`[lights.js] Judge ${data.judgeId} has submitted a decision.`);
+                if (data.judgeId === "left") {
+                    leftIndicator.style.backgroundColor = "green";
+                } else if (data.judgeId === "center") {
+                    centerIndicator.style.backgroundColor = "green";
+                } else if (data.judgeId === "right") {
+                    rightIndicator.style.backgroundColor = "green";
+                }
+                break;
+
+            case "displayResults":
+                log(`Final decisions: L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`);
+                log(`[lights.js] displayResults received: left=${data.leftDecision}, center=${data.centerDecision}, right=${data.rightDecision}`);
+
+                leftCircle.style.backgroundColor   = (data.leftDecision   === "white") ? "white" : "red";
+                centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
+                rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
+
+                // Determine the message to display
+                let whiteCount = 0;
+                let redCount = 0;
+
+                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(decision => {
+                    if (decision === "white") {
+                        whiteCount++;
+                    } else {
+                        redCount++;
+                    }
+                });
+
+                const messageEl = document.getElementById("message");
+
+                if (whiteCount >= 2) {
+                    messageEl.innerText = "Good Lift";
+                    messageEl.style.color = "green";
+                } else {
+                    messageEl.innerText = "No Lift";
+                    messageEl.style.color = "red";
+                }
+
+                messageEl.classList.add("flash");
+
+                // Clear message after 15 seconds
+                setTimeout(() => {
+                    messageEl.innerText = "";
+                    messageEl.classList.remove("flash");
+                }, 15000);
+
+                // Mark that the results have been displayed so that next attempt timers are handled separately
+                resultsDisplayed = true;
+                break;
+
+            case "platformReadyExpired":
+                log("⏰ Platform Ready Timer Expired!");
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.add("hidden");
+                }
+                break;
+
+            case "clearResults":
+                log("Clearing results from Lights UI (white vs red circles, judge indicators).");
+                leftCircle.style.backgroundColor   = "black";
+                centerCircle.style.backgroundColor = "black";
+                rightCircle.style.backgroundColor  = "black";
+                leftIndicator.style.backgroundColor   = "grey";
+                centerIndicator.style.backgroundColor = "grey";
+                rightIndicator.style.backgroundColor  = "grey";
+
+                // Clear message
+                messageEl.innerText = "";
+                messageEl.classList.remove("flash");
+                resultsDisplayed = false;
+                break;
+
+            case "resetLights":
+                log("🌀 Resetting lights to black");
+                leftCircle.style.backgroundColor   = "black";
+                centerCircle.style.backgroundColor = "black";
+                rightCircle.style.backgroundColor  = "black";
                 break;
 
             default:
-                console.warn("Unknown action:", data.action);
+                log(`⚠️ Unknown action: ${data.action}`, "warn");
         }
     };
-
-    //  timer UI Handling (Server-Driven)
-    function updatePlatformReadyTimerOnUI(timeLeft) {
-        if (platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.remove('hidden');
-        }
-        if (timerDisplay) {
-            console.log(`⏳ Updating Platform Ready Timer UI: ${timeLeft}s`);
-            timerDisplay.innerText = `${timeLeft}s`;
-        }
-    }
-
-    function handlePlatformReadyExpired() {
-        if (timerDisplay) timerDisplay.innerText = '0s';
-        // displayMessage('Time Up', 'yellow');
-    }
-
-    // store a reference to container for all next-attempt timers:
-    const multiTimerContainer = document.getElementById('multiNextAttemptTimers');
-
-// keep track of DOM elements for each timer row in a dictionary:
-    const nextAttemptRows = {};
-
-// called when we see "updateNextAttemptTime" from the server
-    function updateNextAttemptTimerOnUI(timeLeft, timerIndex) {
-        // make sure we have a container for all timers
-        if (!multiTimerContainer) return;
-
-        // if we don't yet have a row for this index, create one
-        if (!nextAttemptRows[timerIndex]) {
-            // create a new <div> for the row
-            const rowDiv = document.createElement('div');
-            rowDiv.classList.add('timer-container');
-            rowDiv.style.marginBottom = '10px';
-
-            // create a label
-            const label = document.createElement('div');
-            label.innerText = `Next Attempt #${timerIndex + 1}:`;
-            label.classList.add('timer');  // so it picks up big font if you like
-            rowDiv.appendChild(label);
-
-            // create a time display
-            const timeSpan = document.createElement('div');
-            timeSpan.classList.add('second-timer');
-            timeSpan.innerText = `${timeLeft}s`;
-            rowDiv.appendChild(timeSpan);
-
-            multiTimerContainer.appendChild(rowDiv);
-            // store references
-            nextAttemptRows[timerIndex] = { rowDiv, label, timeSpan };
-        } else {
-            // update existing next attempt timer rows
-            nextAttemptRows[timerIndex].timeSpan.innerText = `${timeLeft}s`;
-        }
-    }
-
-    function handleNextAttemptExpired(timerIndex) {
-        console.log(`handleNextAttemptExpired called for timer #${timerIndex + 1}`);
-
-        if (nextAttemptRows[timerIndex]) {
-            console.log(`Found timer #${timerIndex + 1} in nextAttemptRows. Removing now.`);
-
-            // Fade out the element before removing it
-            const rowDiv = nextAttemptRows[timerIndex].rowDiv;
-            rowDiv.style.transition = "opacity 0.5s ease-out";
-            rowDiv.style.opacity = "0";
-
-            setTimeout(() => {
-                rowDiv.remove();  // Remove from DOM
-                delete nextAttemptRows[timerIndex]; // Remove from memory
-            }, 500); // Wait for animation to complete
-        } else {
-            console.warn(`Timer #${timerIndex + 1} not found in nextAttemptRows!`);
-        }
-    }
-
-
-    //  decision handling
-    function showJudgeSubmissionIndicator(judgeId) {
-        const indicator = document.getElementById(`${judgeId}Indicator`);
-        if (!indicator) {
-            console.error(`Indicator for judgeId "${judgeId}" not found`);
-            return;
-        }
-        indicator.style.backgroundColor = "green";
-    }
-
-    function displayResults(data) {
-        console.log(`✅ Judge ${judgeId} submitted a decision.`);
-        const { leftDecision, centreDecision, rightDecision } = data;
-        paintCircle('leftCircle', leftDecision);
-        paintCircle('centreCircle', centreDecision);
-        paintCircle('rightCircle', rightDecision);
-        judgeDecisions.left   = leftDecision;
-        judgeDecisions.centre = centreDecision;
-        judgeDecisions.right  = rightDecision;
-        const decisions = [leftDecision, centreDecision, rightDecision];
-        const whiteCount = decisions.filter(d => d === "white").length;
-        const redCount   = decisions.filter(d => d === "red").length;
-        if (whiteCount >= 2) {
-            displayMessage("Good Lift", "white");
-        } else if (redCount >= 2) {
-            displayMessage("No Lift", "red");
-        }
-    }
-
-    function clearResultsUI() {
-        paintCircle('leftCircle', null);
-        paintCircle('centreCircle', null);
-        paintCircle('rightCircle', null);
-        displayMessage('', '');
-        resetJudgeIndicators();
-    }
-
-    //  UI helper functions
-    function paintCircle(circleId, decision) {
-        const circle = document.getElementById(circleId);
-        if (!circle) return;
-        switch (decision) {
-            case "white":
-                circle.style.backgroundColor = "white";
-                break;
-            case "red":
-                circle.style.backgroundColor = "red";
-                break;
-            default:
-                circle.style.backgroundColor = "black";
-                break;
-        }
-    }
-
-    // Reset all judge indicators to grey
-    function resetJudgeIndicators() {
-        const indicators = document.querySelectorAll('.indicator');
-        indicators.forEach(indicator => {
-            indicator.style.backgroundColor = 'grey';
-        });
-    }
-
-    // Display a message on the screen
-    function displayMessage(text, color) {
-        if (!messageElement) return;
-        messageElement.innerText = text;
-        messageElement.style.color = color;
-
-        // if "Time Up" => flash  // fix_me: redundant
-        if (text.includes("Time Up")) {
-            messageElement.classList.add('flash');
-        } else {
-            messageElement.classList.remove('flash');
-        }
-    }
-
-    //  health check UI
-    function updateHealthStatus(connected, required) {
-        console.log(`💡 Referee Connection Update: ${connected}/${required} referees connected.`);
-        connectedReferees = connected;
-        if (connectionStatusElement) {
-            connectionStatusElement.innerText = `Referees Connected: ${connected}/${required}`;
-            connectionStatusElement.style.color = (connected < required) ? "red" : "green";
-        }
-
-        // disable the "Platform Ready" button if not all refs
-        if (platformReadyButton) {
-            console.log(`🔒 Platform Ready Button: ${connected}/${required} refs connected.`);
-            platformReadyButton.disabled = (connected < required);
-        }
-    }
-
-    //  Platform Ready button logic
-    if (platformReadyButton && platformReadyTimerContainer) {
-        platformReadyButton.addEventListener('click', () => {
-            // current code toggles local container visibility:
-            const isHidden = platformReadyTimerContainer.classList.contains('hidden');
-            if (isHidden) {
-                // request server to "startTimer" (server will check if all refs connected)
-                socket.send(JSON.stringify({ action: "startTimer" }));
-            } else {
-                // if it's visible, we request to stop
-                socket.send(JSON.stringify({ action: "stopTimer" }));
-            }
-            // toggle local display
-            platformReadyTimerContainer.classList.toggle('hidden');
-        });
-    } else {
-        console.warn("Platform Ready button or container not found.");
-    }
 });

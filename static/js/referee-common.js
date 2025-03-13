@@ -1,127 +1,208 @@
 // static/js/referee-common.js
+"use strict";
+
+let socket;
+
+// utility function for logging
+function log(message, level = 'debug') {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+
+    // Log to console
+    switch (level) {
+        case 'error':
+            console.error(logMessage);
+            break;
+        case 'warn':
+            console.warn(logMessage);
+            break;
+        case 'debug':
+            console.debug(logMessage);
+            break;
+        default:
+            console.log(logMessage);
+    }
+
+    // send logs to a server for saving to a file
+    fetch('/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: logMessage, level: level }),
+    }).catch(error => console.error('Failed to send log to server:', error));
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 
-    console.log("🏁 Referee script initializing...");
-    console.log(`🔍 Checking required variables: websocketUrl=${typeof websocketUrl}, judgeId=${typeof judgeId}`);
-
-    if (typeof websocketUrl === 'undefined') {
-        console.error("❌ websocketUrl is not defined. Cannot establish WebSocket connection.");
-        return;
+    // helper function to get a consistent meet name from the DOM/URL/sessionStorage
+    function getMeetName() {
+        let elem = document.getElementById("meetName");
+        let meetName = elem ? elem.dataset.meetName : null;
+        if (!meetName) {
+            meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
+        }
+        if (meetName) {
+            sessionStorage.setItem("meetName", meetName);
+            log(`✅ Meet name set: ${meetName}`, "info");
+        } else {
+            log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
+            alert("Error: No meet selected. Redirecting.");
+            window.location.href = "/meets";
+        }
+        return meetName;
     }
-    if (typeof judgeId === 'undefined') {
-        console.error("❌ judgeId is not defined. Cannot proceed.");
-        return;
-    }
 
-    // initialize WebSocket
-    const socket = new WebSocket(websocketUrl);
+    // constants
+    const meetName = getMeetName();
+    if (!meetName) return;
+
+    // initialise the global WebSocket (do not shadow the global 'socket')
+    const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
+    const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
+    socket = new WebSocket(wsUrl);
 
     // grab common DOM elements
     const healthEl = document.getElementById("healthStatus");
-
-    // "Centre" has extra timer buttons
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
     const startTimerButton = document.getElementById('startTimerButton');
+    const platformReadyButton = document.getElementById('platformReadyButton');
+    const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    // WebSocket event: opened
-    socket.onopen = function() {
-        console.log(`🟢 WebSocket connected for judgeId: ${judgeId}`);
-
-        // immediately register as connected
-        const registerMsg = {
-            action: "registerRef",
-            judgeId: judgeId
-            // When i have multi-meet, I might also add "meetName":"STATE_CHAMPS" or something
-        };
-
-        try {
-            socket.send(JSON.stringify(registerMsg));
-            console.log("📨 Sent referee registration:", registerMsg);
-        } catch (error) {
-            console.error("❌ Failed to send referee registration:", error);
+    // Platform Ready Button Logic:
+    // only attach Platform Ready button event for center referee
+    if (judgeId === "center") {
+        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on center page only
+        const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+        if (platformReadyButton) {
+            platformReadyButton.addEventListener("click", () => {
+                console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
+                if (socket.readyState === WebSocket.OPEN) {
+                    log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
+                    socket.send(JSON.stringify({ action: "startTimer", meetName: meetName }));
+                    if (platformReadyTimerContainer) {
+                        platformReadyTimerContainer.classList.remove("hidden");
+                    }
+                } else {
+                    log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
+                }
+            });
+        } else {
+            log("⚠️ Platform Ready button not found.", "warn");
         }
+    }
+
+    // set up WebSocket event handlers
+    // WebSocket event: onopen
+    socket.onopen = function() {
+        log(`WebSocket connected for judgeId: ${judgeId}`, "info");
+        const registerMsg = { action: "registerRef", judgeId, meetName };
+        socket.send(JSON.stringify(registerMsg));
     };
 
-    // WebSocket event: message
+    // WebSocket event: onmessage
     socket.onmessage = (event) => {
-        console.log("📩 WebSocket message received:", event.data);
-
         let data;
         try {
             data = JSON.parse(event.data);
-        } catch (error) {
-            console.error("❌ Failed to parse WebSocket message:", event.data, "Error:", error);
+        } catch (e) {
+            log(`Invalid JSON: ${event.data} - ${e.message}`, "error");
             return;
         }
 
         switch (data.action) {
+            case "occupancyChanged":
+                console.log("Occupancy update received:", data);
+                updateOccupancyUI(data);
+                break;
             case "refereeHealth":
-                // the server sends {connectedRefIDs:[], connectedReferees: 2, requiredReferees: 3, ...}
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
                     healthEl.style.color = isConnected ? "green" : "red";
                 }
                 break;
-
             case "healthError":
-                // example: "Cannot start timer: Not all referees are connected!"
                 alert(data.message);
                 break;
-
             default:
-                console.warn("⚠️ Unhandled WebSocket action:", data.action);
+                log(`Unhandled action: ${data.action}`, "debug");
         }
     };
 
-    // webSocket event: error
+// Function to update the UI
+    function updateOccupancyUI(data) {
+        document.getElementById("leftUser").innerText = data.leftUser || "Vacant";
+        document.getElementById("centerUser").innerText = data.centerUser || "Vacant";
+        document.getElementById("rightUser").innerText = data.rightUser || "Vacant";
+    }
+
+    // webSocket event: onerror
     socket.onerror = function(error) {
-        console.error(`❌ WebSocket error for judgeId: ${judgeId}`, "Error:", error);
+        log(`WebSocket error (${judgeId}): ${error}`, "error");
     };
 
-    // webSocket event: close
+    // webSocket event: onclose
     socket.onclose = function(event) {
-        console.warn(`🔴 WebSocket closed for judgeId: ${judgeId}`, "Code:", event.code, "Reason:", event.reason);
+        log(`WebSocket closed (${judgeId}): ${event.code} - ${event.reason}`, "info");
         if (healthEl) {
             healthEl.innerText = "Disconnected";
             healthEl.style.color = "red";
         }
     };
 
-    // utility to send JSON
+    // utility function to send JSON messages over the socket
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
-            try {
-                socket.send(JSON.stringify(obj));
-                console.log("📨 Message sent:", obj);
-            } catch (error) {
-                console.error("❌ Failed to send message:", obj, "Error:", error);
-            }
+            const messageString = JSON.stringify(obj)
+            socket.send(messageString);
+            log(`Sent message: ${messageString}`, "info");
         } else {
-            console.warn(`⚠️ Cannot send message; WebSocket not open (readyState = ${socket.readyState})`);
+            log(`Cannot send message; socket not open (readyState = ${socket.readyState})`, "warn");
         }
     }
 
-    // if these buttons exist, wire them up
+    // buttons
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
-            console.log(`⚪ White button clicked by judgeId: ${judgeId}`);
-            sendMessage({ judgeId: judgeId, decision: "white" });
+            // CHANGE: we add a short guard log plus the actual send:
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetName,
+                judgeId: judgeId,
+                decision: "white"
+            })
+            log(`[RefereeCommon] Judge '${judgeId}' clicked GOOD LIFT (white).`, "info");
         });
     }
-
     if (redButton) {
         redButton.addEventListener('click', function() {
-            console.log(`🔴 Red button clicked by judgeId: ${judgeId}`);
-            sendMessage({ judgeId: judgeId, decision: "red" });
+            sendMessage({
+                action: "submitDecision",
+                meetName: meetName,
+                judgeId: judgeId,
+                decision: "red"
+            });
+            log(`[RefereeCommon] Judge '${judgeId}' clicked NO LIFT (red).`, "info");
         });
     }
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
-            sendMessage({ action: "resetLights" });
-            sendMessage({ action: "resetTimer" });
-            sendMessage({ action: "startTimer" });
+            // send multiple messages: reset lights, reset timer, start timer
+            sendMessage({
+                action: "resetLights",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "resetTimer",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
+            sendMessage({
+                action: "startTimer",
+                meetName: meetName,
+                judgeId: judgeId,
+            });
         });
     }
 });

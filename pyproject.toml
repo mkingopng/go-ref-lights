@@ -8,10 +8,15 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
-aws-cdk-lib = "^2.161.0"
+aws-cdk-lib = "^2.180.0"
 pre-commit = "^4.1.0"
 cairosvg = "^2.7.1"
+constructs = "^10.4.2"
+bcrypt = "^4.2.1"
 
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^4.1.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -12,22 +12,28 @@
 </head>
 
 <body>
-<h1>Scan To Login</h1>
+
+  {{template "header.html" .}}
+
+<h1>Scan To Log-in</h1>
 
 <!--QR Code container-->
 <div class="qr-code-container">
   <img src="/qrcode" alt="QR Code">
 </div>
 
-<!--Button container: lights or select ref positions-->
+<!--button container: lights or select ref positions-->
 <div class="button-container">
   <a href="/lights" class="button-link">Lights</a>
   <a href="/positions" class="button-link">Select Referee Position</a>
+  {{ if .isAdmin }}
+  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+  {{ end }}
 </div>
 
 <!--APL logo container-->
 <div class="logo-container">
-  <img src="/static/images/apl_logo.png" alt="apl logo">
+  <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>
 
 </body>

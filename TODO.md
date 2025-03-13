@@ -10,4 +10,4 @@
 * [ ] receive JSON packet from Open Lifter lifter UUID & attempt number
 * [ ] send JSON packet to Open Lifter containing the decision
 * [ ] can we use hapatics on the phones to remind refs?
-* [ ] 
+* [ ]

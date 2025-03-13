@@ -1,188 +1,244 @@
-// Package controllers file: controllers/page_controller.go
+// Package controllers handles various page rendering and session management functions.
+// File: controllers/page_controller.go
 package controllers
 
 import (
-	"github.com/skip2/go-qrcode"
-	"log"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/skip2/go-qrcode"
+	"go-ref-lights/logger"
 	"go-ref-lights/services"
-	"go-ref-lights/websocket"
 )
+
+// -------------------- global configuration --------------------
 
 var (
+	// ApplicationURL is the base URL of the application
 	ApplicationURL string
-	WebsocketURL   string
+
+	// WebsocketURL is the URL for the WebSocket server
+	WebsocketURL string
 )
 
-// ShowPositionsPage displays the referee position selection page
-func ShowPositionsPage(c *gin.Context) {
+// -------------------- health check endpoint --------------------
+
+// Health provides a simple endpoint to check server health.
+func Health(c *gin.Context) {
+	logger.Info.Println("Health: Health check requested")
+	c.String(http.StatusOK, "OK")
+}
+
+// -------------------- user navigation and logout --------------------
+
+// Home redirects the user to the dashboard and vacates their referee position.
+func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	session := sessions.Default(c)
-	user := session.Get("user")
 
-	// Make sure user is logged in
-	if user == nil {
-		c.Redirect(http.StatusFound, "/login")
-		return
+	userEmail, ok1 := session.Get("user").(string)
+	position, ok2 := session.Get("refPosition").(string)
+	meetName, ok3 := session.Get("meetName").(string)
+
+	if ok1 && ok2 && ok3 {
+		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
+			logger.Error.Printf("Home: error vacating position: %v", err)
+		} else {
+			logger.Info.Printf("Home: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+			session.Delete("refPosition")
+			err := session.Save()
+			if err != nil {
+				return
+			}
+		}
+	} else {
+		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-
-	// Make sure a meet is chosen
-	meetName := session.Get("selectedMeet")
-	if meetName == nil {
-		c.Redirect(http.StatusFound, "/select-meet")
-		return
-	}
-
-	// Retrieve occupancy and render positions
-	svc := services.OccupancyService{}
-	occ := svc.GetOccupancy()
-	data := gin.H{
-		"ApplicationURL": ApplicationURL,
-		"WebsocketURL":   WebsocketURL,
-		"Positions": map[string]interface{}{
-			"LeftOccupied":   occ.LeftUser != "",
-			"LeftUser":       occ.LeftUser,
-			"CentreOccupied": occ.CentreUser != "",
-			"CentreUser":     occ.CentreUser,
-			"RightOccupied":  occ.RightUser != "",
-			"RightUser":      occ.RightUser,
-		},
-		// Optionally display which meet is selected in the UI
-		"SelectedMeet": meetName,
-	}
-
-	c.HTML(http.StatusOK, "positions.html", data)
+	c.Redirect(http.StatusFound, "/dashboard")
 }
 
-// ClaimPosition handles position assignment
-func ClaimPosition(c *gin.Context) {
+// Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
+func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
-	user := session.Get("user")
 
-	if user == nil {
-		c.Redirect(http.StatusFound, "/login")
-		return
+	userEmail, hasUser := session.Get("user").(string)
+	position, hasPosition := session.Get("refPosition").(string)
+	meetName, hasMeet := session.Get("meetName").(string)
+
+	if hasUser && hasPosition && hasMeet {
+		err := occupancyService.UnsetPosition(meetName, position, userEmail)
+		if err != nil {
+			logger.Error.Printf("Logout: error vacating position: %v", err)
+		} else {
+			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+		}
+		delete(activeUsers, userEmail)
+		logger.Info.Printf("Logout: User %s removed from active users list", userEmail)
+	} else {
+		logger.Warn.Println("Logout: Missing user, refPosition, or meetName from session.")
 	}
-
-	position := c.PostForm("position")
-	userEmail := user.(string)
-	svc := &services.OccupancyService{} // Use a pointer to avoid method call issue
-
-	err := svc.SetPosition(position, userEmail)
-	if err != nil {
-		c.String(http.StatusForbidden, "Error: %s", err.Error())
-		return
-	}
-
-	session.Set("refPosition", position)
-	if err := session.Save(); err != nil {
-		log.Printf("Error saving session: %v", err)
-	}
-
-	// Redirect to assigned position view
-	switch position {
-	case "left":
-		c.Redirect(http.StatusFound, "/left")
-	case "centre":
-		c.Redirect(http.StatusFound, "/centre")
-	case "right":
-		c.Redirect(http.StatusFound, "/right")
-	default:
-		c.Redirect(http.StatusFound, "/positions")
-	}
-}
-
-// SetConfig updates global configuration
-func SetConfig(appURL, wsURL string) {
-	ApplicationURL = appURL
-	WebsocketURL = wsURL
-}
-
-// PerformLogin redirects to Google OAuth login
-func PerformLogin(c *gin.Context) {
-	c.Redirect(http.StatusFound, "/auth/google/login")
-}
-
-// Logout handles user logout
-func Logout(c *gin.Context) {
-	session := sessions.Default(c)
-	userEmail := session.Get("user")
-	refPosition := session.Get("refPosition")
-
-	// Free up the referee position
-	if userEmail != nil && refPosition != nil {
-		services.UnsetPosition(refPosition.(string), userEmail.(string))
-	}
-
-	// Clear the session
 	session.Clear()
 	if err := session.Save(); err != nil {
-		log.Printf("Error saving session: %v", err)
+		logger.Error.Printf("Logout: Error saving session: %v", err)
+	} else {
+		logger.Info.Println("Logout: Session cleared successfully")
 	}
-
-	c.Redirect(http.StatusFound, "/login")
+	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
-// Index renders the index page
+// -------------------- page rendering --------------------
+
+// Index renders the main application page
 func Index(c *gin.Context) {
-	data := gin.H{"WebsocketURL": WebsocketURL}
+	session := sessions.Default(c)
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
+		logger.Warn.Println("Index: No meet selected; redirecting to /meets")
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+
+	isAdmin, _ := session.Get("isAdmin").(bool)
+
+	logger.Info.Printf("Rendering index page for meet %s", meetName)
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+		"isAdmin":      isAdmin,
+	}
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// Left renders the left referee view
-func Left(c *gin.Context) {
-	data := gin.H{"WebsocketURL": WebsocketURL}
-	c.HTML(http.StatusOK, "left.html", data)
+// ShowPositionsPage renders the positions selection page.
+func ShowPositionsPage(c *gin.Context) {
+	session := sessions.Default(c)
+	user := session.Get("user")
+	meetName, ok := session.Get("meetName").(string)
+	if user == nil || !ok || meetName == "" {
+		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /meets")
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+		"Positions": map[string]interface{}{
+			"LeftOccupied":   false, // todo: Example data, replace with actual occupancy logic
+			"LeftUser":       "",
+			"centerOccupied": false,
+			"centerUser":     "",
+			"RightOccupied":  false,
+			"RightUser":      "",
+		},
+	}
+	logger.Info.Println("ShowPositionsPage: Rendering positions page")
+	c.HTML(http.StatusOK, "positions.html", data)
 }
 
-// Centre renders the centre referee view
-func Centre(c *gin.Context) {
-	data := gin.H{"WebsocketURL": WebsocketURL}
-	c.HTML(http.StatusOK, "centre.html", data)
-}
-
-// Right renders the right referee view
-func Right(c *gin.Context) {
-	data := gin.H{"WebsocketURL": WebsocketURL}
-	c.HTML(http.StatusOK, "right.html", data)
-}
-
-// Lights renders the light control panel
-func Lights(c *gin.Context) {
-	data := gin.H{"WebsocketURL": WebsocketURL}
-	c.HTML(http.StatusOK, "lights.html", data)
-}
-
-// GetQRCode generates and serves the QR code
+// GetQRCode generates and returns a QR code for the application URL.
 func GetQRCode(c *gin.Context) {
-	png, err := services.GenerateQRCode(250, 250, qrcode.Encode) // ✅ Pass the actual encoder function
+	logger.Info.Println("GetQRCode: Generating QR code")
+
+	qrBytes, err := services.GenerateQRCode(300, 300, qrcode.Encode)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Could not generate QR code")
+		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
+		c.String(http.StatusInternalServerError, "QR generation failed")
 		return
 	}
 
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
-	if _, err = c.Writer.Write(png); err != nil {
-		log.Printf("Error writing QR code: %v", err)
+	if _, err := c.Writer.Write(qrBytes); err != nil {
+		logger.Error.Printf("GetQRCode: Error writing QR code bytes: %v", err)
 	}
 }
 
-// RefereeUpdates handles WebSocket connections
-func RefereeUpdates(c *gin.Context) {
+// SetConfig updates the global application and WebSocket URLs.
+func SetConfig(appURL, wsURL string) {
+	ApplicationURL = appURL
+	WebsocketURL = wsURL
+	logger.Info.Printf("SetConfig: Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
+}
+
+// -------------------- referee view rendering --------------------
+
+// PerformLogin processes user authentication
+func PerformLogin(c *gin.Context) {
 	session := sessions.Default(c)
-	meetNameVal := session.Get("selectedMeet")
-	if meetNameVal == nil {
-		meetNameVal = "DEFAULT_MEET"
+	if session.Get("meetName") == nil {
+		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
+		return
 	}
-	// Append ?meetName=whatever
-	c.Request.URL.RawQuery = "meetName=" + meetNameVal.(string)
-	websocket.ServeWs(c.Writer, c.Request)
+	c.HTML(http.StatusOK, "login.html", gin.H{"MeetName": session.Get("meetName")})
 }
 
-// Health returns OK for health checks
-func Health(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+// Left renders the left referee view
+func Left(c *gin.Context) {
+	session := sessions.Default(c)
+	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Left handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	if !ok || meetName == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+	logger.Info.Println("Left: Rendering left referee view")
+	data := gin.H{
+		"WebsocketURL": WebsocketURL, // ✅ FIXED: WebsocketURL is now declared globally
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "left.html", data)
+}
+
+// Center renders the center referee view
+func Center(c *gin.Context) {
+	session := sessions.Default(c)
+	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Center handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	if !ok || meetName == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+	logger.Info.Println("center: Rendering center referee view")
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "center.html", data)
+}
+
+// Right renders the right referee view
+func Right(c *gin.Context) {
+	session := sessions.Default(c)
+	meetName, ok := session.Get("meetName").(string)
+	refPosition := session.Get("refPosition")
+	logger.Debug.Printf("Right handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	if !ok || meetName == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+	logger.Info.Println("Right: Rendering right referee view")
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "right.html", data)
+}
+
+// Lights renders the light control panel
+func Lights(c *gin.Context) {
+	session := sessions.Default(c)
+	meetName, ok := session.Get("meetName").(string)
+	if !ok || meetName == "" {
+		c.Redirect(http.StatusFound, "/meets")
+		return
+	}
+	logger.Info.Println("Lights: Rendering lights page")
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "lights.html", data)
 }

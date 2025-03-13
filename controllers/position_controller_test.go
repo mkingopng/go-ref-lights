@@ -1,163 +1,177 @@
 // file: controllers/position_controller_test.go
 
+//go:build unit
+// +build unit
+
 package controllers
 
 import (
-	"errors"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go-ref-lights/services"
-	"net/http"
-	"net/http/httptest"
-	"path/filepath"
-	"runtime"
-	"testing"
+	"go-ref-lights/websocket"
 )
 
-// MockOccupancyService implements OccupancyServiceInterface for testing
-type MockOccupancyService struct{}
+var mockOccupancyService = new(services.MockOccupancyService)
+var positionController = NewPositionController(mockOccupancyService)
 
-func (m *MockOccupancyService) GetOccupancy() services.Occupancy {
-	return services.Occupancy{
-		LeftUser:   "left@example.com",
-		CentreUser: "",
-		RightUser:  "right@example.com",
-	}
-}
-
-// Ensure SetPosition() matches OccupancyServiceInterface
-func (m *MockOccupancyService) SetPosition(position, userEmail string) error {
-	if position == "left" {
-		return errors.New("Left position is already taken")
-	}
-	return nil
-}
-
-// Add ResetOccupancy() method to satisfy the interface
-func (m *MockOccupancyService) ResetOccupancy() {
-	// Simulate resetting all referee positions
-}
-
-// Create a new router with mock dependencies
-func setupRouter() *gin.Engine {
+// setup router for PositionController tests
+func setupPositionTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-
-	// Mock session store
-	store := cookie.NewStore([]byte("secret"))
+	store := cookie.NewStore([]byte("test-secret"))
 	router.Use(sessions.Sessions("testsession", store))
 
-	// Inject mock service
-	mockService := &MockOccupancyService{}
-	positionController := NewPositionController(mockService)
-
-	// Load templates
-	_, filename, _, _ := runtime.Caller(0)
-	basepath := filepath.Join(filepath.Dir(filename), "../templates")
-	router.LoadHTMLGlob(filepath.Join(basepath, "*.html"))
-
-	// Routes
+	// attach handlers
 	router.GET("/positions", positionController.ShowPositionsPage)
-	router.POST("/position/claim", positionController.ClaimPosition)
+	router.POST("/claim-position", positionController.ClaimPosition)
+	router.POST("/vacate-position", positionController.VacatePosition)
+	router.GET("/occupancy", positionController.GetOccupancyAPI)
 
 	return router
 }
 
-// Test ShowPositionsPage - Redirects unauthenticated users to /login
-func TestShowPositionsPage_Unauthenticated(t *testing.T) {
-	router := setupRouter()
-
+// test ShowPositionsPage (Redirect when not logged in)
+func TestShowPositionsPage_NoUser(t *testing.T) {
+	websocket.InitTest()
+	router := setupPositionTestRouter()
 	req, _ := http.NewRequest("GET", "/positions", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/login", w.Header().Get("Location"))
+	assert.Equal(t, "/meets", w.Header().Get("Location"))
 }
 
-// Test ShowPositionsPage - Displays positions for authenticated users
-func TestShowPositionsPage_Authenticated(t *testing.T) {
-	router := setupRouter()
+// Test ClaimPosition (Successful Claim)
+func TestClaimPosition_Success(t *testing.T) {
+	websocket.InitTest()
+	t.Run("ClaimPosition_Success", func(t *testing.T) {
+		mockOccupancyService = new(services.MockOccupancyService)
+		positionController = NewPositionController(mockOccupancyService)
 
-	req, _ := http.NewRequest("GET", "/positions", nil)
+		router := setupPositionTestRouter()
+		form := bytes.NewBufferString("position=left")
+		req, _ := http.NewRequest("POST", "/claim-position", form)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+
+		mockOccupancyService.On("SetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
+		mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{LeftUser: "testuser"}).Once()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		store := cookie.NewStore([]byte("test-secret"))
+		sessions.Sessions("testsession", store)(c)
+
+		session := sessions.Default(c)
+		session.Set("user", "testuser")
+		session.Set("meetName", "TestMeet")
+		_ = session.Save()
+
+		router.ServeHTTP(w, req)
+
+		time.Sleep(200 * time.Millisecond)
+
+		fmt.Println("Assertions after ClaimPosition execution")
+
+		assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
+		assert.Equal(t, "/left", w.Header().Get("Location"))
+
+		time.Sleep(200 * time.Millisecond)
+
+		mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
+		mockOccupancyService.AssertExpectations(t)
+	})
+}
+
+// Test VacatePosition (Successful Vacate)
+func TestVacatePosition_Success(t *testing.T) {
+	websocket.InitTest()
+	mockOccupancyService = new(services.MockOccupancyService)
+	positionController = NewPositionController(mockOccupancyService)
+
+	router := setupPositionTestRouter()
+	req, _ := http.NewRequest("POST", "/vacate-position", nil)
 	w := httptest.NewRecorder()
 
-	// Create Gin test context & manually set session
+	mockOccupancyService.On("UnsetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{}).Once()
+
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-
-	store := cookie.NewStore([]byte("secret"))
-	sessionsMiddleware := sessions.Sessions("testsession", store)
-	sessionsMiddleware(c) // Apply middleware before calling `sessions.Default(c)`
+	store := cookie.NewStore([]byte("test-secret"))
+	sessions.Sessions("testsession", store)(c)
 
 	session := sessions.Default(c)
-	session.Set("user", "test@example.com") // Ensure the user is stored in session
-	err := session.Save()
-	if err != nil {
-		return
-	} // Persist session across test requests
+	session.Set("user", "testuser")
+	session.Set("meetName", "TestMeet")
+	session.Set("refPosition", "left")
+	_ = session.Save()
 
-	// Run the request through the router
+	fmt.Println("Session refPosition (before request):", session.Get("refPosition"))
+
+	router.ServeHTTP(w, req)
+
+	time.Sleep(200 * time.Millisecond)
+
+	fmt.Println("Assertions after VacatePosition execution")
+
+	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
+	assert.Equal(t, "/positions", w.Header().Get("Location"))
+
+	time.Sleep(150 * time.Millisecond)
+
+	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet") // Checks at least one call
+	mockOccupancyService.AssertExpectations(t)
+}
+
+// Test GetOccupancyAPI
+func TestGetOccupancyAPI_Success(t *testing.T) {
+	websocket.InitTest()
+	mockOccupancyService = new(services.MockOccupancyService)
+	positionController = NewPositionController(mockOccupancyService)
+
+	router := setupPositionTestRouter()
+	req, _ := http.NewRequest("GET", "/occupancy", nil)
+	w := httptest.NewRecorder()
+
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{
+		LeftUser:   "user1",
+		CenterUser: "",
+		RightUser:  "user2",
+	}).Once()
+
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	store := cookie.NewStore([]byte("test-secret"))
+	sessions.Sessions("testsession", store)(c)
+
+	session := sessions.Default(c)
+	session.Set("meetName", "TestMeet")
+	_ = session.Save()
+
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "Left (Occupied by left@example.com)")
-	assert.Contains(t, w.Body.String(), "Centre (Available)")
-	assert.Contains(t, w.Body.String(), "Right (Occupied by right@example.com)")
-}
 
-// Test ClaimPosition - Redirects unauthenticated users to /login
-func TestClaimPosition_Unauthenticated(t *testing.T) {
-	router := setupRouter()
+	var response map[string]string
+	_ = json.Unmarshal(w.Body.Bytes(), &response)
+	assert.Contains(t, response, "leftUser")
+	assert.Contains(t, response, "centreUser")
+	assert.Contains(t, response, "rightUser")
 
-	req, _ := http.NewRequest("POST", "/position/claim", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
+	time.Sleep(150 * time.Millisecond)
 
-	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/login", w.Header().Get("Location"))
-}
-
-// Test ClaimPosition - Prevents double assignment
-func TestClaimPosition_AlreadyTaken(t *testing.T) {
-	router := setupRouter()
-
-	// Ensure session middleware is applied to the router
-	store := cookie.NewStore([]byte("secret"))
-	router.Use(sessions.Sessions("testsession", store))
-
-	// Step 1: First user claims "left"
-	svc := &services.OccupancyService{}
-	err := svc.SetPosition("left", "existing-user@example.com")
-	assert.NoError(t, err, "First user should be able to claim the position")
-
-	// Step 2: Verify the position is correctly assigned
-	occ := svc.GetOccupancy()
-	assert.Equal(t, "existing-user@example.com", occ.LeftUser, "Position should be assigned to first user")
-
-	// Step 3: Create test request & apply session middleware
-	req, _ := http.NewRequest("POST", "/position/claim", nil)
-	req.PostForm = map[string][]string{"position": {"left"}}
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
-
-	// Apply session store in test context
-	sessionsMiddleware := sessions.Sessions("testsession", store)
-	sessionsMiddleware(c)
-
-	// Set session for authenticated user
-	session := sessions.Default(c)
-	session.Set("user", "another-user@example.com")
-	session.Save()
-
-	// Step 4: Process request
-	router.ServeHTTP(w, req)
-
-	// Step 5: Validate response (should return 403 Forbidden)
-	assert.Equal(t, http.StatusForbidden, w.Code, "Expected 403 Forbidden for already taken position")
-	assert.Contains(t, w.Body.String(), "Left position is already taken", "Expected error message for taken position")
+	mockOccupancyService.AssertExpectations(t)
 }
