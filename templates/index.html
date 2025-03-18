@@ -19,9 +19,9 @@
 
 <!--QR Code container-->
 <div class="qr-container">
-  <img src="/qr?meet={{.MeetName}}&pos=left" alt="Left QR" />
-  <img src="/qr?meet={{.MeetName}}&pos=center" alt="Center QR" />
-  <img src="/qr?meet={{.MeetName}}&pos=right" alt="Right QR" />
+  <img src="/qrcode?meetName={{.meetName}}&position=left" alt="Left Ref QR" />
+  <img src="/qrcode?meetName={{.meetName}}&position=center" alt="Center Ref QR" />
+  <img src="/qrcode?meetName={{.meetName}}&position=right" alt="Right Ref QR" />
 </div>
 
 <p>Scan the LEFT code for left referee, CENTER code for center, RIGHT code for right.</p>

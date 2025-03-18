@@ -1,26 +1,24 @@
 // Package services provides business logic for the application, including QR code generation.
-// File: services/qrcode_service.go
 package services
 
 import (
 	"errors"
+
 	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
 )
 
-// ------------ qr code encoding ------------
+// Define a function type for the encoder.
+type qrEncoderFunc func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error)
 
-// QRCodeEncoder defines a function type for generating QR codes.
-type QRCodeEncoder func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error)
+// encoder is the function used to encode a QR code.
+// It defaults to qrcode.Encode, but can be overridden in tests.
+var encoder qrEncoderFunc = qrcode.Encode
 
-// Global encoder variable (defaults to qrcode.Encode); can be overridden in tests.
-var encoder QRCodeEncoder = qrcode.Encode
-
-// ------------ qr code generation ------------
-
-// GenerateQRCode creates a QR code using the provided encoder function.
+// GenerateQRCode creates a QR code for the given URL.
+// It returns a PNG as []byte, or an error.
 func GenerateQRCode(targetURL string, size int, level qrcode.RecoveryLevel) ([]byte, error) {
-	// Validate input.
+	// Basic validation
 	if targetURL == "" {
 		return nil, errors.New("cannot generate QR code: empty URL")
 	}
@@ -28,7 +26,6 @@ func GenerateQRCode(targetURL string, size int, level qrcode.RecoveryLevel) ([]b
 		return nil, errors.New("invalid dimensions: width and height must be positive")
 	}
 
-	// Generate QR code using the (possibly overridden) encoder.
 	pngBytes, err := encoder(targetURL, level, size)
 	if err != nil {
 		logger.Error.Printf("GenerateQRCode: Failed to create QR code for %s: %v", targetURL, err)

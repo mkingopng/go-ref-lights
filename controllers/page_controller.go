@@ -143,7 +143,6 @@ func GetQRCode(c *gin.Context) {
 
 	meetName := c.Query("meetName")
 	position := c.Query("position")
-
 	if meetName == "" || position == "" {
 		c.String(http.StatusBadRequest, "Missing meetName or position query param")
 		return
