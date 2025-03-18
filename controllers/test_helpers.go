@@ -16,8 +16,8 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// setupTestRouter creates a new Gin engine with session middleware and dummy HTML templates.
-// It also initializes the websocket package for tests.
+// setupTestRouter creates a new Gin engine with session middleware and fake HTML templates.
+// It also initialises the websocket package for tests.
 func setupTestRouter(t *testing.T) *gin.Engine {
 	websocket.InitTest()
 	gin.SetMode(gin.TestMode)

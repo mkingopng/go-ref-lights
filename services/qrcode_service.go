@@ -4,7 +4,6 @@ package services
 
 import (
 	"errors"
-
 	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
 )
@@ -17,22 +16,20 @@ type QRCodeEncoder func(content string, level qrcode.RecoveryLevel, size int) ([
 // ------------ qr code generation ------------
 
 // GenerateQRCode creates a QR code using the provided encoder function
-func GenerateQRCode(width, height int, encoder QRCodeEncoder) ([]byte, error) {
-	if width <= 0 || height <= 0 {
-		err := errors.New("invalid dimensions: width and height must be positive")
-		logger.Error.Printf("QR code generation failed: %v", err)
-		return nil, err
+func GenerateQRCode(targetURL string, size int, level qrcode.RecoveryLevel) ([]byte, error) {
+	// Basic validation
+	if targetURL == "" {
+		return nil, errors.New("cannot generate QR code: empty URL")
+	}
+	if size <= 0 {
+		size = 300 // default fallback
 	}
 
-	logger.Info.Printf("Generating QR code with dimensions %dx%d", width, height)
-
-	// generate the QR code using the provided encoder function.
-	qrdata, err := encoder("https://referee-lights.michaelkingston.com.au/", qrcode.Medium, width)
+	pngBytes, err := qrcode.Encode(targetURL, level, size)
 	if err != nil {
-		logger.Error.Printf("QR code generation failed: %v", err)
+		logger.Error.Printf("GenerateQRCode: Failed to create QR code for %s: %v", targetURL, err)
 		return nil, err
 	}
 
-	logger.Info.Println("QR code generated successfully")
-	return qrdata, nil
+	return pngBytes, nil
 }
