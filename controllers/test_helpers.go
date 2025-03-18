@@ -1,3 +1,4 @@
+// file: controllers/test_helpers.go
 //go:build unit
 // +build unit
 
@@ -67,7 +68,10 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 		for key, value := range data {
 			session.Set(key, value)
 		}
-		session.Save()
+		if err := session.Save(); err != nil {
+			c.String(http.StatusInternalServerError, "session save failed")
+			return
+		}
 		c.String(http.StatusOK, "session set")
 	})
 

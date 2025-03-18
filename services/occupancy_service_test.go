@@ -17,7 +17,7 @@ func TestGetOccupancy_NewMeet(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL State Championship"
 
-	// Expect an empty occupancy state for a new meet
+	// expect an empty occupancy state for a new meet
 	occupancy := service.GetOccupancy(meetName)
 
 	assert.Empty(t, occupancy.LeftUser)
@@ -30,11 +30,11 @@ func TestSetPosition_Success(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Nationals"
 
-	// Assign a user to the left position
+	// assign a user to the left position
 	err := service.SetPosition(meetName, "left", "referee1@example.com")
 	assert.NoError(t, err)
 
-	// Verify that the position is correctly assigned
+	// verify that the position is correctly assigned
 	occupancy := service.GetOccupancy(meetName)
 	assert.Equal(t, "referee1@example.com", occupancy.LeftUser)
 }
@@ -44,15 +44,15 @@ func TestSetPosition_FailsIfTaken(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Regionals"
 
-	// First referee takes the left position
+	// first referee takes the left position
 	_ = service.SetPosition(meetName, "left", "ref1@example.com")
 
-	// Second referee should be blocked from taking the same position
+	// second referee should be blocked from taking the same position
 	err := service.SetPosition(meetName, "left", "ref2@example.com")
 	assert.Error(t, err)
 	assert.Equal(t, "left position is already taken", err.Error())
 
-	// Ensure the original assignment is unchanged
+	// ensure the original assignment is unchanged
 	occupancy := service.GetOccupancy(meetName)
 	assert.Equal(t, "ref1@example.com", occupancy.LeftUser)
 }
@@ -62,14 +62,14 @@ func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Qualifiers"
 
-	// Assign user to left
+	// assign user to left
 	_ = service.SetPosition(meetName, "left", "ref1@example.com")
 
-	// Move the same user to center
+	// move the same user to center
 	err := service.SetPosition(meetName, "center", "ref1@example.com")
 	assert.NoError(t, err)
 
-	// Verify they moved
+	// verify they moved
 	occupancy := service.GetOccupancy(meetName)
 	assert.Empty(t, occupancy.LeftUser) // Old position should be empty
 	assert.Equal(t, "ref1@example.com", occupancy.CenterUser)
@@ -80,14 +80,14 @@ func TestResetOccupancyForMeet(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Open"
 
-	// Assign positions
+	// assign positions
 	_ = service.SetPosition(meetName, "left", "ref1@example.com")
 	_ = service.SetPosition(meetName, "center", "ref2@example.com")
 
-	// Reset occupancy
+	// reset occupancy
 	service.ResetOccupancyForMeet(meetName)
 
-	// Expect an empty occupancy state
+	// expect an empty occupancy state
 	occupancy := service.GetOccupancy(meetName)
 	assert.Empty(t, occupancy.LeftUser)
 	assert.Empty(t, occupancy.CenterUser)
@@ -99,14 +99,14 @@ func TestUnsetPosition(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Grand Finals"
 
-	// Assign a user to right
+	// assign a user to right
 	_ = service.SetPosition(meetName, "right", "ref3@example.com")
 
-	// Unset the position
+	// unset the position
 	err := service.UnsetPosition(meetName, "right", "ref3@example.com")
 	assert.NoError(t, err)
 
-	// Verify position is cleared
+	// verify position is cleared
 	occupancy := service.GetOccupancy(meetName)
 	assert.Empty(t, occupancy.RightUser)
 }
@@ -116,17 +116,17 @@ func TestUnsetPosition_FailsIfPositionDoesNotMatchUser(t *testing.T) {
 	service := &OccupancyService{}
 	meetName := "APL Regionals"
 
-	// Assign a user to a position
+	// assign a user to a position
 	_ = service.SetPosition(meetName, "center", "ref2@example.com")
 
-	// Attempt to unset the position with a different user (should fail)
+	// attempt to unset the position with a different user (should fail)
 	err := service.UnsetPosition(meetName, "center", "wronguser@example.com")
 
-	// Expect an error
+	// expect an error
 	assert.Error(t, err, "Expected an error when an incorrect user tries to unset a position")
 	assert.Equal(t, "user does not hold this position", err.Error())
 
-	// Ensure the original assignment remains unchanged
+	// ensure the original assignment remains unchanged
 	occupancy := service.GetOccupancy(meetName)
 	assert.Equal(t, "ref2@example.com", occupancy.CenterUser)
 }

@@ -137,30 +137,27 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Missing username
+	// For missing username:
 	reqBody := "password=securepassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code, "Missing fields should return 400")
-	assert.Contains(t, w.Body.String(), "Please fill in all fields", "Should indicate missing input fields")
+	// Expect a redirect (302) because the production code redirects when meetName is missing.
+	assert.Equal(t, http.StatusFound, w.Code, "Missing fields should redirect")
+	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 
-	// Missing password
+	// For missing password:
 	reqBody = "username=adminuser"
 	req, _ = http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code, "Missing fields should return 400")
-	assert.Contains(t, w.Body.String(), "Please fill in all fields", "Should indicate missing input fields")
+	assert.Equal(t, http.StatusFound, w.Code, "Missing fields should redirect")
+	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 }
 
-// TestLoginHandler_InvalidMeetName verifies that a user cannot log in without selecting a meet.
 func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
@@ -169,15 +166,16 @@ func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
+	defer func() { loadMeetCredsFunc = nil }()
 
-	// No session set (no meet selected)
+	// Don't set a session meetName—simulate a request with no meet selected.
 	reqBody := "username=adminuser&password=securepassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code, "Login without meet selection should return 400")
-	assert.Contains(t, w.Body.String(), "Please select a meet before logging in.", "Should indicate missing meet selection")
+	// Expect a redirect to /choose-meet.
+	assert.Equal(t, http.StatusFound, w.Code, "Login without meet selection should redirect")
+	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 }

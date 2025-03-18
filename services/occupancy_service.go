@@ -5,6 +5,7 @@ package services
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"go-ref-lights/logger"
 )
@@ -21,9 +22,10 @@ var occupancyMap = make(map[string]*Occupancy)
 
 // Occupancy defines the struct to track referee positions
 type Occupancy struct {
-	LeftUser   string // Referee assigned to the left position
-	CenterUser string // Referee assigned to the center position
-	RightUser  string // Referee assigned to the right position
+	LeftUser    string    // Referee assigned to the left position
+	CenterUser  string    // Referee assigned to the center position
+	RightUser   string    // Referee assigned to the right position
+	LastUpdated time.Time // Timestamp of the last update
 }
 
 // OccupancyServiceInterface defines the methods required for managing referee assignments.
@@ -132,6 +134,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = userEmail
 	}
 
+	s.TouchActivity(meetName)
 	logger.Info.Printf("Position '%s' assigned to user '%s' for meet %s. Current occupancy: %+v", position, userEmail, meetName, occ)
 	return nil
 }
@@ -193,5 +196,14 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 		occ.LeftUser = ""
 		occ.CenterUser = ""
 		occ.RightUser = ""
+	}
+}
+
+// TouchActivity updates the LastUpdated timestamp for the given meet.
+// Assumes the caller holds the occupancyMutex.
+func (s *OccupancyService) TouchActivity(meetName string) {
+	if occ, exists := occupancyMap[meetName]; exists {
+		occ.LastUpdated = time.Now()
+		logger.Debug.Printf("TouchActivity: Updated LastUpdated for meet %s to %v", meetName, occ.LastUpdated)
 	}
 }

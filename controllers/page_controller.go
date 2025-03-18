@@ -55,7 +55,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	} else {
 		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-	c.Redirect(http.StatusFound, "/dashboard")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
@@ -174,16 +174,6 @@ func SetConfig(appURL, wsURL string) {
 }
 
 // -------------------- referee view rendering --------------------
-
-// PerformLogin processes user authentication
-func PerformLogin(c *gin.Context) {
-	session := sessions.Default(c)
-	if session.Get("meetName") == nil {
-		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
-		return
-	}
-	c.HTML(http.StatusOK, "login.html", gin.H{"MeetName": session.Get("meetName")})
-}
 
 // Left renders the left referee view
 func Left(c *gin.Context) {

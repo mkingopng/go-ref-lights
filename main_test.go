@@ -113,8 +113,8 @@ func testSetupRouter(templatesDir, env string) *gin.Engine {
 		c.String(http.StatusOK, "Login Page")
 	})
 	router.POST("/login", func(c *gin.Context) {
-		log.Println("[Route /login] Login POST received; redirecting to /dashboard")
-		c.Redirect(http.StatusFound, "/dashboard")
+		log.Println("[Route /login] Login POST received; redirecting to /index")
+		c.Redirect(http.StatusFound, "/index")
 	})
 	router.GET("/logout", func(c *gin.Context) {
 		log.Println("[Route /logout] Logout called; redirecting to /")
@@ -122,8 +122,8 @@ func testSetupRouter(templatesDir, env string) *gin.Engine {
 	})
 
 	// Protected route.
-	router.GET("/dashboard", func(c *gin.Context) {
-		log.Println("[Route /dashboard] Protected dashboard accessed")
+	router.GET("/index", func(c *gin.Context) {
+		log.Println("[Route /index] Protected dashboard accessed")
 		c.String(http.StatusOK, "Dashboard")
 	})
 
@@ -178,8 +178,8 @@ func TestProtectedRouteRedirect(t *testing.T) {
 	router := testSetupRouter(templatesDir, "development")
 
 	// Do not set "meetName" in the context so the protected middleware will trigger.
-	req, _ := http.NewRequest("GET", "/dashboard", nil)
-	log.Println("[TestProtectedRouteRedirect] Sending GET /dashboard without meetName")
+	req, _ := http.NewRequest("GET", "/index", nil)
+	log.Println("[TestProtectedRouteRedirect] Sending GET /index without meetName")
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
