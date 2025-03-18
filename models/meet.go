@@ -17,7 +17,9 @@ type User struct {
 type Meet struct {
 	Name  string `json:"name"`  // Meet name
 	Date  string `json:"date"`  // Meet date (should use time.Time in production)
-	Users []User `json:"users"` // List of registered users
+	Admin User   `json:"admin"` // Meet admin user
+	User  User   `json:"user"`  // Meet user
+	Logo  string `json:"logo"`  // Meet logo URL
 }
 
 // ---------------------- meet credentials model ----------------------

@@ -27,20 +27,43 @@ func TestUserInitialization(t *testing.T) {
 // Test: Create a Meet and verify struct fields
 func TestMeetInitialization(t *testing.T) {
 	websocket.InitTest()
-	users := []User{
-		{Username: "referee1", Password: "pass1"},
-		{Username: "referee2", Password: "pass2"},
+
+	// --- REMOVED: old slice of users ---
+	// users := []User{
+	//     {Username: "referee1", Password: "pass1"},
+	//     {Username: "referee2", Password: "pass2"},
+	// }
+
+	// --- ADDED: define Admin and single User to match new struct ---
+	adminUser := User{
+		Username: "adminUser",
+		Password: "adminPass",
+		IsAdmin:  true,
+	}
+	normalUser := User{
+		Username: "referee1",
+		Password: "pass1",
+		IsAdmin:  false,
 	}
 
+	// --- CHANGED: now we specify Admin, User, Logo instead of Users []User ---
 	meet := Meet{
 		Name:  "State Powerlifting Championship",
 		Date:  "2025-03-15",
-		Users: users,
+		Admin: adminUser,
+		User:  normalUser,
+		Logo:  "championship_logo.png",
 	}
 
 	assert.Equal(t, "State Powerlifting Championship", meet.Name)
 	assert.Equal(t, "2025-03-15", meet.Date)
-	assert.Len(t, meet.Users, 2)
+	assert.Equal(t, "adminUser", meet.Admin.Username)
+	assert.Equal(t, "adminPass", meet.Admin.Password)
+	assert.True(t, meet.Admin.IsAdmin)
+	assert.Equal(t, "referee1", meet.User.Username)
+	assert.Equal(t, "pass1", meet.User.Password)
+	assert.False(t, meet.User.IsAdmin)
+	assert.Equal(t, "championship_logo.png", meet.Logo)
 }
 
 // Test: Create MeetCreds and verify multiple meets
@@ -80,8 +103,26 @@ func TestUserJSONSerialization(t *testing.T) {
 // Test: Meet JSON Serialization & Deserialization
 func TestMeetJSONSerialization(t *testing.T) {
 	websocket.InitTest()
-	users := []User{{Username: "ref1", Password: "pass1"}}
-	meet := Meet{Name: "Deadlift Open", Date: "2025-05-01", Users: users}
+
+	// --- REMOVED: old slice of users ---
+	// users := []User{{Username: "ref1", Password: "pass1"}}
+
+	// --- ADDED: define Admin and single User to match new struct ---
+	meet := Meet{
+		Name: "Deadlift Open",
+		Date: "2025-05-01",
+		Admin: User{
+			Username: "adminUser",
+			Password: "adminPass",
+			IsAdmin:  true,
+		},
+		User: User{
+			Username: "ref1",
+			Password: "pass1",
+			IsAdmin:  false,
+		},
+		Logo: "deadlift_open_logo.png",
+	}
 
 	// Serialize Meet to JSON
 	jsonData, err := json.Marshal(meet)
@@ -95,8 +136,13 @@ func TestMeetJSONSerialization(t *testing.T) {
 	// Verify data integrity
 	assert.Equal(t, meet.Name, decodedMeet.Name)
 	assert.Equal(t, meet.Date, decodedMeet.Date)
-	assert.Len(t, decodedMeet.Users, 1)
-	assert.Equal(t, meet.Users[0].Username, decodedMeet.Users[0].Username)
+	assert.Equal(t, meet.Admin.Username, decodedMeet.Admin.Username)
+	assert.Equal(t, meet.Admin.Password, decodedMeet.Admin.Password)
+	assert.Equal(t, meet.Admin.IsAdmin, decodedMeet.Admin.IsAdmin)
+	assert.Equal(t, meet.User.Username, decodedMeet.User.Username)
+	assert.Equal(t, meet.User.Password, decodedMeet.User.Password)
+	assert.Equal(t, meet.User.IsAdmin, decodedMeet.User.IsAdmin)
+	assert.Equal(t, meet.Logo, decodedMeet.Logo)
 }
 
 // Test: MeetCreds JSON Serialization & Deserialization

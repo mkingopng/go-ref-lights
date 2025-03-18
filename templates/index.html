@@ -15,12 +15,16 @@
 
   {{template "header.html" .}}
 
-<h1>Scan To Log-in</h1>
+<h1>Meet: {{ .MeetName }}</h1>
 
 <!--QR Code container-->
-<div class="qr-code-container">
-  <img src="/qrcode" alt="QR Code">
+<div class="qr-container">
+  <img src="/qr?meet={{.MeetName}}&pos=left" alt="Left QR" />
+  <img src="/qr?meet={{.MeetName}}&pos=center" alt="Center QR" />
+  <img src="/qr?meet={{.MeetName}}&pos=right" alt="Right QR" />
 </div>
+
+<p>Scan the LEFT code for left referee, CENTER code for center, RIGHT code for right.</p>
 
 <!--button container: lights or select ref positions-->
 <div class="button-container">

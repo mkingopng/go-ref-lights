@@ -26,23 +26,12 @@ func checkPasswordHash(password, hash string) bool {
 // If authentication fails, it returns an appropriate error message.
 func LoginHandler(c *gin.Context) {
 	session := sessions.Default(c)
-
-	// retrieve the selected meet from session.
-	meetNameRaw := session.Get("meetName")
-	meetName, ok := meetNameRaw.(string)
-	if !ok || meetName == "" {
-		logger.Warn.Println("LoginHandler: No meet selected, redirecting to /choose-meet")
-		c.Redirect(http.StatusFound, "/choose-meet")
-		return
-	}
-
-	// extract credentials from form input.
+	meetName := session.Get("meetName")
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
 	// validate input fields.
 	if username == "" || password == "" {
-		logger.Warn.Println("LoginHandler: Missing username or password")
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Please fill in all fields.",
@@ -66,16 +55,13 @@ func LoginHandler(c *gin.Context) {
 	var valid bool
 	var isAdmin bool
 
-	// iterate through meets and users to validate credentials.
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
-			for _, user := range m.Users {
-				if user.Username == username && ComparePasswords(user.Password, password) {
-					valid = true
-					isAdmin = user.IsAdmin // Capture admin status
-					break
-				}
+			if m.Admin.Username == username && ComparePasswords(m.Admin.Password, password) {
+				valid = true
+				isAdmin = m.Admin.IsAdmin
 			}
+			break
 		}
 	}
 
@@ -105,27 +91,12 @@ func LoginHandler(c *gin.Context) {
 	activeUsers[username] = true
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin) // store admin status in session
-
-	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
-
-	// save session state.
 	if err := session.Save(); err != nil {
-		logger.Error.Println("LoginHandler: Failed to save session:", err)
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Internal error, please try again.",
-		})
+		logger.Error.Println("Failed to save session:", err)
+		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"Error": "Internal error, please try again."})
 		return
 	}
 
-	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
-
-	// ---------------- role based redirection ----------------
-
-	// Redirect users based on their role
-	if isAdmin {
-		c.Redirect(http.StatusFound, "/admin") // admin panel
-	} else {
-		c.Redirect(http.StatusFound, "/dashboard") // user dashboard
-	}
+	c.Redirect(http.StatusFound, "/index")
+	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
 }

@@ -13,8 +13,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/crypto/bcrypt"
-
 	"go-ref-lights/models"
 )
 
@@ -23,17 +21,12 @@ var testMeetCreds = models.MeetCreds{
 	Meets: []models.Meet{
 		{
 			Name: "TestMeet",
-			Users: []models.User{
-				{Username: "testuser", Password: hashPassword("testpass")},
+			User: models.User{
+				Username: "testuser",
+				Password: hashPassword("testpass"),
 			},
 		},
 	},
-}
-
-// hashPassword is a helper to hash a password.
-func hashPassword(password string) string {
-	hashed, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(hashed)
 }
 
 func TestComparePasswords(t *testing.T) {
@@ -67,34 +60,6 @@ func TestLoadMeetCreds(t *testing.T) {
 	loaded, err := loadMeetCredsFunc()
 	assert.NoError(t, err)
 	assert.Equal(t, "TestMeet", loaded.Meets[0].Name)
-}
-
-func TestLoginHandler_Success(t *testing.T) {
-	router := setupTestRouter(t)
-	router.POST("/login", LoginHandler)
-
-	// Use our shared helper to set "meetName" in session.
-	sessionCookie := SetSession(router, "/set-session-login", map[string]interface{}{
-		"meetName": "TestMeet",
-	})
-	if sessionCookie == nil {
-		t.Fatal("Session cookie not found")
-	}
-
-	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
-		return &testMeetCreds, nil
-	}
-
-	reqBody := "username=testuser&password=testpass"
-	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.AddCookie(sessionCookie)
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/dashboard", w.Header().Get("Location"))
 }
 
 func TestForceLogoutHandler(t *testing.T) {

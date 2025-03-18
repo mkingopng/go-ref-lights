@@ -13,19 +13,23 @@ import (
 // QRCodeEncoder defines a function type for generating QR codes.
 type QRCodeEncoder func(content string, level qrcode.RecoveryLevel, size int) ([]byte, error)
 
+// Global encoder variable (defaults to qrcode.Encode); can be overridden in tests.
+var encoder QRCodeEncoder = qrcode.Encode
+
 // ------------ qr code generation ------------
 
-// GenerateQRCode creates a QR code using the provided encoder function
+// GenerateQRCode creates a QR code using the provided encoder function.
 func GenerateQRCode(targetURL string, size int, level qrcode.RecoveryLevel) ([]byte, error) {
-	// Basic validation
+	// Validate input.
 	if targetURL == "" {
 		return nil, errors.New("cannot generate QR code: empty URL")
 	}
 	if size <= 0 {
-		size = 300 // default fallback
+		return nil, errors.New("invalid dimensions: width and height must be positive")
 	}
 
-	pngBytes, err := qrcode.Encode(targetURL, level, size)
+	// Generate QR code using the (possibly overridden) encoder.
+	pngBytes, err := encoder(targetURL, level, size)
 	if err != nil {
 		logger.Error.Printf("GenerateQRCode: Failed to create QR code for %s: %v", targetURL, err)
 		return nil, err
