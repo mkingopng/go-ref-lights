@@ -173,7 +173,6 @@ func SetupRouter(env string) *gin.Engine {
 	})
 	protected.Use(middleware.PositionRequired())
 	{
-		protected.GET("/index", controllers.Index)
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/positions", controllers.ShowPositionsPage)

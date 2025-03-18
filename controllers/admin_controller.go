@@ -35,6 +35,7 @@ func NewAdminController(service services.OccupancyServiceInterface, posControlle
 func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
+
 	logger.Debug.Printf("AdminPanel: isAdmin value in session: %v", adminVal)
 
 	isAdmin, ok := adminVal.(bool)
@@ -49,14 +50,12 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
 	}
-
 	if meetName == "" {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
 
 	occupancy := ac.OccupancyService.GetOccupancy(meetName)
-
 	data := gin.H{
 		"meetName":  meetName,
 		"occupancy": occupancy,

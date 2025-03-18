@@ -2,18 +2,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <title>Admin Panel for Meet: {{ .meetName }}</title>
   <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <title>Admin Panel for Meet: {{ .meetName }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 <body>
 <h1>Admin Panel for Meet: {{ .meetName }}</h1>
 
-<h2>Currently Logged-In Users</h2>
-<p>Select a user to forcefully log them out:</p>
+<h2>Current Occupants</h2>
+<table class="admin-table">
+  <thead>
+  <tr>
+    <th>Position</th>
+    <th>Occupant</th>
+    <th>Action</th>
+  </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <td>Left</td>
+    <td>{{ .occupancy.LeftUser }}</td>
+    <td>
+      {{ if .occupancy.LeftUser }}
+      <form action="/admin/force-vacate" method="POST">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="left">
+        <button type="submit">Vacate</button>
+      </form>
+      {{ else }}
+      N/A
+      {{ end }}
+    </td>
+  </tr>
+  <tr>
+    <td>Center</td>
+    <td>{{ .occupancy.CenterUser }}</td>
+    <td>
+      {{ if .occupancy.CenterUser }}
+      <form action="/admin/force-vacate" method="POST">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="center">
+        <button type="submit">Vacate</button>
+      </form>
+      {{ else }}
+      N/A
+      {{ end }}
+    </td>
+  </tr>
+  <tr>
+    <td>Right</td>
+    <td>{{ .occupancy.RightUser }}</td>
+    <td>
+      {{ if .occupancy.RightUser }}
+      <form action="/admin/force-vacate" method="POST">
+        <input type="hidden" name="meetName" value="{{ .meetName }}">
+        <input type="hidden" name="position" value="right">
+        <button type="submit">Vacate</button>
+      </form>
+      {{ else }}
+      N/A
+      {{ end }}
+    </td>
+  </tr>
+  </tbody>
+</table>
 
+<!-- Force Logout Section -->
+<h2>Force Logout</h2>
+<p>Select a user to forcefully log them out:</p>
 <form id="forceLogoutForm">
   <label for="username">Username:</label>
   <select id="username" name="username">
@@ -21,11 +80,11 @@
   </select>
   <button type="submit">Force Logout</button>
 </form>
-
 <p id="logoutStatus"></p>
 
+<!-- Full Instance Reset Section -->
 <h2>Full Instance Reset</h2>
-<p>This will log out all users and reset referee positions.</p>
+<p>This will log out all users and reset all referee positions for this meet.</p>
 <form method="POST" action="/admin/reset-instance">
   <input type="hidden" name="meetName" value="{{ .meetName }}">
   <button type="submit">Reset Meet</button>
@@ -67,7 +126,7 @@
               .then(response => response.json())
               .then(data => {
                 let select = document.getElementById("username");
-                select.innerHTML = ""; // Clear previous options
+                select.innerHTML = "";
                 data.users.forEach(user => {
                   let option = document.createElement("option");
                   option.value = user;
