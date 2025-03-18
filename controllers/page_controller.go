@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -54,7 +55,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	} else {
 		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-	c.Redirect(http.StatusFound, "/dashboard")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
@@ -140,7 +141,18 @@ func ShowPositionsPage(c *gin.Context) {
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
 
-	qrBytes, err := services.GenerateQRCode(300, 300, qrcode.Encode)
+	meetName := c.Query("meetName")
+	position := c.Query("position")
+	if meetName == "" || position == "" {
+		c.String(http.StatusBadRequest, "Missing meetName or position query param")
+		return
+	}
+
+	// Build a dynamic URL that directs the user to login
+	qrURL := fmt.Sprintf("%s/login?meetName=%s&position=%s",
+		ApplicationURL, meetName, position)
+
+	qrBytes, err := services.GenerateQRCode(qrURL, 300, qrcode.Medium)
 	if err != nil {
 		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
 		c.String(http.StatusInternalServerError, "QR generation failed")
@@ -162,16 +174,6 @@ func SetConfig(appURL, wsURL string) {
 }
 
 // -------------------- referee view rendering --------------------
-
-// PerformLogin processes user authentication
-func PerformLogin(c *gin.Context) {
-	session := sessions.Default(c)
-	if session.Get("meetName") == nil {
-		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
-		return
-	}
-	c.HTML(http.StatusOK, "login.html", gin.H{"MeetName": session.Get("meetName")})
-}
 
 // Left renders the left referee view
 func Left(c *gin.Context) {
