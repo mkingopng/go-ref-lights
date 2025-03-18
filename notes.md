@@ -44,6 +44,27 @@ run integration tests in a specific directory
 go test -v -tags=integration ./websocket
 ```
 
+check test coverage
+```bash
+go test -cover ./...
+```
+or
+```bash
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out
+```
+
+check unit test coverage
+```bash
+go test -cover -tags=unit ./...
+```
+
+to generate a detailed HTML report
+```bash
+go test -coverprofile=unitcoverage.out -tags=unit ./...
+go tool cover -html=unitcoverage.out
+```
+
 ---
 # Best Practices for Maintaining Unit Tests**
 Since we’re writing **a large number of tests**, here are **best practices** to

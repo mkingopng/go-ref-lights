@@ -11,17 +11,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go-ref-lights/services"
 )
 
+// SetupTestRouter returns a Gin engine with session middleware for testing.
+func SetupTestRouter(t *testing.T) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+	store := cookie.NewStore([]byte("secret"))
+	router.Use(sessions.Sessions("mysession", store))
+	return router
+}
+
 func TestAdminPanel_Unauthorized(t *testing.T) {
-	mockOccupancyService := new(MockOccupancyService)
+	mockOccupancyService := NewMockOccupancyService()
 	mockPositionController := &PositionController{OccupancyService: mockOccupancyService}
 	adminController := NewAdminController(mockOccupancyService, mockPositionController)
 
-	router := setupTestRouter(t)
+	router := SetupTestRouter(t)
 	router.GET("/admin", adminController.AdminPanel)
 
 	req, _ := http.NewRequest("GET", "/admin", nil)
@@ -32,11 +43,11 @@ func TestAdminPanel_Unauthorized(t *testing.T) {
 }
 
 func TestAdminPanel_MissingMeetName(t *testing.T) {
-	mockOccupancyService := new(MockOccupancyService)
+	mockOccupancyService := NewMockOccupancyService()
 	mockPositionController := &PositionController{OccupancyService: mockOccupancyService}
 	adminController := NewAdminController(mockOccupancyService, mockPositionController)
 
-	router := setupTestRouter(t)
+	router := SetupTestRouter(t)
 	router.GET("/admin", adminController.AdminPanel)
 
 	// Set session with isAdmin true but an empty meetName.
@@ -53,15 +64,47 @@ func TestAdminPanel_MissingMeetName(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
+	// Expecting a 400 Bad Request because no meet is specified.
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Should return 400 if meetName is missing")
 }
 
+func TestAdminPanel_Success(t *testing.T) {
+	router := SetupTestRouter(t)
+	occupancyService := NewMockOccupancyService()
+	// Simulate occupancy data for the test meet.
+	testOccupancy := services.Occupancy{
+		LeftUser:   "referee1@example.com",
+		CenterUser: "referee2@example.com",
+		RightUser:  "referee3@example.com",
+	}
+	occupancyService.On("GetOccupancy", "TestMeet").Return(testOccupancy)
+	posController := NewPositionController(occupancyService)
+	adminCtrl := NewAdminController(occupancyService, posController)
+	router.GET("/admin", adminCtrl.AdminPanel)
+
+	// Create request with admin session and meet name in query parameter.
+	req, _ := http.NewRequest("GET", "/admin?meet=TestMeet", nil)
+	w := httptest.NewRecorder()
+
+	// Create a test context and set session values.
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	session := sessions.Default(c)
+	session.Set("isAdmin", true)
+	session.Set("meetName", "TestMeet")
+	session.Save()
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "Admin Panel for Meet: TestMeet")
+}
+
 func TestResetInstance_Success(t *testing.T) {
-	mockOccupancyService := new(MockOccupancyService)
+	mockOccupancyService := NewMockOccupancyService()
 	mockPositionController := &PositionController{OccupancyService: mockOccupancyService}
 	adminController := NewAdminController(mockOccupancyService, mockPositionController)
 
-	router := setupTestRouter(t)
+	router := SetupTestRouter(t)
 	router.POST("/reset-instance", adminController.ResetInstance)
 
 	// Set expectations on the mock.
@@ -74,7 +117,6 @@ func TestResetInstance_Success(t *testing.T) {
 		Return(services.Occupancy{}).
 		Once()
 
-	// Set session for admin with meetName "TestMeet".
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin":  true,
 		"meetName": "TestMeet",
@@ -95,13 +137,13 @@ func TestResetInstance_Success(t *testing.T) {
 func TestResetInstanceHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	mockOccupancyService := new(MockOccupancyService)
+	mockOccupancyService := NewMockOccupancyService()
 	mockPositionController := &PositionController{OccupancyService: mockOccupancyService}
 	adminController := NewAdminController(mockOccupancyService, mockPositionController)
 
-	router := setupTestRouter(t)
+	router := SetupTestRouter(t)
 	router.POST("/admin/reset-instance", adminController.ResetInstance)
-	// Set expectation for both ResetOccupancyForMeet and GetOccupancy.
+	// Set expectations.
 	mockOccupancyService.
 		On("ResetOccupancyForMeet", "TestMeet").
 		Return().
@@ -141,7 +183,7 @@ func TestResetInstanceHandler(t *testing.T) {
 
 func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	router := setupTestRouter(t)
+	router := SetupTestRouter(t)
 
 	router.GET("/active-users", ActiveUsersHandler)
 
@@ -169,3 +211,29 @@ func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 	assert.Contains(t, response["users"], "referee1")
 	assert.Contains(t, response["users"], "referee2")
 }
+
+func TestForceVacate_MissingParameters(t *testing.T) {
+	router := SetupTestRouter(t)
+	occupancyService := NewMockOccupancyService()
+	posController := NewPositionController(occupancyService)
+	adminCtrl := NewAdminController(occupancyService, posController)
+	router.POST("/admin/force-vacate", adminCtrl.ForceVacate)
+
+	req, _ := http.NewRequest("POST", "/admin/force-vacate", strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+	session := sessions.Default(c)
+	session.Set("isAdmin", true)
+	session.Save()
+
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Missing parameters")
+}
+
+// You would continue similarly for:
+// - ForceVacate: testing invalid position, vacating when already vacant, and success scenario.
+// - ResetInstance: testing unauthorized, missing meet, and success path.
+// - ForceLogout: testing missing username, user not found, and successful logout.
