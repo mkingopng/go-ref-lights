@@ -15,25 +15,26 @@
 
   {{template "header.html" .}}
 
-<h1>Referee Postiions for {{ .MeetName }}</h1>
+<h1>Referee Positions for {{ .meetName }}</h1>
 
 <!--QR Code container-->
-  <div class="qr-code-container">
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
-      <p>Left Referee</p>
-    </div>
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
-      <p>Center Referee</p>
-    </div>
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
-      <p>Right Referee</p>
-    </div>
+<div class="qr-code-container">
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
+    <p>Left Referee</p>
   </div>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
+    <p>Center Referee</p>
+  </div>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
+    <p>Right Referee</p>
+  </div>
+</div>
 
-<!--button container: lights or select ref positions-->
+
+  <!--button container: lights or select ref positions-->
   <div class="button-container">
     <a href="/lights" class="button-link">Lights</a>
     <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>

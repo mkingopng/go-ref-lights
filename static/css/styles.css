@@ -455,29 +455,31 @@ input[type="submit"]:hover {
     background-color: #888; /* Lighter gray on hover */
 }
 
-/* QR code styles */
+/* QR Code Container - Forces horizontal layout */
 .qr-code-container {
-    display: flex; /* Enables horizontal layout */
-    justify-content: center; /* Centers items in the row */
-    gap: 20px; /* Adds spacing between QR codes */
+    display: flex !important; /* Enables horizontal row layout */
+    flex-direction: row !important; /* Forces items to be side-by-side */
+    justify-content: center; /* Centers the items */
+    gap: 30px; /* Space between QR codes */
     flex-wrap: wrap; /* Allows wrapping if screen is too small */
-    padding: 20px 0; /* Adds vertical spacing from other elements */
+    width: 100%; /* Ensures it spans full width */
 }
 
-/* Individual QR item styling */
+/* Each QR Code + Label */
 .qr-code-item {
-    text-align: center; /* Centers the QR code and label */
-    flex: 1 1 250px; /* Allows flexibility, but ensures a minimum size */
-    max-width: 300px; /* Prevents items from getting too large */
+    display: flex;
+    flex-direction: column; /* Ensures text stays below image */
+    align-items: center; /* Centers QR code and text */
+    text-align: center;
+    width: 200px; /* Ensures each QR code stays uniform */
 }
 
 /* QR Code Image Styling */
 .qr-code-item img {
-    width: 100%; /* Ensures responsiveness */
-    max-width: 250px; /* Keeps QR codes at a reasonable size */
+    width: 150px; /* Adjusts size */
     height: auto;
     border: 3px solid #fff;
     border-radius: 10px;
-    padding: 5px; /* Adds slight padding inside the border */
-    background-color: rgba(255, 255, 255, 0.1); /* Subtle background */
+    padding: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
 }
