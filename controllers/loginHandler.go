@@ -26,20 +26,36 @@ func checkPasswordHash(password, hash string) bool {
 // If authentication fails, it returns an appropriate error message.
 func LoginHandler(c *gin.Context) {
 	session := sessions.Default(c)
-	meetName := session.Get("meetName")
+
+	// Extract login credentials from form input
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
-	// validate input fields.
+	// Handle missing fields before checking meet selection
 	if username == "" || password == "" {
+		logger.Warn.Println("LoginHandler: Missing username or password")
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
-			"MeetName": meetName,
+			"MeetName": "",
 			"Error":    "Please fill in all fields.",
 		})
 		return
 	}
 
-	// load meet credentials from JSON.
+	// Retrieve meet name from session
+	meetNameRaw := session.Get("meetName")
+	meetName, ok := meetNameRaw.(string)
+
+	// Handle missing meet selection
+	if !ok || meetName == "" {
+		logger.Warn.Println("LoginHandler: No meet selected, returning 400 Bad Request")
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{
+			"MeetName": "",
+			"Error":    "Please select a meet before logging in.",
+		})
+		return
+	}
+
+	// Load meet credentials
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
 		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
@@ -50,8 +66,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// ------------------ user authentication ------------------
-
+	// Validate credentials
 	var valid bool
 	var isAdmin bool
 
@@ -60,12 +75,12 @@ func LoginHandler(c *gin.Context) {
 			if m.Admin.Username == username && ComparePasswords(m.Admin.Password, password) {
 				valid = true
 				isAdmin = m.Admin.IsAdmin
+				break
 			}
-			break
 		}
 	}
 
-	// handle invalid login attempts.
+	// Handle invalid login attempt (wrong username/password)
 	if !valid {
 		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
@@ -75,7 +90,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// prevent duplicate logins (only one session per user).
+	// Prevent duplicate logins
 	if activeUsers[username] {
 		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
@@ -85,18 +100,29 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// ------------------ session management ------------------
-
-	// Mark user as logged in and set session user
+	// Session management
 	activeUsers[username] = true
 	session.Set("user", username)
-	session.Set("isAdmin", isAdmin) // store admin status in session
+	session.Set("isAdmin", isAdmin)
+
+	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
+
+	// Save session
 	if err := session.Save(); err != nil {
-		logger.Error.Println("Failed to save session:", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"Error": "Internal error, please try again."})
+		logger.Error.Println("LoginHandler: Failed to save session:", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again.",
+		})
 		return
 	}
 
-	c.Redirect(http.StatusFound, "/index")
-	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
+	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
+
+	// Redirect based on user role
+	if isAdmin {
+		c.Redirect(http.StatusFound, "/index")
+	} else {
+		c.Redirect(http.StatusFound, "/index")
+	}
 }

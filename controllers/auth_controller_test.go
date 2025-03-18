@@ -21,7 +21,7 @@ var testMeetCreds = models.MeetCreds{
 	Meets: []models.Meet{
 		{
 			Name: "TestMeet",
-			User: models.User{
+			Admin: models.Admin{
 				Username: "testuser",
 				Password: hashPassword("testpass"),
 			},

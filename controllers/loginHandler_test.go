@@ -23,7 +23,7 @@ var mockMeetCreds = models.MeetCreds{
 	Meets: []models.Meet{
 		{
 			Name: "TestMeet",
-			Admin: models.User{
+			Admin: models.Admin{
 				Username: "adminuser",
 				Password: hashPassword("securepassword"),
 				IsAdmin:  true,
@@ -178,6 +178,6 @@ func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusUnauthorized, w.Code, "Login without meet selection should return 401")
-	assert.Contains(t, w.Body.String(), "Invalid username or password", "Should indicate login failure")
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Login without meet selection should return 400")
+	assert.Contains(t, w.Body.String(), "Please select a meet before logging in.", "Should indicate missing meet selection")
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -61,7 +62,7 @@ func SetMeetHandler(c *gin.Context) {
 // from string to boolean when necessary.
 // LoadMeetCreds loads meet credentials from a JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	credPath := "./config/meet_creds.json" // #nosec G101 - This is a known, controlled file path.
+	credPath := "./config/meet_creds.json" // #nosec G101
 
 	// Read JSON file
 	data, err := os.ReadFile(credPath)
@@ -75,21 +76,16 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
 	}
 
-	// Ensure "isadmin" is a boolean (some JSON formats store it as a string)
-	for i := range creds.Meets {
-		if creds.Meets[i].User.IsAdmin != true && creds.Meets[i].User.IsAdmin != false {
-			// Handle cases where isadmin is a string (e.g., "true" / "false")
-			if creds.Meets[i].User.IsAdmin == false {
-				creds.Meets[i].User.IsAdmin = false
-			} else {
-				creds.Meets[i].User.IsAdmin = true
-			}
-		}
-	}
-
-	// Debug print for confirmation
+	// Ensure all admin credentials are correctly loaded
 	for _, meet := range creds.Meets {
-		fmt.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)\n", meet.Name, meet.User.Username, meet.User.IsAdmin)
+		if meet.Admin.Username == "" {
+			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
+		}
+		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
+			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
+		}
+		// Debug log for confirmation
+		fmt.Printf("✅ Loaded Meet: %s (Admin: %s, IsAdmin: %t)\n", meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
 	}
 
 	return &creds, nil

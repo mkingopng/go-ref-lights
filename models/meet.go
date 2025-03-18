@@ -4,11 +4,11 @@ package models
 
 // ----------------------- user model -----------------------
 
-// User represents an individual user with a username and password in the system
-type User struct {
-	Username string `json:"username"` // User's unique identifier
-	Password string `json:"password"` // User's password (hashed in production)
-	IsAdmin  bool   `json:"isadmin"`  // Admin privilege flag
+// Admin represents the meet admin user.
+type Admin struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	IsAdmin  bool   `json:"isadmin"`
 }
 
 // ------------------------ meet model -----------------------
@@ -17,8 +17,7 @@ type User struct {
 type Meet struct {
 	Name  string `json:"name"`  // Meet name
 	Date  string `json:"date"`  // Meet date (should use time.Time in production)
-	Admin User   `json:"admin"` // Meet admin user
-	User  User   `json:"user"`  // Meet user
+	Admin Admin  `json:"admin"` // Meet admin user
 	Logo  string `json:"logo"`  // Meet logo URL
 }
 
