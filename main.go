@@ -144,6 +144,9 @@ func SetupRouter(env string) *gin.Engine {
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
 	router.GET("/index", controllers.Index)
+	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
+		controllers.RefereeHandler(c, occupancyService)
+	})
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
 	// Middleware to ensure "meetName" is set.

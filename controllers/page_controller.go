@@ -148,9 +148,7 @@ func GetQRCode(c *gin.Context) {
 		return
 	}
 
-	// Build a dynamic URL that directs the user to login
-	qrURL := fmt.Sprintf("%s/login?meetName=%s&position=%s",
-		ApplicationURL, meetName, position)
+	qrURL := fmt.Sprintf("%s/referee/%s/%s", ApplicationURL, meetName, position)
 
 	qrBytes, err := services.GenerateQRCode(qrURL, 300, qrcode.Medium)
 	if err != nil {
@@ -243,4 +241,59 @@ func Lights(c *gin.Context) {
 		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "lights.html", data)
+}
+
+// RefereeHandler renders the referee view based on the position parameter.
+func RefereeHandler(c *gin.Context, occupancyService *services.OccupancyService) {
+	meetName := c.Param("meetName")
+	position := c.Param("position")
+
+	// Try to claim the position. If it's taken, return a 409 Conflict (or some other status).
+	err := occupancyService.SetPosition(meetName, position, "AnonymousReferee")
+	if err != nil {
+		// For example, if your TakePosition returns an error when already occupied:
+		logger.Warn.Printf("RefereeHandler: Attempt to claim taken seat %s for meet %s", position, meetName)
+		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
+		return
+	}
+
+	logger.Info.Printf("RefereeHandler: meetName=%s, position=%s claimed successfully by AnonymousReferee", meetName, position)
+
+	switch position {
+	case "left", "Left":
+		renderLeft(c, meetName)
+	case "center", "Center":
+		renderCenter(c, meetName)
+	case "right", "Right":
+		renderRight(c, meetName)
+	default:
+		c.String(http.StatusBadRequest, "Unknown position: %s", position)
+	}
+}
+
+// renderCenter renders the center referee page
+func renderCenter(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "center.html", data)
+}
+
+// renderRight renders the right referee page
+func renderRight(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "right.html", data)
+}
+
+// renderLeft renders the left referee page
+func renderLeft(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "left.html", data)
 }
