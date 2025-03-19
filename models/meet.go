@@ -11,6 +11,16 @@ type Admin struct {
 	IsAdmin  bool   `json:"isadmin"`
 }
 
+//------------------------ superuser model -----------------------
+
+// Superuser represents the credentials for a superuser.
+type Superuser struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	IsAdmin  bool   `json:"isadmin"`
+	Sudo     bool   `json:"sudo"`
+}
+
 // ------------------------ meet model -----------------------
 
 // Meet represents a powerlifting meet with associated users.
@@ -25,5 +35,6 @@ type Meet struct {
 
 // MeetCreds holds a collection of powerlifting meets.
 type MeetCreds struct {
-	Meets []Meet `json:"meets"` // List of meets
+	Meets     []Meet     `json:"meets"`     // List of meets
+	Superuser *Superuser `json:"superuser"` // use a pointer so it can be nil if not provided
 }

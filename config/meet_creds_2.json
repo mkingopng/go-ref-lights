@@ -30,5 +30,11 @@
       },
       "logo": "static/images/UKPU_logo_White-Text_V2.png"
     }
-  ]
+  ],
+  "superuser": {
+    "username": "sudo",
+    "password": "247365Racer",
+    "isadmin": true,
+    "sudo": true
+  }
 }
