@@ -3,9 +3,14 @@ compile
 go build ./...
 ```
 
-run app
+run app locally
 ```bash
-go run main.go
+ENV=development go run main.go
+```
+
+or run from docker:
+```bash
+docker run -e ENV=development -p 8080:8080 referee-lights
 ```
 
 run all tests

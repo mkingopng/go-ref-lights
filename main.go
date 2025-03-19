@@ -33,11 +33,12 @@ func main() {
 		log.Println("Warning: No .env file found. Using system environment variables.")
 	}
 
-	// determine the environment (development or production)
+	// determine the environment (default to production if not set)
 	env := os.Getenv("ENV")
 	if env == "" {
-		env = "development"
+		env = "production" // Default to production
 	}
+	fmt.Println("Running in", env, "mode")
 
 	// set application and websocket URLs based on the environment.
 	var applicationURL, websocketURL string
