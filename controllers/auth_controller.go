@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,8 @@ import (
 
 // activeUsers tracks currently logged-in users.
 var activeUsers = make(map[string]bool)
+
+var activeUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
 var loadMeetCredsFunc = LoadMeetCreds // Assign to a variable for easier testing
@@ -137,27 +140,27 @@ func ForceLogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
 
-	// only admins can force logout users
 	if isAdmin == nil || isAdmin != true {
 		logger.Warn.Println("Unauthorized attempt to force logout a user.")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
 
-	// extract username from request
 	username := c.PostForm("username")
 	if username == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
 		return
 	}
 
-	// ensure the user exists in activeUsers
+	// Acquire the write lock for read-check + deletion
+	activeUsersMu.Lock()
+	defer activeUsersMu.Unlock()
+
 	if _, exists := activeUsers[username]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
-	// remove user session and mark them as logged out
 	delete(activeUsers, username)
 	logger.Info.Printf("Admin forcibly logged out user: %s", username)
 
@@ -166,23 +169,25 @@ func ForceLogoutHandler(c *gin.Context) {
 
 // --------------------- active user tracking ------------------------------
 
-// ActiveUsersHandler returns a list of active users (admin action).
+// ActiveUsersHandler returns a list of currently active users (admin action).
 func ActiveUsersHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
 
-	// only admins can see active users
 	if isAdmin == nil || isAdmin != true {
 		logger.Warn.Println("Unauthorized attempt to view active users.")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
 
-	// convert activeUsers map keys to a list
 	var userList []string
+
+	// Acquire read lock for iteration
+	activeUsersMu.RLock()
 	for user := range activeUsers {
 		userList = append(userList, user)
 	}
+	activeUsersMu.RUnlock()
 
 	c.JSON(http.StatusOK, gin.H{"users": userList})
 }
