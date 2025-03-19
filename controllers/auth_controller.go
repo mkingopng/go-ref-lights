@@ -49,7 +49,6 @@ func SetMeetHandler(c *gin.Context) {
 	}
 
 	logger.Info.Printf("Meet %s selected, redirecting to meet page.", meetName)
-	// redirect to the GET endpoint that will render the meet details.
 	c.Redirect(http.StatusFound, "/login")
 }
 
