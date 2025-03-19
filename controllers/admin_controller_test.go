@@ -39,7 +39,7 @@ func TestAdminPanel_MissingMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/admin", adminController.AdminPanel)
 
-	// Set session with isAdmin true but an empty meetName.
+	// set session with isAdmin true but an empty meetName.
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin":  true,
 		"meetName": "",
@@ -64,7 +64,7 @@ func TestResetInstance_Success(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/reset-instance", adminController.ResetInstance)
 
-	// Set expectations on the mock.
+	// set expectations on the mock.
 	mockOccupancyService.
 		On("ResetOccupancyForMeet", "TestMeet").
 		Return().
@@ -74,7 +74,7 @@ func TestResetInstance_Success(t *testing.T) {
 		Return(services.Occupancy{}).
 		Once()
 
-	// Set session for admin with meetName "TestMeet".
+	// set session for admin with meetName "TestMeet".
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin":  true,
 		"meetName": "TestMeet",
@@ -101,7 +101,7 @@ func TestResetInstanceHandler(t *testing.T) {
 
 	router := setupTestRouter(t)
 	router.POST("/admin/reset-instance", adminController.ResetInstance)
-	// Set expectation for both ResetOccupancyForMeet and GetOccupancy.
+	// set expectation for both ResetOccupancyForMeet and GetOccupancy.
 	mockOccupancyService.
 		On("ResetOccupancyForMeet", "TestMeet").
 		Return().
@@ -145,7 +145,7 @@ func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 
 	router.GET("/active-users", ActiveUsersHandler)
 
-	// Prepare activeUsers map for test.
+	// prepare activeUsers map for test.
 	activeUsers["referee1"] = true
 	activeUsers["referee2"] = true
 

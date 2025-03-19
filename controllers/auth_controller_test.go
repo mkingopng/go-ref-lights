@@ -16,7 +16,7 @@ import (
 	"go-ref-lights/models"
 )
 
-// Mock data for testing.
+// mock data for testing.
 var testMeetCreds = models.MeetCreds{
 	Meets: []models.Meet{
 		{
@@ -65,11 +65,11 @@ func TestLoadMeetCreds(t *testing.T) {
 
 func TestForceLogoutHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	// Use a fresh router with our shared test helpers.
+	// use a fresh router with our shared test helpers.
 	router := setupTestRouter(t)
 	router.POST("/force-logout", ForceLogoutHandler)
 
-	// Populate activeUsers with a test user.
+	// populate activeUsers with a test user.
 	activeUsers["test_user"] = true
 
 	t.Run("Admin can force logout user", func(t *testing.T) {

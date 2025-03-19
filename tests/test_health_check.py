@@ -15,7 +15,7 @@ def test_health_check_configuration():
 	template.has_resource_properties("AWS::ECS::TaskDefinition", {
 		"ContainerDefinitions": [{
 			"HealthCheck": {
-				"Command": ["CMD-SHELL", "curl -f http://127.0.0.1:8080/health || exit 1"],
+				"Command": ["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
 				"Interval": 10,         # Update these values if you changed them
 				"Timeout": 3,
 				"Retries": 2,

@@ -48,23 +48,41 @@ class RefereeLightsCdkStack(Stack):
         # define domain name variable
         domain_name = "referee-lights.michaelkingston.com.au"
 
-        # VPC
-        vpc = ec2.Vpc.from_vpc_attributes(
+        # create VPC with custom configuration
+        vpc = ec2.Vpc(
             self,
-            "ExistingVPC",
-            vpc_id="vpc-0772966e848df9889",
-            availability_zones=["ap-southeast-2a", "ap-southeast-2b"],
-            public_subnet_ids=["subnet-0adedbe2b61dd2074", "subnet-0ef77e9c433489aee"],
-            private_subnet_ids=["subnet-073c4c8c4b53803ee", "subnet-017445a345a7473df"],
+            "RefereeLightsVPC",
+            ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
+            max_azs=2,  # Use 2 Availability Zones
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="Public",
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24
+                ),
+                ec2.SubnetConfiguration(
+                    name="Private",
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    cidr_mask=24
+                )
+            ],
+            nat_gateways=1  # create 1 NAT Gateway for cost optimisation
         )
 
-        vpc.add_flow_log("FlowLogs", destination=ec2.FlowLogDestination.to_cloud_watch_logs())
-
-        # security group
-        ecs_security_group = ec2.SecurityGroup.from_security_group_id(
+        # create Security Group for ECS Tasks
+        security_group = ec2.SecurityGroup(
             self,
-            "ECSServiceSG",
-            "sg-0dbc0030394ca52c0"
+            "RefereeLightsSecurityGroup",
+            vpc=vpc,
+            description="Security group for Referee Lights ECS tasks",
+            allow_all_outbound=True
+        )
+
+        # add inbound rules to security group as needed
+        security_group.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(80),
+            description="Allow HTTP inbound"
         )
 
         # create billing alarm
@@ -89,8 +107,9 @@ class RefereeLightsCdkStack(Stack):
             display_name="Billing Alerts for Referee Lights"
         )
 
-        # add an email subscription
-        sns_topic.add_subscription(sns_subs.EmailSubscription("michael.kenneth.kingston@gmail.com"))
+        sns_topic.add_subscription(
+            sns_subs.EmailSubscription("michael.kenneth.kingston@gmail.com")
+        )
 
         # attach SNS action to CloudWatch billing alarm
         billing_alarm.add_alarm_action(actions.SnsAction(sns_topic))
@@ -111,17 +130,19 @@ class RefereeLightsCdkStack(Stack):
 
         # define IAM execution role
         execution_role = iam.Role(
-            self, "ExecutionRole",
+            self,
+            "ExecutionRole",
             assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
         )
 
+        # add necessary policy attachments to roles here
         execution_role.add_managed_policy(
             iam.ManagedPolicy.from_aws_managed_policy_name(
                 "service-role/AmazonECSTaskExecutionRolePolicy"
             )
         )
 
-        # build Docker image
+        # build docker image
         docker_image_asset = ecr_assets.DockerImageAsset(
             self,
             "RefereeLightsDockerImage",
@@ -129,17 +150,18 @@ class RefereeLightsCdkStack(Stack):
             exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging", "**/cdk.out/**"]
         )
 
-        # define Fargate task definition
+        # define fargate task definition
         task_definition = ecs.FargateTaskDefinition(
-            self, "RefereeLightsTaskDef",
+            self,
+            "RefereeLightsTaskDef",
             family="referee-lights-task",
-            memory_limit_mib=512,
-            cpu=256,
+            memory_limit_mib=1024,
+            cpu=512,
             task_role=task_role,
             execution_role=execution_role
         )
 
-        # add Container to task definition
+        # add container to task definition
         container = task_definition.add_container(
             "RefereeLightsContainer",
             image=ecs.ContainerImage.from_docker_image_asset(docker_image_asset),
@@ -164,7 +186,7 @@ class RefereeLightsCdkStack(Stack):
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
                 interval=Duration.seconds(30),
-                timeout=Duration.seconds(5),
+                timeout=Duration.seconds(10),
                 retries=3,
                 start_period=Duration.seconds(120)
             )
@@ -181,7 +203,7 @@ class RefereeLightsCdkStack(Stack):
             certificate_arn="arn:aws:acm:ap-southeast-2:001499655372:certificate/d644df5b-c471-423c-962c-afcc6d86568c"
         )
 
-        # create Application Load Balanced Fargate Service
+        # create application load balanced fargate service
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "RefereeLightsFargateService",
@@ -200,33 +222,28 @@ class RefereeLightsCdkStack(Stack):
                     weight=1
                 )
             ],
-            security_groups=[ecs_security_group]
+            security_groups=[security_group]
         )
 
-        # add explicit security group rule for health checks
+        fargate_service.load_balancer.connections.security_groups[0].add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(443),
+            description="Allow HTTPS inbound"
+        )
+
         fargate_service.service.connections.allow_from(
             fargate_service.load_balancer,
             ec2.Port.tcp(8080),
             "Allow health check from ALB"
         )
 
-        # Get the ALB security group dynamically
-        alb_security_group = ec2.SecurityGroup.from_security_group_id(
-            self, "ALBSecurityGroup", "sg-0f7a7b9d7d55b3cf4"
-        )
-
-        # allow ALB to talk to ECS on port 8080
-        fargate_service.service.connections.allow_from(
-            alb_security_group,
-            ec2.Port.tcp(8080),
-            "Allow ALB to reach ECS on port 8080"
-        )
-
+        # configure auto-scaling
         scaling = fargate_service.service.auto_scale_task_count(
             max_capacity=2,
             min_capacity=0
         )
 
+        # CPU-based scaling
         scaling.scale_on_cpu_utilization(
             "CpuScaling",
             target_utilization_percent=50,
@@ -234,6 +251,7 @@ class RefereeLightsCdkStack(Stack):
             scale_out_cooldown=Duration.seconds(30),
         )
 
+        # request count-based scaling
         scaling.scale_on_request_count(
             "RequestCountScaling",
             requests_per_target=100,
@@ -242,7 +260,8 @@ class RefereeLightsCdkStack(Stack):
             scale_out_cooldown=Duration.seconds(60)
         )
 
-        # scale up for weekend (Friday night to Sunday night)
+        # schedule-based scaling
+        # weekend scaling (Friday 6PM to Sunday night)
         scaling.scale_on_schedule(
             "WeekendProductionScaling",
             schedule=appscaling.Schedule.cron(
@@ -254,19 +273,19 @@ class RefereeLightsCdkStack(Stack):
             max_capacity=2
         )
 
-        # scale down for weekday development/testing (Monday - Friday)
+        # weekday scaling (Monday-Friday)
         scaling.scale_on_schedule(
             "WeekdayDevelopmentScaling",
             schedule=appscaling.Schedule.cron(
-                week_day="Mon-FRI",
-                hour="24",
+                week_day="MON-FRI",
+                hour="0",
                 minute="0"
             ),
             min_capacity=0,
             max_capacity=1
         )
 
-        # configure Health Check
+        # configure target group health check
         fargate_service.target_group.configure_health_check(
             path="/health",
             protocol=elbv2.Protocol.HTTP,
@@ -278,18 +297,73 @@ class RefereeLightsCdkStack(Stack):
             healthy_http_codes="200-299",
         )
 
-        # set idle timeout
+        # configure load balancer attributes
         fargate_service.load_balancer.set_attribute(
             "idle_timeout.timeout_seconds",
-            "3600" # 60 minutes
-            # "1800" # 30 minutes
-            # "300"
+            "3600"  # 60 minutes
         )
 
-        # output ALB DNS Name
-        self.output_alb_dns = CfnOutput(
+        # add additional load balancer attributes for better performance
+        fargate_service.load_balancer.set_attribute(
+            "routing.http2.enabled",
+            "true"
+        )
+
+        fargate_service.load_balancer.set_attribute(
+            "deletion_protection.enabled",
+            "true"
+        )
+
+        # add cloudWatch dashboard for monitoring
+        dashboard = cloudwatch.Dashboard(
+            self,
+            "RefereeLightsDashboard",
+            dashboard_name="RefereeLights-Metrics"
+        )
+        # add widget to show CPU, memory utilisation and alb request count
+        dashboard.add_widgets(
+            cloudwatch.GraphWidget(
+                title="ECS Service CPU Utilization",
+                left=[fargate_service.service.metric_cpu_utilization()]
+            ),
+            cloudwatch.GraphWidget(
+                title="ECS Service Memory Utilization",
+                left=[fargate_service.service.metric_memory_utilization()]
+            ),
+            cloudwatch.GraphWidget(
+                title="ALB Request Count",
+                left=[fargate_service.load_balancer.metric_request_count()]
+            )
+        )
+
+        # add Tags
+        Tags.of(self).add("Environment", "Production")
+        Tags.of(self).add("Application", "RefereeLights")
+        Tags.of(self).add("ManagedBy", "CDK")
+
+        # outputs
+        CfnOutput(
             self,
             "ALBDNS",
             value=fargate_service.load_balancer.load_balancer_dns_name,
-            description="The DNS address of the load balancer"
+            description="The DNS address of the load balancer",
+            export_name="RefereeLightsALBDNS"
+        )
+
+        # output the name of the ECS service
+        CfnOutput(
+            self,
+            "ServiceName",
+            value=fargate_service.service.service_name,
+            description="The name of the ECS service",
+            export_name="RefereeLightsServiceName"
+        )
+
+        # output the URL of the load balancer
+        CfnOutput(
+            self,
+            "LoadBalancerUrl",
+            value=f"https://{fargate_service.load_balancer.load_balancer_dns_name}",
+            description="The URL of the load balancer",
+            export_name="RefereeLightsLoadBalancerUrl"
         )
