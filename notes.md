@@ -185,3 +185,8 @@ Write tests in a **clear, structured way**:
    this i have included logo in the meet.go data structure but it is not
    used anywhere yet. Need to implement this.
 6. Review the CDK code and optimise. Consider how to scale to zero
+-------
+VPC ID: vpc-0772966e848df9889
+Public Subnet: subnet-0adedbe2b61dd2074
+Private Subnet: subnet-073c4c8c4b53803ee
+Security Group ID: sg-0dbc0030394ca52c0

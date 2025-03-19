@@ -48,28 +48,24 @@ class RefereeLightsCdkStack(Stack):
         # define domain name variable
         domain_name = "referee-lights.michaelkingston.com.au"
 
-        # create VPC
-        vpc = ec2.Vpc(
+        # VPC
+        vpc = ec2.Vpc.from_vpc_attributes(
             self,
-            "RefereeLightsVPC",
-            vpc_name="referee-lights-vpc",
-            max_azs=2,
-            nat_gateways=1,
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="Public",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24
-                ),
-                ec2.SubnetConfiguration(
-                    name="Private",
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
-                    cidr_mask=24
-                )
-            ]
+            "ExistingVPC",
+            vpc_id="vpc-0772966e848df9889",
+            availability_zones=["ap-southeast-2a", "ap-southeast-2b"],
+            public_subnet_ids=["subnet-0adedbe2b61dd2074", "subnet-0ef77e9c433489aee"],
+            private_subnet_ids=["subnet-073c4c8c4b53803ee", "subnet-017445a345a7473df"],
         )
 
         vpc.add_flow_log("FlowLogs", destination=ec2.FlowLogDestination.to_cloud_watch_logs())
+
+        # security group
+        ecs_security_group = ec2.SecurityGroup.from_security_group_id(
+            self,
+            "ECSServiceSG",
+            "sg-0dbc0030394ca52c0"
+        )
 
         # create billing alarm
         billing_alarm = cloudwatch.Alarm(
@@ -203,7 +199,8 @@ class RefereeLightsCdkStack(Stack):
                     capacity_provider="FARGATE_SPOT",
                     weight=1
                 )
-            ]
+            ],
+            security_groups=[ecs_security_group]
         )
 
         # add explicit security group rule for health checks
@@ -211,6 +208,18 @@ class RefereeLightsCdkStack(Stack):
             fargate_service.load_balancer,
             ec2.Port.tcp(8080),
             "Allow health check from ALB"
+        )
+
+        # Get the ALB security group dynamically
+        alb_security_group = ec2.SecurityGroup.from_security_group_id(
+            self, "ALBSecurityGroup", "sg-0f7a7b9d7d55b3cf4"
+        )
+
+        # allow ALB to talk to ECS on port 8080
+        fargate_service.service.connections.allow_from(
+            alb_security_group,
+            ec2.Port.tcp(8080),
+            "Allow ALB to reach ECS on port 8080"
         )
 
         scaling = fargate_service.service.auto_scale_task_count(
