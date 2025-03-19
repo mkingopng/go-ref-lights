@@ -131,3 +131,22 @@ Write tests in a **clear, structured way**:
 8. logout from anywhere
 
 9. reset meet state
+
+---
+
+# testing
+
+1. when testing at the gym, only center would scan correctly. When scanning
+   left or right, the  referee position did not render correctly. I
+   repeated this many times on multiple devices. However when i repeat the
+   process at home on 2 different computers it works fine. I have no idea
+   why this might be the case
+2. When a referee is in position, if they look at another page or app on
+   their phone it can cause the health check to fail. Ideally the
+   healthy connection should be maintained regardless of what the user does
+   on their phone, as long as the browser window is open. However if for
+   whatever reason the connection becomes unhealthy, the user should be
+   able to refresh the page and rejoin the meet without any issues. This is
+   not always happeing as it should. In many cases when hit refresh i get
+   a 404 error. Refer to the screenshots attached
+3.

@@ -3,15 +3,6 @@ package main
 
 import (
 	"fmt"
-	"go-ref-lights/services"
-	"html/template"
-	"io"
-	"log"
-	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
-
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -19,10 +10,20 @@ import (
 	"go-ref-lights/controllers"
 	"go-ref-lights/logger"
 	"go-ref-lights/middleware"
+	"go-ref-lights/services"
 	"go-ref-lights/websocket"
+	"html/template"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
 )
 
 func main() {
+
 	// Load environment variables.
 	err := godotenv.Load()
 	if err != nil {
@@ -60,6 +61,25 @@ func main() {
 
 	// Setup the router.
 	router := SetupRouter(env)
+
+	hbManager := NewHeartbeatManager()
+	go hbManager.CleanupInactiveSessions(30 * time.Second)
+
+	// Create a new HTTP server with timeouts
+	server := &http.Server{
+		Addr:         ":8080",
+		Handler:      nil,              // Default ServeMux
+		ReadTimeout:  10 * time.Second, // Prevents slowloris attacks
+		WriteTimeout: 10 * time.Second, // Prevents long-running requests
+		IdleTimeout:  30 * time.Second, // Closes idle connections
+	}
+
+	http.HandleFunc("/heartbeat", HeartbeatHandler)
+
+	logger.Info.Println("Server running on port 8080")
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 
 	// Start the WebSocket message handler in a separate goroutine.
 	go websocket.HandleMessages()
