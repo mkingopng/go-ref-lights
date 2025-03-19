@@ -130,6 +130,7 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// prevent duplicate logins.
+	activeUsersMu.Lock() // Acquire write lock for the whole block
 	if activeUsers[username] {
 		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
@@ -141,6 +142,7 @@ func LoginHandler(c *gin.Context) {
 
 	// mark the user as logged in.
 	activeUsers[username] = true
+	activeUsersMu.Unlock()
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
 	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
