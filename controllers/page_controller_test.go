@@ -56,7 +56,7 @@ func TestLogout(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
+	assert.Equal(t, "/set-meet", w.Header().Get("Location"))
 
 	mockService.AssertExpectations(t)
 }

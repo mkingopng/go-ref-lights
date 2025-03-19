@@ -57,7 +57,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	} else {
 		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-	c.Redirect(http.StatusFound, "/index")
+	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
@@ -86,7 +86,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	} else {
 		logger.Info.Println("Logout: Session cleared successfully")
 	}
-	c.Redirect(http.StatusFound, "/index")
+	c.Redirect(http.StatusFound, "/set-meet")
 }
 
 // -------------------- page rendering --------------------
@@ -96,8 +96,8 @@ func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	if !ok || meetName == "" {
-		logger.Warn.Println("Index: No meet selected; redirecting to /meets")
-		c.Redirect(http.StatusFound, "/meets")
+		logger.Warn.Println("Index: No meet selected; redirecting to /set-meet")
+		c.Redirect(http.StatusFound, "/set-meet")
 		return
 	}
 

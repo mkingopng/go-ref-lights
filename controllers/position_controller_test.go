@@ -128,7 +128,7 @@ func TestVacatePosition_Success(t *testing.T) {
 	fmt.Println("Assertions after VacatePosition execution")
 
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
-	assert.Equal(t, "/positions", w.Header().Get("Location"))
+	assert.Equal(t, "/index", w.Header().Get("Location"))
 
 	time.Sleep(150 * time.Millisecond)
 

@@ -197,12 +197,12 @@ func SetupRouter(env string) *gin.Engine {
 	{
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/lights", controllers.Lights)
-		protected.GET("/positions", controllers.ShowPositionsPage)
-		protected.POST("/position/claim", pc.ClaimPosition)
+		protected.GET("/positions", controllers.ShowPositionsPage) // do we use this?
+		protected.POST("/position/claim", pc.ClaimPosition)        // do we use this?
 		protected.GET("/left", controllers.Left)
 		protected.GET("/center", controllers.Center)
 		protected.GET("/right", controllers.Right)
-		protected.GET("/occupancy", pc.GetOccupancyAPI)
+		protected.GET("/occupancy", pc.GetOccupancyAPI) // do we use this?
 		protected.POST("/position/vacate", pc.VacatePosition)
 		protected.GET("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
 		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })

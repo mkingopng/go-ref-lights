@@ -166,10 +166,10 @@ class RefereeLightsCdkStack(Stack):
             },
             health_check=ecs.HealthCheck(
                 command=["CMD-SHELL", "curl -f http://127.0.0.1:8080/health || exit 1"],
-                interval=Duration.seconds(30),
-                timeout=Duration.seconds(5),
-                retries=3,
-                start_period=Duration.seconds(60)
+                interval=Duration.seconds(10),
+                timeout=Duration.seconds(3),
+                retries=2,
+                start_period=Duration.seconds(10)
             )
         )
 
@@ -259,11 +259,11 @@ class RefereeLightsCdkStack(Stack):
         fargate_service.target_group.configure_health_check(
             path="/health",
             protocol=elbv2.Protocol.HTTP,
-            port="8080",  # <- Explicitly set to match container port
-            interval=Duration.seconds(30),
-            timeout=Duration.seconds(5),
+            port="8080",
+            interval=Duration.seconds(10),
+            timeout=Duration.seconds(3),
             healthy_threshold_count=2,
-            unhealthy_threshold_count=5,
+            unhealthy_threshold_count=2,
             healthy_http_codes="200-299",
         )
 
