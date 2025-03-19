@@ -35,6 +35,7 @@ func TestComparePasswords(t *testing.T) {
 	assert.False(t, ComparePasswords(hashed, "wrongpassword"))
 }
 
+// TestSetMeetHandler tests the SetMeetHandler function.
 func TestSetMeetHandler(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/set-meet", SetMeetHandler)

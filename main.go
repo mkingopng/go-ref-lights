@@ -160,6 +160,7 @@ func SetupRouter(env string) *gin.Engine {
 	// Public routes.
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
+	router.GET("/meet", controllers.MeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
 	router.GET("/index", controllers.Index)

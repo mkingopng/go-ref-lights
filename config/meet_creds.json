@@ -5,27 +5,30 @@
             "date": "March 22",
             "admin": {
                 "username": "cairns_cup",
-                "password": "$2b$12$WckqxEfXzaRxLM5L5WGh/uDbvDsTAD/nDsRM8geytO6O0VfIeKwTS",
+                "password": "$2b$12$A8PlYQj6.kjhXkM8KRlpFeIAf.2iVYDgsa3Ue9YijXY.NF55.1xuS",
                 "isadmin": true
-            }
+            },
+            "logo": "static/images/APL_logo white apl logo HQ.png"
         },
         {
             "name": "New South Wales State Championships",
             "date": "March 22-23",
             "admin": {
                 "username": "nsw_champs",
-                "password": "$2b$12$CxJtLQaAdrsH9HQ4jZ.KEugaLBSN9xdtZQpuzq27pyEipUmWAJ5Ma",
+                "password": "$2b$12$Sty7rfKfpFbMPZbmcH.C6Oqk.05HChJ3iHrciWEOmq8j.sGgtvS1m",
                 "isadmin": true
-            }
+            },
+            "logo": "static/images/APL_logo white apl logo HQ.png"
         },
         {
             "name": "Wales Classic",
             "date": "March 23",
             "admin": {
                 "username": "wales_classic",
-                "password": "$2b$12$vJdMhCkgC3rHa5yLwpRqae/EnAZ0zssJvv.3HxT9IgYjyx99vNCAm",
+                "password": "$2b$12$rve8O86XFIvdul7Qs9KuP.9ZeHfW7krSWYJDTBkFIghipqkdZuzTe",
                 "isadmin": true
-            }
+            },
+            "logo": "static/images/UKPU_logo_White-Text_V2.png"
         }
     ]
 }
