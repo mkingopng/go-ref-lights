@@ -25,7 +25,10 @@ func TestHealth(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "OK", w.Body.String())
+
+	// Update expected response to match new JSON format
+	expectedResponse := `{"status":"healthy"}`
+	assert.JSONEq(t, expectedResponse, w.Body.String(), "Unexpected response from /health endpoint")
 }
 
 func TestLogout(t *testing.T) {

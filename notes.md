@@ -169,6 +169,9 @@ Write tests in a **clear, structured way**:
    - the referee page has a button called Home. we should remove this button
      as it is not needed.
 
+   - When the referee logs out the meet persists
+   - When the admin logs out the meet resets
+
 4. There needs to be a super-user or sudo role who can log into
    any meet and take control as a fall-back position. This is not yet built in
    to the functionality. Not sure how to implement this yet.
@@ -176,3 +179,4 @@ Write tests in a **clear, structured way**:
    however more and more meets will use specific logos. In anticipation of
    this i have included logo in the meet.go data structure but it is not
    used anywhere yet. Need to implement this.
+6. Review the CDK code and optimise. Consider how to scale to zero

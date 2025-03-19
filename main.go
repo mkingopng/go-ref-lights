@@ -68,7 +68,7 @@ func main() {
 	// Create a new HTTP server with timeouts
 	server := &http.Server{
 		Addr:         ":8080",
-		Handler:      nil,              // Default ServeMux
+		Handler:      router,
 		ReadTimeout:  10 * time.Second, // Prevents slowloris attacks
 		WriteTimeout: 10 * time.Second, // Prevents long-running requests
 		IdleTimeout:  30 * time.Second, // Closes idle connections
@@ -100,9 +100,10 @@ func SetupRouter(env string) *gin.Engine {
 	}
 	router := gin.Default()
 
-	// Optionally disable Gin’s own logging.
-	gin.DefaultWriter = io.Discard
-	gin.DefaultErrorWriter = io.Discard
+	if env != "production" {
+		gin.DefaultWriter = io.Discard
+		gin.DefaultErrorWriter = io.Discard
+	}
 
 	// Configure session store.
 	store := cookie.NewStore([]byte("secret"))

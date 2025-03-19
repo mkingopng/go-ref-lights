@@ -28,7 +28,9 @@ var (
 // Health provides a simple endpoint to check server health.
 func Health(c *gin.Context) {
 	logger.Info.Println("Health: Health check requested")
-	c.String(http.StatusOK, "OK")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "healthy",
+	})
 }
 
 // -------------------- user navigation and logout --------------------
@@ -84,7 +86,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	} else {
 		logger.Info.Println("Logout: Session cleared successfully")
 	}
-	c.Redirect(http.StatusFound, "/choose-meet")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // -------------------- page rendering --------------------

@@ -134,37 +134,34 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 	if !ok || !ok2 || userEmail == "" || meetName == "" {
 		logger.Warn.Println("VacatePosition: User not logged in or no meet selected; redirecting to /login")
-		c.Redirect(http.StatusFound, "/login")
+		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	position, ok3 := session.Get("refPosition").(string)
 	if !ok3 || position == "" {
 		logger.Warn.Printf("VacatePosition: user %s not in any seat for meet %s; can't vacate", userEmail, meetName)
-		c.Redirect(http.StatusFound, "/positions")
+		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	err := pc.OccupancyService.UnsetPosition(meetName, position, userEmail)
 	if err != nil {
 		logger.Error.Printf("VacatePosition: error unsetting position for user %s: %v", userEmail, err)
-		c.HTML(http.StatusInternalServerError, "positions.html", gin.H{
-			"Error":    "Unable to vacate your seat. " + err.Error(),
-			"meetName": meetName,
-		})
+		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	session.Delete("refPosition")
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("VacatePosition: Error saving session for user %s: %v", userEmail, err)
-		c.String(http.StatusInternalServerError, "Error saving session")
+		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	logger.Info.Printf("VacatePosition: user %s vacated seat %s for meet %s", userEmail, position, meetName)
 	go pc.BroadcastOccupancy(meetName)
-	c.Redirect(http.StatusFound, "/positions")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // ------------------- Real-time occupancy updates -------------------
