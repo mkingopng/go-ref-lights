@@ -22,6 +22,10 @@ import (
 	"time"
 )
 
+func GinHeartbeatHandler(c *gin.Context) {
+	HeartbeatHandler(c.Writer, c.Request)
+}
+
 func main() {
 
 	// Load environment variables.
@@ -35,8 +39,8 @@ func main() {
 		env = "development"
 	}
 
-	applicationURL := "http://localhost:8080"
-	websocketURL := "ws://localhost:8080/referee-updates"
+	applicationURL := "http://0.0.0.0:8080"
+	websocketURL := "ws://0.0.0.0:8080/referee-updates"
 	if env == "production" {
 		applicationURL = "https://referee-lights.michaelkingston.com.au"
 		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
@@ -65,6 +69,10 @@ func main() {
 	hbManager := NewHeartbeatManager()
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
 
+	go websocket.HandleMessages()
+
+	router.GET("/heartbeat", GinHeartbeatHandler)
+
 	// Create a new HTTP server with timeouts
 	server := &http.Server{
 		Addr:         ":8080",
@@ -74,19 +82,9 @@ func main() {
 		IdleTimeout:  30 * time.Second, // Closes idle connections
 	}
 
-	http.HandleFunc("/heartbeat", HeartbeatHandler)
-
 	logger.Info.Println("Server running on port 8080")
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
-	}
-
-	// Start the WebSocket message handler in a separate goroutine.
-	go websocket.HandleMessages()
-
-	logger.Info.Println("[main] About to run gin server on :8080")
-	if err := router.Run(":8080"); err != nil {
-		log.Fatalf("Failed to run server: %v", err)
 	}
 }
 

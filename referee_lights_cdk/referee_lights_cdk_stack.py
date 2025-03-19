@@ -246,9 +246,9 @@ class RefereeLightsCdkStack(Stack):
 
         # Scale down for **weekday development/testing** (Monday morning)
         scaling.scale_on_schedule(
-            "WeekendProductionScaling",
+            "WeekdayDevelopmentScaling",
             schedule=appscaling.Schedule.cron(
-                week_day="FRI-SUN",
+                week_day="Mon-FRI",
                 hour="18",
                 minute="0"
             ),
