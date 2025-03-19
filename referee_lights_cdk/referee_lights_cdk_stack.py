@@ -37,8 +37,7 @@ class RefereeLightsCdkStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # add tags to the stack
-        # Add more comprehensive tags for better cost tracking
+        # add comprehensive tags for better cost tracking
         Tags.of(self).add("Project", "RefereeLightsApp")
         Tags.of(self).add("Environment", "Production")
         Tags.of(self).add("Owner", "Michael_Kingston")
@@ -72,7 +71,7 @@ class RefereeLightsCdkStack(Stack):
 
         vpc.add_flow_log("FlowLogs", destination=ec2.FlowLogDestination.to_cloud_watch_logs())
 
-        # Create billing alarm
+        # create billing alarm
         billing_alarm = cloudwatch.Alarm(
             self,
             "BillingAlarm",
@@ -83,21 +82,21 @@ class RefereeLightsCdkStack(Stack):
                 period=Duration.hours(6)
             ),
             evaluation_periods=1,
-            threshold=50,  # Set your threshold in USD
+            threshold=50,  # set threshold in USD
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         )
 
-        # Create an SNS topic for billing alerts
+        # create an SNS topic for billing alerts
         sns_topic = sns.Topic(
             self,
             "BillingAlertsTopic",
             display_name="Billing Alerts for Referee Lights"
         )
 
-        # Add an email subscription (Replace with your email)
+        # add an email subscription
         sns_topic.add_subscription(sns_subs.EmailSubscription("michael.kenneth.kingston@gmail.com"))
 
-        # Attach SNS action to CloudWatch billing alarm
+        # attach SNS action to CloudWatch billing alarm
         billing_alarm.add_alarm_action(actions.SnsAction(sns_topic))
 
         # create ECS Cluster
@@ -134,7 +133,7 @@ class RefereeLightsCdkStack(Stack):
             exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging", "**/cdk.out/**"]
         )
 
-        # define Fargate Task Definition
+        # define Fargate task definition
         task_definition = ecs.FargateTaskDefinition(
             self, "RefereeLightsTaskDef",
             family="referee-lights-task",
@@ -144,7 +143,7 @@ class RefereeLightsCdkStack(Stack):
             execution_role=execution_role
         )
 
-        # add Container to Task Definition
+        # add Container to task definition
         container = task_definition.add_container(
             "RefereeLightsContainer",
             image=ecs.ContainerImage.from_docker_image_asset(docker_image_asset),
@@ -163,13 +162,15 @@ class RefereeLightsCdkStack(Stack):
                 "APPLICATION_URL": f"https://{domain_name}",
                 "WEBSOCKET_URL": f"wss://{domain_name}/referee-updates",
                 "LOG_LEVEL": "DEBUG",
+                "HOST": "0.0.0.0",
+                "PORT": "8080"
             },
             health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "curl -f http://127.0.0.1:8080/health || exit 1"],
-                interval=Duration.seconds(10),
-                timeout=Duration.seconds(3),
-                retries=2,
-                start_period=Duration.seconds(10)
+                command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
+                interval=Duration.seconds(30),
+                timeout=Duration.seconds(5),
+                retries=3,
+                start_period=Duration.seconds(120)
             )
         )
 
@@ -205,7 +206,7 @@ class RefereeLightsCdkStack(Stack):
             ]
         )
 
-        # Add explicit security group rule for health checks
+        # add explicit security group rule for health checks
         fargate_service.service.connections.allow_from(
             fargate_service.load_balancer,
             ec2.Port.tcp(8080),
@@ -232,7 +233,7 @@ class RefereeLightsCdkStack(Stack):
             scale_out_cooldown=Duration.seconds(60)
         )
 
-        # Scale up for **weekend production** (Friday night to Sunday night)
+        # scale up for weekend (Friday night to Sunday night)
         scaling.scale_on_schedule(
             "WeekendProductionScaling",
             schedule=appscaling.Schedule.cron(
@@ -244,15 +245,16 @@ class RefereeLightsCdkStack(Stack):
             max_capacity=2
         )
 
-        # Scale down for **weekday development/testing** (Monday morning)
+        # scale down for weekday development/testing (Monday - Friday)
         scaling.scale_on_schedule(
             "WeekdayDevelopmentScaling",
             schedule=appscaling.Schedule.cron(
                 week_day="Mon-FRI",
-                hour="18",
+                hour="24",
                 minute="0"
             ),
-            min_capacity=1
+            min_capacity=0,
+            max_capacity=1
         )
 
         # configure Health Check
