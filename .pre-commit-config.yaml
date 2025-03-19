@@ -30,3 +30,10 @@ repos:
         language: system
         types: [ go ]
         pass_filenames: false
+#      - id: pytest
+#        name: Run Pytest
+#        entry: pytest
+#        language: system
+#        pass_filenames: false
+#        always_run: true
+#        require_serial: true
