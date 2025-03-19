@@ -133,7 +133,6 @@ func SetupRouter(env string) *gin.Engine {
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 
-	occupancyService = &services.OccupancyService{}
 	pc := controllers.NewPositionController(occupancyService)
 
 	// instantiate admin controller
@@ -144,7 +143,10 @@ func SetupRouter(env string) *gin.Engine {
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-
+	router.GET("/index", controllers.Index)
+	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
+		controllers.RefereeHandler(c, occupancyService)
+	})
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
 	// Middleware to ensure "meetName" is set.
@@ -174,7 +176,6 @@ func SetupRouter(env string) *gin.Engine {
 	})
 	protected.Use(middleware.PositionRequired())
 	{
-		protected.GET("/dashboard", controllers.Index)
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/lights", controllers.Lights)
 		protected.GET("/positions", controllers.ShowPositionsPage)
@@ -184,7 +185,6 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/right", controllers.Right)
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
 		protected.POST("/position/vacate", pc.VacatePosition)
-
 		protected.GET("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
 		protected.POST("/home", func(c *gin.Context) { controllers.Home(c, occupancyService) })
 		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
@@ -216,7 +216,5 @@ func SetupRouter(env string) *gin.Engine {
 		log.Fatalf("Templates directory does not exist: %s", templatesDir)
 	}
 	fmt.Println("Templates Path:", templatesDir)
-	router.LoadHTMLGlob(filepath.Join(templatesDir, "*.html"))
-
 	return router
 }

@@ -1,3 +1,4 @@
+// file: controllers/test_helpers.go
 //go:build unit
 // +build unit
 
@@ -14,10 +15,11 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/websocket"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// setupTestRouter creates a new Gin engine with session middleware and dummy HTML templates.
-// It also initializes the websocket package for tests.
+// setupTestRouter creates a new Gin engine with session middleware and fake HTML templates.
+// It also initialises the websocket package for tests.
 func setupTestRouter(t *testing.T) *gin.Engine {
 	websocket.InitTest()
 	gin.SetMode(gin.TestMode)
@@ -66,7 +68,10 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 		for key, value := range data {
 			session.Set(key, value)
 		}
-		session.Save()
+		if err := session.Save(); err != nil {
+			c.String(http.StatusInternalServerError, "session save failed")
+			return
+		}
 		c.String(http.StatusOK, "session set")
 	})
 
@@ -82,4 +87,14 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 		}
 	}
 	return nil
+}
+
+// hashPassword hashes the given password using bcrypt.
+// This helper function is used by tests to prepare expected hashed values.
+func hashPassword(password string) string {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		panic("failed to hash password: " + err.Error())
+	}
+	return string(hashed)
 }

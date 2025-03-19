@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -54,7 +55,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	} else {
 		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-	c.Redirect(http.StatusFound, "/dashboard")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
@@ -140,7 +141,16 @@ func ShowPositionsPage(c *gin.Context) {
 func GetQRCode(c *gin.Context) {
 	logger.Info.Println("GetQRCode: Generating QR code")
 
-	qrBytes, err := services.GenerateQRCode(300, 300, qrcode.Encode)
+	meetName := c.Query("meetName")
+	position := c.Query("position")
+	if meetName == "" || position == "" {
+		c.String(http.StatusBadRequest, "Missing meetName or position query param")
+		return
+	}
+
+	qrURL := fmt.Sprintf("%s/referee/%s/%s", ApplicationURL, meetName, position)
+
+	qrBytes, err := services.GenerateQRCode(qrURL, 300, qrcode.Medium)
 	if err != nil {
 		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
 		c.String(http.StatusInternalServerError, "QR generation failed")
@@ -162,16 +172,6 @@ func SetConfig(appURL, wsURL string) {
 }
 
 // -------------------- referee view rendering --------------------
-
-// PerformLogin processes user authentication
-func PerformLogin(c *gin.Context) {
-	session := sessions.Default(c)
-	if session.Get("meetName") == nil {
-		c.Redirect(http.StatusFound, "/") // Redirect to choose_meet page
-		return
-	}
-	c.HTML(http.StatusOK, "login.html", gin.H{"MeetName": session.Get("meetName")})
-}
 
 // Left renders the left referee view
 func Left(c *gin.Context) {
@@ -241,4 +241,59 @@ func Lights(c *gin.Context) {
 		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "lights.html", data)
+}
+
+// RefereeHandler renders the referee view based on the position parameter.
+func RefereeHandler(c *gin.Context, occupancyService *services.OccupancyService) {
+	meetName := c.Param("meetName")
+	position := c.Param("position")
+
+	// Try to claim the position. If it's taken, return a 409 Conflict (or some other status).
+	err := occupancyService.SetPosition(meetName, position, "AnonymousReferee")
+	if err != nil {
+		// For example, if your TakePosition returns an error when already occupied:
+		logger.Warn.Printf("RefereeHandler: Attempt to claim taken seat %s for meet %s", position, meetName)
+		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
+		return
+	}
+
+	logger.Info.Printf("RefereeHandler: meetName=%s, position=%s claimed successfully by AnonymousReferee", meetName, position)
+
+	switch position {
+	case "left", "Left":
+		renderLeft(c, meetName)
+	case "center", "Center":
+		renderCenter(c, meetName)
+	case "right", "Right":
+		renderRight(c, meetName)
+	default:
+		c.String(http.StatusBadRequest, "Unknown position: %s", position)
+	}
+}
+
+// renderCenter renders the center referee page
+func renderCenter(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "center.html", data)
+}
+
+// renderRight renders the right referee page
+func renderRight(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "right.html", data)
+}
+
+// renderLeft renders the left referee page
+func renderLeft(c *gin.Context, meetName string) {
+	data := gin.H{
+		"WebsocketURL": WebsocketURL,
+		"meetName":     meetName,
+	}
+	c.HTML(http.StatusOK, "left.html", data)
 }

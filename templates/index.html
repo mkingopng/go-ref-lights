@@ -15,23 +15,32 @@
 
   {{template "header.html" .}}
 
-<h1>Scan To Log-in</h1>
+<h1>Referee Positions for {{ .meetName }}</h1>
 
 <!--QR Code container-->
 <div class="qr-code-container">
-  <img src="/qrcode" alt="QR Code">
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
+    <p>Left Referee</p>
+  </div>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
+    <p>Center Referee</p>
+  </div>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
+    <p>Right Referee</p>
+  </div>
 </div>
 
-<!--button container: lights or select ref positions-->
-<div class="button-container">
-  <a href="/lights" class="button-link">Lights</a>
-  <a href="/positions" class="button-link">Select Referee Position</a>
-  {{ if .isAdmin }}
-  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
-  {{ end }}
-</div>
 
-<!--APL logo container-->
+  <!--button container: lights or select ref positions-->
+  <div class="button-container">
+    <a href="/lights" class="button-link">Lights</a>
+    <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+  </div>
+
+<!--logo container-->
 <div class="logo-container">
   <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
 </div>

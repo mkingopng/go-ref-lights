@@ -1,97 +1,31 @@
 {
     "meets": [
         {
-            "name": "Complete Strength Open",
-            "date": "March 1",
-            "users": [
-                {
-                    "username": "complete_strength_open_center",
-                    "password": "$2b$12$zbhbfbeY2rVa68SZuzjKIeb9h7lqg0iUuGxZljdVYwn4Y6aZ3XOQy",
-                    "isadmin": false
-                },
-                {
-                    "username": "complete_strength_open_left",
-                    "password": "$2b$12$ZsAGQVA8kWnacn4toBXKr.ON6rPo33KRioq0I82eu3DbGhRKu8qdy",
-                    "isadmin": false
-                },
-                {
-                    "username": "complete_strength_open_right",
-                    "password": "$2b$12$P5roLXNBKT8ZqGKjjAp7N.jdIH3lkEW2b9Wj01rVTMvwDPmrDZfWO",
-                    "isadmin": false
-                },
-                {
-                    "username": "complete_strength_open_lights",
-                    "password": "$2b$12$lZJUrJGzoKbbeMtJyPNpHu7yoF40kfcel/.InQlm2E7nn71JSfbHe",
-                    "isadmin": false
-                },
-                {
-                    "username": "complete_strength_open_admin",
-                    "password": "$2b$12$PSI/A2Mhp4cP4Z2AjbB1H...MeicKrYKgsjwlbEexIjEohlpdjBPG",
-                    "isadmin": true
-                }
-            ]
+            "name": "Cairns Cup",
+            "date": "March 22",
+            "admin": {
+                "username": "cairns_cup",
+                "password": "$2b$12$WckqxEfXzaRxLM5L5WGh/uDbvDsTAD/nDsRM8geytO6O0VfIeKwTS",
+                "isadmin": true
+            }
         },
         {
-            "name": "South Australian State Championships",
-            "date": "March 2",
-            "users": [
-                {
-                    "username": "south_australian_state_championships_center",
-                    "password": "$2b$12$lnmAsT/qT8rOstxWhbhkSuNlgji.aM84ORlhuQUti76E9kKYEhCzC",
-                    "isadmin": false
-                },
-                {
-                    "username": "south_australian_state_championships_left",
-                    "password": "$2b$12$0RXdFztARDkSGOxhmYdBKeTezwd9sARpXHD6xD5ln4tUcdlHvY0GC",
-                    "isadmin": false
-                },
-                {
-                    "username": "south_australian_state_championships_right",
-                    "password": "$2b$12$LTW2vrmXXYVmj0H7aDDwgerLnPGIKQGF8Es9pgVnlzEWqXPDg8FUO",
-                    "isadmin": false
-                },
-                {
-                    "username": "south_australian_state_championships_lights",
-                    "password": "$2b$12$JzMxi2PMq7ZBwar29ZdKcuGAsI6HeRLJp3itYI1dgPrcOP.kldpnO",
-                    "isadmin": false
-                },
-                {
-                    "username": "south_australian_state_championships_admin",
-                    "password": "$2b$12$BwJ/zm1bHhDD8ETEuuV5qe5ReErzUy7AtDa6OySzzPn.QQogFQiPu",
-                    "isadmin": true
-                }
-            ]
+            "name": "New South Wales State Championships",
+            "date": "March 22-23",
+            "admin": {
+                "username": "nsw_champs",
+                "password": "$2b$12$CxJtLQaAdrsH9HQ4jZ.KEugaLBSN9xdtZQpuzq27pyEipUmWAJ5Ma",
+                "isadmin": true
+            }
         },
         {
-            "name": "Metal Mayham",
-            "date": "March 2",
-            "users": [
-                {
-                    "username": "metal_mayham_center",
-                    "password": "$2b$12$P2njadlH8nBGg41S0hUVm.uW.I3N1PLoZ0M1ScA/PeseyCyrsQcj.",
-                    "isadmin": false
-                },
-                {
-                    "username": "metal_mayham_left",
-                    "password": "$2b$12$8nXzaXNTLSrGxkHlPGWnsu/qazfrx77FSoBRGocsKRpNLag6Q5.Gy",
-                    "isadmin": false
-                },
-                {
-                    "username": "metal_mayham_right",
-                    "password": "$2b$12$Kd673eHahbcdNntAfI.H/O78u.hn5iBzYunBYgpw/yAbA.JX2ONVW",
-                    "isadmin": false
-                },
-                {
-                    "username": "metal_mayham_lights",
-                    "password": "$2b$12$y7/XgUQXZvZpVOSKfEVrU.kDFbjF63TtA.jHGjPBMAB/66s0Imhtu",
-                    "isadmin": false
-                },
-                {
-                    "username": "metal_mayham_admin",
-                    "password": "$2b$12$5NVcZLfGEkffXEJxg1yW3.LKwBSh.sSptH1CD027rraMitXeBjthe",
-                    "isadmin": true
-                }
-            ]
+            "name": "Wales Classic",
+            "date": "March 23",
+            "admin": {
+                "username": "wales_classic",
+                "password": "$2b$12$vJdMhCkgC3rHa5yLwpRqae/EnAZ0zssJvv.3HxT9IgYjyx99vNCAm",
+                "isadmin": true
+            }
         }
     ]
 }

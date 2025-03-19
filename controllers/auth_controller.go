@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -59,49 +60,32 @@ func SetMeetHandler(c *gin.Context) {
 // LoadMeetCreds loads meet credentials from a JSON file.
 // This function ensures that the `isadmin` field is properly converted
 // from string to boolean when necessary.
+// LoadMeetCreds loads meet credentials from a JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	credPath := "./config/meet_creds.json" // #nosec G101 - This is a known, controlled file path.
+	credPath := "./config/meet_creds.json" // #nosec G101
 
+	// Read JSON file
 	data, err := os.ReadFile(credPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read meet credentials file: %w", err)
 	}
 
-	var raw map[string]interface{} // Load raw JSON first
-	if err := json.Unmarshal(data, &raw); err != nil {
+	// Unmarshal JSON directly into MeetCreds struct
+	var creds models.MeetCreds
+	if err := json.Unmarshal(data, &creds); err != nil {
 		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
 	}
 
-	// Convert "isadmin" from string to boolean if needed
-	meetsData, _ := raw["meets"].([]interface{})
-	for _, meet := range meetsData {
-		meetMap := meet.(map[string]interface{})
-		usersData, _ := meetMap["users"].([]interface{})
-
-		for _, user := range usersData {
-			userMap := user.(map[string]interface{})
-			if isAdminStr, ok := userMap["isadmin"].(string); ok {
-				userMap["isadmin"] = (isAdminStr == "True" || isAdminStr == "true")
-			}
-		}
-	}
-
-	// Convert back to models.MeetCreds
-	parsedData, err := json.Marshal(raw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to re-encode JSON: %w", err)
-	}
-
-	var creds models.MeetCreds
-	if err := json.Unmarshal(parsedData, &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse corrected JSON: %w", err)
-	}
-
-	// Debug print to confirm "isadmin" is correctly parsed
+	// Ensure all admin credentials are correctly loaded
 	for _, meet := range creds.Meets {
-		for _, user := range meet.Users {
-			fmt.Printf("Loaded user: %s (Admin: %t)\n", user.Username, user.IsAdmin)
+		if meet.Admin.Username == "" {
+			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
 		}
+		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
+			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
+		}
+		// Debug log for confirmation
+		fmt.Printf("✅ Loaded Meet: %s (Admin: %s, IsAdmin: %t)\n", meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
 	}
 
 	return &creds, nil
