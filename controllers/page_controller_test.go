@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"go-ref-lights/models"
 	"go-ref-lights/websocket"
 )
@@ -213,44 +214,55 @@ func TestIndex_WithMeetName(t *testing.T) {
 	)
 }
 
-// TestRefereeHandler_Success tests the RefereeHandler function
+// TestRefereeHandler_Success tests the RefereeHandler function when it should succeed.
 func TestRefereeHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupTestRouter(t)
 
+	// For this route, the code calls RefereeHandler(..., mockOccService)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
 		RefereeHandler(c, mockOccService)
 	})
-	mockOccService.On("SetPosition", "DemoMeet", "left", "AnonymousReferee").Return(nil).Once()
 
-	req, _ := http.NewRequest("GET", "/referee/DemoMeet/left", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "DemoMeet")
-	mockOccService.AssertExpectations(t)
-}
-
-// TestRefereeHandler_Conflict tests the RefereeHandler function when a conflict occurs
-func TestRefereeHandler_Conflict(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	router := setupTestRouter(t)
-
-	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
-		RefereeHandler(c, mockOccService) // pass directly
-	})
-
+	// The occupant tries to claim seat => success => Return nil (no error)
 	mockOccService.
-		On("SetPosition", "DemoMeet", "left", "AnonymousReferee").
-		Return(fmt.Errorf("left seat is already occupied")).
+		On("SetPosition", "DemoMeet", "left", mock.AnythingOfType("string")).
+		Return(nil).
 		Once()
 
 	req, _ := http.NewRequest("GET", "/referee/DemoMeet/left", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
+	// We expect a 200 response from a successful seat claim
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "DemoMeet")
+
+	mockOccService.AssertExpectations(t)
+}
+
+// TestRefereeHandler_Conflict tests the RefereeHandler function when SetPosition should fail.
+func TestRefereeHandler_Conflict(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := setupTestRouter(t)
+
+	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
+		RefereeHandler(c, mockOccService)
+	})
+
+	// This time, for the first (and only) call, we simulate an already-occupied seat => return error
+	mockOccService.
+		On("SetPosition", "DemoMeet", "left", mock.AnythingOfType("string")).
+		Return(fmt.Errorf("left seat is already taken")).
+		Once()
+
+	req, _ := http.NewRequest("GET", "/referee/DemoMeet/left", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// Because the seat is "already taken", the code returns 409 Conflict
 	assert.Equal(t, http.StatusConflict, w.Code)
 	assert.Contains(t, w.Body.String(), "already taken")
+
 	mockOccService.AssertExpectations(t)
 }

@@ -12,7 +12,7 @@
 </head>
 
 <body>
-
+<!--meet name (dynamic)-->
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
 
 <p id="visibleMeetName">{{ .meetName }}</p>
@@ -42,17 +42,17 @@
 <!-- next attempt timer -->
 <div id="multiNextAttemptTimers" class="hidden" style="margin-top: 20px;"></div>
 
-<!--APL logo-->
+<!--logo container-->
 <div class="logo-container">
-  <img src="/static/images/APL_logo white apl logo HQ.png" alt="apl logo">
+  <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
 </div>
 
 <!-- connection Status -->
 <div id="connectionStatus" class="connection-status"></div>
 
-<!-- Global configuration variables (make sure these are set before lights.js loads) -->
+<!-- Global configuration variables-->
 <script>
-  let meetName = "{{ .meetName }}";  // Global meet name.
+  let meetName = "{{ .meetName }}";
   const websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
 </script>
 

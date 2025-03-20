@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-ref-lights/models"
 	"net/http"
+	"sync"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -16,6 +17,9 @@ import (
 
 // -------------------- global configuration --------------------
 
+var anonOccupantCounter int
+var anonCounterMu sync.Mutex
+
 var (
 	// ApplicationURL is the base URL of the application
 	ApplicationURL string
@@ -23,6 +27,18 @@ var (
 	// WebsocketURL is the URL for the WebSocket server
 	WebsocketURL string
 )
+
+// -------------------- active users --------------------
+
+// getNextAnonymousName increments and returns a new occupant name,
+// e.g. "AnonRef001", "AnonRef002", etc.
+func getNextAnonymousName() string {
+	anonCounterMu.Lock()
+	defer anonCounterMu.Unlock()
+
+	anonOccupantCounter++
+	return fmt.Sprintf("AnonRef%03d", anonOccupantCounter)
+}
 
 // -------------------- health check endpoint --------------------
 
@@ -280,17 +296,31 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	meetName := c.Param("meetName")
 	position := c.Param("position")
 
-	// Try to claim the position. If it's taken, return a 409 Conflict (or some other status).
-	err := occupancyService.SetPosition(meetName, position, "AnonymousReferee")
+	// 1) Get or create a unique occupant for this session
+	session := sessions.Default(c)
+	occupant, ok := session.Get("anonymousOccupant").(string)
+	if !ok || occupant == "" {
+		occupant = getNextAnonymousName()
+		session.Set("anonymousOccupant", occupant)
+		if err := session.Save(); err != nil {
+			logger.Error.Printf("RefereeHandler: session save error: %v", err)
+		}
+	}
+
+	// 2) Attempt to claim seat under occupant name
+	err := occupancyService.SetPosition(meetName, position, occupant)
 	if err != nil {
-		// For example, if your TakePosition returns an error when already occupied:
-		logger.Warn.Printf("RefereeHandler: Attempt to claim taken seat %s for meet %s", position, meetName)
+		logger.Warn.Printf("RefereeHandler: Attempt to claim taken seat %s for meet %s by occupant=%s",
+			position, meetName, occupant)
+		// Return 409 Conflict or some suitable error
 		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
 		return
 	}
 
-	logger.Info.Printf("RefereeHandler: meetName=%s, position=%s claimed successfully by AnonymousReferee", meetName, position)
+	logger.Info.Printf("RefereeHandler: meetName=%s, position=%s claimed successfully by occupant=%s",
+		meetName, position, occupant)
 
+	// 3) Render the appropriate referee view
 	switch position {
 	case "left", "Left":
 		renderLeft(c, meetName)
