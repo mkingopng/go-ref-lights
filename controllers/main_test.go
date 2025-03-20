@@ -8,10 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// If needed, init test environment
 	websocket.InitTest()
-	go websocket.HandleMessages() // start only once
-
 	code := m.Run()
 	os.Exit(code)
 }

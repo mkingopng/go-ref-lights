@@ -187,3 +187,11 @@ Write tests in a **clear, structured way**:
 5. Review the CDK code and optimise. Consider how to scale to zero
 
 -------
+
+# CDK upgrades
+- scheduling
+- scale to zero
+
+```python
+
+```
