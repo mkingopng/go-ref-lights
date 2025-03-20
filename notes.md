@@ -3,6 +3,10 @@ compile
 go build ./...
 ```
 
+```go
+go run .
+```
+
 run app locally
 ```bash
 ENV=development go run main.go

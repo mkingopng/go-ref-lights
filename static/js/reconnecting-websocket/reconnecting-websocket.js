@@ -109,7 +109,7 @@
     function ReconnectingWebSocket(url, protocols, options) {
 
         // Default settings
-        var settings = {
+        const settings = {
 
             /** Whether this instance should log debug messages. */
             debug: false,
@@ -119,8 +119,10 @@
 
             /** The number of milliseconds to delay before attempting to reconnect. */
             reconnectInterval: 1000,
+
             /** The maximum number of milliseconds to delay a reconnection attempt. */
             maxReconnectInterval: 30000,
+
             /** The rate of increase of the reconnect delay. Allows reconnect attempts to back off when problems persist. */
             reconnectDecay: 1.5,
 
@@ -132,7 +134,8 @@
 
             /** The binary type, possible values 'blob' or 'arraybuffer', default 'blob'. */
             binaryType: 'blob'
-        }
+        };
+
         if (!options) { options = {}; }
 
         // Overwrite and define settings with options if they exist.

@@ -46,8 +46,8 @@ func main() {
 		applicationURL = "https://referee-lights.michaelkingston.com.au"
 		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
 	} else {
-		applicationURL = "http://localhost:8080"
-		websocketURL = "ws://localhost:8080/referee-updates"
+		applicationURL = "http://0.0.0.0:8080"
+		websocketURL = "ws://0.0.0.0:8080/referee-updates"
 	}
 
 	// pass computed URLs to controllers

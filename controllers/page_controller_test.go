@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"go-ref-lights/models"
 	"go-ref-lights/websocket"
 )
 
@@ -48,10 +49,11 @@ func TestLogout_NoSession(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/set-meet", w.Header().Get("Location"))
+	assert.Equal(t, "/index", w.Header().Get("Location"))
 	mockService.AssertExpectations(t)
 }
 
+// fix_me
 // TestLogout tests the Logout function under various conditions
 //func TestLogout(t *testing.T) {
 //	gin.SetMode(gin.TestMode)
@@ -119,6 +121,19 @@ func TestIndex_NoMeetSelected(t *testing.T) {
 func Test_WithMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/index", Index)
+	originalFunc := loadMeetCredsFunc
+
+	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
+		return &models.MeetCreds{
+			Meets: []models.Meet{
+				{Name: "TestMeet", Logo: "test_logo.png"},
+			},
+		}, nil
+	}
+
+	defer func() {
+		loadMeetCredsFunc = originalFunc
+	}()
 
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
@@ -132,9 +147,13 @@ func Test_WithMeetName(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "TestMeet",
-		"Response should contain the meetName 'TestMeet' somewhere (eg in HTML).")
+	assert.Equal(t, http.StatusOK, w.Code, "Expected 200 OK when a valid meet is in session")
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"TestMeet",
+		"Response should contain the meetName 'TestMeet' in the HTML output",
+	)
 }
 
 // TestLights_NoMeetSelected tests the Lights handler when no meet is selected
@@ -155,7 +174,22 @@ func TestIndex_WithMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/index", Index)
 
-	// set session with meetName
+	// Save and override loadMeetCredsFunc
+	originalFunc := loadMeetCredsFunc
+	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
+		return &models.MeetCreds{
+			Meets: []models.Meet{
+				// Provide a meet name that matches our test session
+				{Name: "TestMeet", Logo: "test_logo.png"},
+			},
+		}, nil
+	}
+	// Restore after test
+	defer func() {
+		loadMeetCredsFunc = originalFunc
+	}()
+
+	// Put "meetName" in the session so the /index route sees we selected "TestMeet"
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
@@ -163,14 +197,20 @@ func TestIndex_WithMeetName(t *testing.T) {
 		t.Fatal("Session cookie not found")
 	}
 
+	// Now make a GET /index request, simulating a user visiting the main page
 	req, _ := http.NewRequest("GET", "/index", nil)
 	req.AddCookie(sessionCookie)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "TestMeet",
-		"Response should contain the meetName 'TestMeet' somewhere (eg in HTML).")
+	// The /index handler should succeed and contain "TestMeet" in the HTML
+	assert.Equal(t, http.StatusOK, w.Code, "Expected 200 OK if meetName is valid and loadMeetCredsFunc returns it.")
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"TestMeet",
+		"Response should contain 'TestMeet' in the HTML output",
+	)
 }
 
 // TestRefereeHandler_Success tests the RefereeHandler function

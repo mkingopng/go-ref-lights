@@ -4,6 +4,7 @@ package controllers
 
 import (
 	"fmt"
+	"go-ref-lights/models"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -60,13 +61,20 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
-// Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
+// Logout logs the user out, removes them from activeUsers, vacates their
+// position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
 
 	userEmail, hasUser := session.Get("user").(string)
 	position, hasPosition := session.Get("refPosition").(string)
 	meetName, hasMeet := session.Get("meetName").(string)
+
+	isAdmin, _ := session.Get("isAdmin").(bool)
+	if isAdmin && hasMeet {
+		logger.Info.Printf("Logout: Admin user is logging out; resetting meet: %s", meetName)
+		occupancyService.ResetOccupancyForMeet(meetName)
+	}
 
 	if hasUser && hasPosition && hasMeet {
 		err := occupancyService.UnsetPosition(meetName, position, userEmail)
@@ -88,7 +96,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 	session.Clear()
 	logger.Info.Println("Logout: Session cleared (will be saved by middleware at end of request)")
-	c.Redirect(http.StatusFound, "/set-meet")
+	c.Redirect(http.StatusFound, "/index")
 }
 
 // -------------------- page rendering --------------------
@@ -98,18 +106,38 @@ func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	if !ok || meetName == "" {
-		logger.Warn.Println("Index: No meet selected; redirecting to /set-meet")
 		c.Redirect(http.StatusFound, "/set-meet")
 		return
 	}
 
-	isAdmin, _ := session.Get("isAdmin").(bool)
+	// load all meets from memory or your loaded creds
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		logger.Error.Printf("Index: failed to load meet creds: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+		return
+	}
 
-	logger.Info.Printf("Rendering index page for meet %s", meetName)
+	// find the current meet
+	var currentMeet *models.Meet
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			currentMeet = &m
+			break
+		}
+	}
+
+	if currentMeet == nil {
+		logger.Warn.Printf("Meet not found: %s", meetName)
+		c.String(http.StatusNotFound, "Meet not found")
+		return
+	}
+
+	// pass the meet’s Logo to the template
 	data := gin.H{
-		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
-		"isAdmin":      isAdmin,
+		"WebsocketURL": WebsocketURL,     // if you have that
+		"Logo":         currentMeet.Logo, // <--- fix_me: potential nil pointer dereference
 	}
 	c.HTML(http.StatusOK, "index.html", data)
 }
@@ -189,7 +217,7 @@ func Left(c *gin.Context) {
 	}
 	logger.Info.Println("Left: Rendering left referee view")
 	data := gin.H{
-		"WebsocketURL": WebsocketURL, // ✅ FIXED: WebsocketURL is now declared globally
+		"WebsocketURL": WebsocketURL, // WebsocketURL is now declared globally
 		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "left.html", data)
