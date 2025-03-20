@@ -28,7 +28,9 @@ var (
 // Health provides a simple endpoint to check server health.
 func Health(c *gin.Context) {
 	logger.Info.Println("Health: Health check requested")
-	c.String(http.StatusOK, "OK")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "healthy",
+	})
 }
 
 // -------------------- user navigation and logout --------------------
@@ -55,7 +57,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	} else {
 		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
 	}
-	c.Redirect(http.StatusFound, "/index")
+	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
 // Logout logs the user out, removes them from activeUsers, vacates their position, and redirects to login.
@@ -71,20 +73,22 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		if err != nil {
 			logger.Error.Printf("Logout: error vacating position: %v", err)
 		} else {
-			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'",
+				position, userEmail, meetName)
 		}
+
+		activeUsersMu.Lock()
 		delete(activeUsers, userEmail)
+		activeUsersMu.Unlock()
+
 		logger.Info.Printf("Logout: User %s removed from active users list", userEmail)
 	} else {
 		logger.Warn.Println("Logout: Missing user, refPosition, or meetName from session.")
 	}
+
 	session.Clear()
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("Logout: Error saving session: %v", err)
-	} else {
-		logger.Info.Println("Logout: Session cleared successfully")
-	}
-	c.Redirect(http.StatusFound, "/choose-meet")
+	logger.Info.Println("Logout: Session cleared (will be saved by middleware at end of request)")
+	c.Redirect(http.StatusFound, "/set-meet")
 }
 
 // -------------------- page rendering --------------------
@@ -94,8 +98,8 @@ func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	if !ok || meetName == "" {
-		logger.Warn.Println("Index: No meet selected; redirecting to /meets")
-		c.Redirect(http.StatusFound, "/meets")
+		logger.Warn.Println("Index: No meet selected; redirecting to /set-meet")
+		c.Redirect(http.StatusFound, "/set-meet")
 		return
 	}
 
@@ -244,7 +248,7 @@ func Lights(c *gin.Context) {
 }
 
 // RefereeHandler renders the referee view based on the position parameter.
-func RefereeHandler(c *gin.Context, occupancyService *services.OccupancyService) {
+func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	meetName := c.Param("meetName")
 	position := c.Param("position")
 

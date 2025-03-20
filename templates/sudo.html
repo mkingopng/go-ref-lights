@@ -1,0 +1,135 @@
+<!--templates/sudo.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sudo Dashboard - Superuser Panel</title>
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="/static/css/styles.css" rel="stylesheet">
+</head>
+<body>
+<!-- navigation: list all meets -->
+<nav>
+    <ul class="meet-nav">
+        {{ range .meets }}
+        <li>
+            <a href="/sudo?meet={{ .Name }}">
+                <img src="{{ .logo }}" alt="{{ .Name }} logo" class="meet-logo">
+                {{ .Name }}
+            </a>
+        </li>
+        {{ end }}
+    </ul>
+</nav>
+
+<!--dashboard header for selected meet-->
+<header>
+    <h1>Sudo Dashboard - {{ .selectedMeet.Name }}</h1>
+    <p>Date: {{ .selectedMeet.Date }}</p>
+</header>
+
+<!-- health status & active users table -->
+<section>
+    <h2>Active Users & Health Status</h2>
+    <table class="sudo-table">
+        <thead>
+        <tr>
+            <th>Position</th>
+            <th>Occupant</th>
+            <th>Health Status</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Left</td>
+            <td>{{ .selectedMeet.occupancy.LeftUser }}</td>
+            <td id="leftStatus">{{ if .selectedMeet.health.LeftStatus }}{{ .selectedMeet.health.LeftStatus }}{{ else }}N/A{{ end }}</td>
+            <td>
+                {{ if .selectedMeet.occupancy.LeftUser }}
+                <form action="/sudo/force-logout" method="POST">
+                    <input type="hidden" name="meetName" value="{{ .selectedMeet.Name }}">
+                    <input type="hidden" name="username" value="{{ .selectedMeet.occupancy.LeftUser }}">
+                    <button type="submit">Kick Out</button>
+                </form>
+                {{ else }}
+                N/A
+                {{ end }}
+            </td>
+        </tr>
+        <tr>
+            <td>Center</td>
+            <td>{{ .selectedMeet.occupancy.CenterUser }}</td>
+            <td id="centerStatus">{{ if .selectedMeet.health.CenterStatus }}{{ .selectedMeet.health.CenterStatus }}{{ else }}N/A{{ end }}</td>
+            <td>
+                {{ if .selectedMeet.occupancy.CenterUser }}
+                <form action="/sudo/force-logout" method="POST">
+                    <input type="hidden" name="meetName" value="{{ .selectedMeet.Name }}">
+                    <input type="hidden" name="username" value="{{ .selectedMeet.occupancy.CenterUser }}">
+                    <button type="submit">Kick Out</button>
+                </form>
+                {{ else }}
+                N/A
+                {{ end }}
+            </td>
+        </tr>
+        <tr>
+            <td>Right</td>
+            <td>{{ .selectedMeet.occupancy.RightUser }}</td>
+            <td id="rightStatus">{{ if .selectedMeet.health.RightStatus }}{{ .selectedMeet.health.RightStatus }}{{ else }}N/A{{ end }}</td>
+            <td>
+                {{ if .selectedMeet.occupancy.RightUser }}
+                <form action="/sudo/force-logout" method="POST">
+                    <input type="hidden" name="meetName" value="{{ .selectedMeet.Name }}">
+                    <input type="hidden" name="username" value="{{ .selectedMeet.occupancy.RightUser }}">
+                    <button type="submit">Kick Out</button>
+                </form>
+                {{ else }}
+                N/A
+                {{ end }}
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+
+<!--full instance reset section-->
+<section>
+    <h2>Force Reset Meet</h2>
+    <p>This action will log out all users and reset all referee positions for the meet.</p>
+    <form method="POST" action="/sudo/reset-instance">
+        <input type="hidden" name="meetName" value="{{ .selectedMeet.Name }}">
+        <button type="submit">Reset Meet</button>
+    </form>
+</section>
+
+<!--additional overview section-->
+<section>
+    <h2>Meet Overview</h2>
+    <ul>
+        <li>Date: {{ .selectedMeet.Date }}</li>
+        <!--add further details as needed-->
+    </ul>
+</section>
+
+<!--javascript to poll health status updates-->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function fetchMeetStatus() {
+            fetch("/sudo/status?meet={{ .selectedMeet.Name }}")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("leftStatus").textContent = data.health.LeftStatus || "N/A";
+                    document.getElementById("centerStatus").textContent = data.health.CenterStatus || "N/A";
+                    document.getElementById("rightStatus").textContent = data.health.RightStatus || "N/A";
+                })
+                .catch(error => console.error("Error fetching meet status:", error));
+        }
+        // Poll every 30 seconds.
+        setInterval(fetchMeetStatus, 30000);
+    });
+</script>
+</body>
+</html>

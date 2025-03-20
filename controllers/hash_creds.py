@@ -5,7 +5,11 @@ import bcrypt
 import json
 
 def hash_password(password):
-	"""Hash a plaintext password using bcrypt."""
+	"""
+	Hash a plaintext password using bcrypt
+	:param password:
+	:return:
+	"""
 	return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 # Load JSON file

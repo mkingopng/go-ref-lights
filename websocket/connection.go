@@ -5,6 +5,7 @@ package websocket
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -38,6 +39,11 @@ type Connection struct {
 
 // Global map to store active WebSocket connections.
 var connections = make(map[*Connection]bool)
+
+// connectionsMu protects the 'connections' map from concurrent read/write.
+// We use an RWMutex so that broadcasts can happen under a read lock, while
+// register/unregister obtains a write lock. This is safer than an unguarded map.
+var connectionsMu sync.RWMutex
 
 // ------------------------- websocket configuration constants  --------------
 
@@ -186,14 +192,16 @@ func (c *Connection) writePump() {
 
 // registerConnection adds a new WebSocket connection to the global connections map
 func registerConnection(c *Connection) {
+	connectionsMu.Lock()
 	connections[c] = true
+	connectionsMu.Unlock()
 }
 
 // unregisterConnection removes a WebSocket connection from the global connections map
 func unregisterConnection(c *Connection) {
-	if _, ok := connections[c]; ok {
-		delete(connections, c)
-	}
+	connectionsMu.Lock()
+	delete(connections, c)
+	connectionsMu.Unlock()
 }
 
 // ------------------------ message handling -----------------------
@@ -293,6 +301,7 @@ func processDecision(c *Connection, dm DecisionMessage) {
 
 // broadcastToMeet sends a message to all clients in a given meet.
 var broadcastToMeet = func(meetName string, message []byte) {
+	connectionsMu.RLock() // Acquire read lock
 	for c := range connections {
 		if c.meetName == meetName {
 			select {
@@ -302,17 +311,19 @@ var broadcastToMeet = func(meetName string, message []byte) {
 			}
 		}
 	}
+	connectionsMu.RUnlock()
 }
 
-// broadcastRefereeHealth broadcasts the health for a given meet.
 var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
 
+	connectionsMu.RLock()
 	for c := range connections {
 		if c.meetName == meetName && c.judgeID != "" {
 			connectedIDs = append(connectedIDs, c.judgeID)
 		}
 	}
+	connectionsMu.RUnlock()
 
 	msg := map[string]interface{}{
 		"action":            "refereeHealth",

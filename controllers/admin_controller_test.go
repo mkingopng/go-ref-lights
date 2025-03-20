@@ -39,7 +39,7 @@ func TestAdminPanel_MissingMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/admin", adminController.AdminPanel)
 
-	// Set session with isAdmin true but an empty meetName.
+	// set session with isAdmin true but an empty meetName.
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin":  true,
 		"meetName": "",
@@ -64,7 +64,7 @@ func TestResetInstance_Success(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/reset-instance", adminController.ResetInstance)
 
-	// Set expectations on the mock.
+	// set expectations on the mock.
 	mockOccupancyService.
 		On("ResetOccupancyForMeet", "TestMeet").
 		Return().
@@ -74,7 +74,7 @@ func TestResetInstance_Success(t *testing.T) {
 		Return(services.Occupancy{}).
 		Once()
 
-	// Set session for admin with meetName "TestMeet".
+	// set session for admin with meetName "TestMeet".
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin":  true,
 		"meetName": "TestMeet",
@@ -101,7 +101,7 @@ func TestResetInstanceHandler(t *testing.T) {
 
 	router := setupTestRouter(t)
 	router.POST("/admin/reset-instance", adminController.ResetInstance)
-	// Set expectation for both ResetOccupancyForMeet and GetOccupancy.
+	// set expectation for both ResetOccupancyForMeet and GetOccupancy.
 	mockOccupancyService.
 		On("ResetOccupancyForMeet", "TestMeet").
 		Return().
@@ -145,7 +145,7 @@ func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 
 	router.GET("/active-users", ActiveUsersHandler)
 
-	// Prepare activeUsers map for test.
+	// prepare activeUsers map for test.
 	activeUsers["referee1"] = true
 	activeUsers["referee2"] = true
 
@@ -168,4 +168,63 @@ func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, response["users"], "referee1")
 	assert.Contains(t, response["users"], "referee2")
+}
+
+// TestForceVacate tests the ForceVacate functionality where an admin can forcibly remove a referee from a position
+func TestForceVacate(t *testing.T) {
+	// 1) Standard Gin + test setup
+	gin.SetMode(gin.TestMode)
+	mockOccupancyService := new(MockOccupancyService)
+	mockPositionController := &PositionController{OccupancyService: mockOccupancyService}
+	adminController := NewAdminController(mockOccupancyService, mockPositionController)
+
+	// 2) Fix the route by adding a leading slash:
+	//    previously: router.POST("force-vacate", ...)
+	router := setupTestRouter(t)
+	router.POST("/force-vacate", adminController.ForceVacate)
+
+	// 3) Prepare formData once, above the request creation:
+	formData := "meetName=TestMeet&position=left"
+
+	// 4) Set up session so we have isAdmin=true and meetName="TestMeet"
+	sessionCookie := SetSession(router, "/set-session-force-vacate", map[string]interface{}{
+		"isAdmin":  true,
+		"meetName": "TestMeet",
+	})
+	if sessionCookie == nil {
+		t.Fatal("Session cookie not found")
+	}
+
+	// 5) Because ForceVacate calls `BroadcastOccupancy` afterwards,
+	//    `GetOccupancy("TestMeet")` will happen TWICE:
+	//    - First in ForceVacate to figure out who is occupant
+	//    - Second in BroadcastOccupancy to refresh the occupancy
+	// So we set two expectations:
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{
+		LeftUser: "referee1",
+	}).Once()
+	// the second call can return an empty occupancy
+	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{}).Once()
+
+	// 6) We also expect "UnsetPosition" to be called exactly once.
+	mockOccupancyService.On("UnsetPosition", "TestMeet", "left", "referee1").
+		Return(nil).
+		Once()
+
+	// 7) Create the POST request with formData
+	req, _ := http.NewRequest("POST", "/force-vacate", strings.NewReader(formData))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(sessionCookie)
+
+	// 8) Send the request
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	// 9) Check response:
+	assert.Equal(t, http.StatusFound, w.Code, "ForceVacate should redirect on success")
+	assert.Contains(t, w.Header().Get("Location"), "/admin?meet=TestMeet",
+		"Should redirect back to the admin panel for 'TestMeet'")
+
+	// 10) Validate all mock expectations are met
+	mockOccupancyService.AssertExpectations(t)
 }

@@ -7,7 +7,8 @@
         "username": "cairns_cup",
         "password": "J9uheF",
         "isadmin": true
-      }
+      },
+        "logo": "static/images/APL_logo white apl logo HQ.png"
     },
     {
       "name": "New South Wales State Championships",
@@ -16,7 +17,8 @@
         "username": "nsw_champs",
         "password": "4pQpCw",
         "isadmin": true
-      }
+      },
+      "logo": "static/images/APL_logo white apl logo HQ.png"
     },
     {
       "name": "Wales Classic",
@@ -25,7 +27,14 @@
         "username": "wales_classic",
         "password": "YqW8qd",
         "isadmin": true
-      }
+      },
+      "logo": "static/images/UKPU_logo_White-Text_V2.png"
     }
-  ]
+  ],
+  "superuser": {
+    "username": "sudo",
+    "password": "247365Racer",
+    "isadmin": true,
+    "sudo": true
+  }
 }

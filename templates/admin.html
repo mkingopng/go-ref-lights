@@ -70,19 +70,7 @@
   </tbody>
 </table>
 
-<!-- Force Logout Section -->
-<h2>Force Logout</h2>
-<p>Select a user to forcefully log them out:</p>
-<form id="forceLogoutForm">
-  <label for="username">Username:</label>
-  <select id="username" name="username">
-    <!-- Dynamically populated via JavaScript -->
-  </select>
-  <button type="submit">Force Logout</button>
-</form>
-<p id="logoutStatus"></p>
-
-<!-- Full Instance Reset Section -->
+<!-- full instance reset section -->
 <h2>Full Instance Reset</h2>
 <p>This will log out all users and reset all referee positions for this meet.</p>
 <form method="POST" action="/admin/reset-instance">
@@ -92,7 +80,7 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    // Fetch the list of active users
+    // fetch the list of active users
     fetch("/active-users")
             .then(response => response.json())
             .then(data => {
@@ -107,7 +95,7 @@
             })
             .catch(error => console.error("Error fetching active users:", error));
 
-    // Handle Force Logout submission
+    // handle force logout submission
     document.getElementById("forceLogoutForm").addEventListener("submit", function (event) {
       event.preventDefault();
       let username = document.getElementById("username").value;

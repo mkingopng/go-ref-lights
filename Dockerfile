@@ -1,7 +1,7 @@
-# Stage 1: Build the Go application
+# stage 1: Build the Go application
 FROM golang:1.23-alpine AS builder
 
-# Set necessary environment variables
+# set necessary environment variables
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
     GOOS=linux \
@@ -9,46 +9,46 @@ ENV GO111MODULE=on \
 
 WORKDIR /app
 
-# Copy go.mod and go.sum files
+# copy go.mod and go.sum files
 COPY ./go.mod ./go.sum ./
 
-# Download dependencies
+# download dependencies
 RUN go mod download
 
-# Copy the entire project (only what's needed)
+# copy the entire project (only what's needed)
 COPY . .
 
-# Tidy up modules (ensure no unused dependencies)
+# tidy up modules (ensure no unused dependencies)
 RUN go mod tidy
 
-# Build the application
+# build the application
 RUN go build -o /app/main .
 
-# Stage 2: Create the final lightweight image
+# stage 2: Create the final lightweight image
 FROM alpine:latest
 
 WORKDIR /app
 
-# Install certificates (if your app makes HTTPS requests)
-RUN apk --no-cache add ca-certificates
+# install certificates (if your app makes HTTPS requests)
+RUN apk --no-cache add ca-certificates curl
 
-# Copy the executable from the builder stage
+# copy the executable from the builder stage
 COPY --from=builder /app/main .
 
-# Copy necessary files
+# copy necessary files
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/static ./static
 COPY --from=builder /app/config.yaml .
 
-# Ensure config directory exists
+# ensure config directory exists
 RUN mkdir -p ./config
 
-# Copy JSON config files
+# copy JSON config files
 COPY --from=builder /app/config/meets.json ./config/meets.json
 COPY --from=builder /app/config/meet_creds.json ./config/meet_creds.json
 
-# Expose the application port
+# expose the application port
 EXPOSE 8080
 
-# Set the entrypoint
+# set the entrypoint
 CMD ["./main"]

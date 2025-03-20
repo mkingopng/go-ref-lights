@@ -45,7 +45,7 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		return
 	}
 
-	// Retrieve meet name from query parameters or session
+	// retrieve meet name from query parameters or session
 	meetName := c.Query("meet")
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
@@ -73,7 +73,7 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// Ensure user is an admin
+	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
 		logger.Warn.Println("ForceVacate: Unauthorized attempt")
@@ -90,7 +90,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 		return
 	}
 
-	// Ensure `GetOccupancy` returns a valid object
+	// ensure `GetOccupancy` returns a valid object
 	occupancy := ac.OccupancyService.GetOccupancy(meetName)
 	if occupancy == (services.Occupancy{}) { // Check if meet exists
 		c.String(http.StatusNotFound, "Meet not found")
