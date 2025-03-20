@@ -1,6 +1,7 @@
 // static/js/referee-common.js
 "use strict";
 
+// We'll define a global variable 'socket' so other code can reference it.
 let socket;
 
 // utility function for logging
@@ -23,7 +24,7 @@ function log(message, level = 'debug') {
             console.log(logMessage);
     }
 
-    // send logs to a server for saving to a file
+    // also send logs to server
     fetch('/log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -33,34 +34,43 @@ function log(message, level = 'debug') {
 
 document.addEventListener('DOMContentLoaded', function() {
 
-    // helper function to get a consistent meet name from the DOM/URL/sessionStorage
+    // helper to get meetName from <div id="meetName" data-meet-name="foo">
     function getMeetName() {
-        let elem = document.getElementById("meetName");
+        const elem = document.getElementById("meetName");
         let meetName = elem ? elem.dataset.meetName : null;
+
+        // fallback to sessionStorage or URL query param
         if (!meetName) {
-            meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
+            meetName = sessionStorage.getItem("meetName") ||
+                new URLSearchParams(window.location.search).get("meetName");
         }
         if (meetName) {
             sessionStorage.setItem("meetName", meetName);
             log(`✅ Meet name set: ${meetName}`, "info");
         } else {
-            log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
+            log("⚠️ Meet name is missing! Redirecting to /meets.", "warn");
             alert("Error: No meet selected. Redirecting.");
             window.location.href = "/meets";
         }
         return meetName;
     }
 
-    // constants
+    // retrieve meetName
     const meetName = getMeetName();
-    if (!meetName) return;
+    if (!meetName) return; // bail if no meet
 
-    // initialise the global WebSocket (do not shadow the global 'socket')
+    // build WebSocket URL (with correct scheme)
     const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
     const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
-    socket = new WebSocket(wsUrl);
 
-    // grab common DOM elements
+    // create Reconnecting WebSocket
+    // (Requires reconnecting-websocket.min.js to be loaded first in the HTML)
+    socket = new ReconnectingWebSocket(wsUrl, null, {
+        reconnectInterval: 2000,   // 2 seconds
+        maxReconnectAttempts: null // infinite
+    });
+
+    // references for your DOM elements
     const healthEl = document.getElementById("healthStatus");
     const whiteButton = document.getElementById('whiteButton');
     const redButton   = document.getElementById('redButton');
@@ -68,38 +78,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const platformReadyButton = document.getElementById('platformReadyButton');
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
 
-    // Platform Ready Button Logic:
-    // only attach Platform Ready button event for center referee
-    if (judgeId === "center") {
-        const platformReadyButton = document.getElementById('platformReadyButton'); // Expect this element on center page only
-        const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
-        if (platformReadyButton) {
-            platformReadyButton.addEventListener("click", () => {
-                console.log("[referee-common.js] 'Platform Ready' button clicked; sending startTimer");
-                if (socket.readyState === WebSocket.OPEN) {
-                    log("🟢 Platform Ready button clicked, sending startTimer action.", "info");
-                    socket.send(JSON.stringify({ action: "startTimer", meetName: meetName }));
-                    if (platformReadyTimerContainer) {
-                        platformReadyTimerContainer.classList.remove("hidden");
-                    }
-                } else {
-                    log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
-                }
-            });
-        } else {
-            log("⚠️ Platform Ready button not found.", "warn");
-        }
-    }
-
-    // set up WebSocket event handlers
-    // WebSocket event: onopen
+    // single onopen
     socket.onopen = function() {
         log(`WebSocket connected for judgeId: ${judgeId}`, "info");
-        const registerMsg = { action: "registerRef", judgeId, meetName };
+        // send a register message
+        const registerMsg = {
+            action: "registerRef",
+            judgeId: judgeId,
+            meetName: meetName
+        };
         socket.send(JSON.stringify(registerMsg));
     };
 
-    // WebSocket event: onmessage
+    // onmessage => handle inbound messages
     socket.onmessage = (event) => {
         let data;
         try {
@@ -115,6 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateOccupancyUI(data);
                 break;
             case "refereeHealth":
+                // If data.connectedRefIDs includes me, I'm connected
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -129,19 +121,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-// Function to update the UI
-    function updateOccupancyUI(data) {
-        document.getElementById("leftUser").innerText = data.leftUser || "Vacant";
-        document.getElementById("centerUser").innerText = data.centerUser || "Vacant";
-        document.getElementById("rightUser").innerText = data.rightUser || "Vacant";
-    }
-
-    // webSocket event: onerror
+    // handle errors
     socket.onerror = function(error) {
         log(`WebSocket error (${judgeId}): ${error}`, "error");
     };
 
-    // webSocket event: onclose
+    // handle close (the ReconnectingWebSocket will attempt reconnect automatically)
     socket.onclose = function(event) {
         log(`WebSocket closed (${judgeId}): ${event.code} - ${event.reason}`, "info");
         if (healthEl) {
@@ -150,27 +135,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // utility function to send JSON messages over the socket
+    // function to update occupancy
+    function updateOccupancyUI(data) {
+        const leftUserEl   = document.getElementById("leftUser");
+        const centerUserEl = document.getElementById("centerUser");
+        const rightUserEl  = document.getElementById("rightUser");
+        if (leftUserEl)   leftUserEl.innerText   = data.leftUser   || "Vacant";
+        if (centerUserEl) centerUserEl.innerText = data.centerUser || "Vacant";
+        if (rightUserEl)  rightUserEl.innerText  = data.rightUser  || "Vacant";
+    }
+
+    // convenience function for sending JSON messages
     function sendMessage(obj) {
         if (socket.readyState === WebSocket.OPEN) {
-            const messageString = JSON.stringify(obj)
-            socket.send(messageString);
-            log(`Sent message: ${messageString}`, "info");
+            const msgStr = JSON.stringify(obj);
+            socket.send(msgStr);
+            log(`Sent message: ${msgStr}`, "info");
         } else {
             log(`Cannot send message; socket not open (readyState = ${socket.readyState})`, "warn");
         }
     }
 
-    // buttons
+    // optionally attach logic for the center referee's "Platform Ready"
+    if (judgeId === "center" && platformReadyButton) {
+        platformReadyButton.addEventListener("click", () => {
+            log("'Platform Ready' button clicked; sending startTimer", "debug");
+            if (socket.readyState === WebSocket.OPEN) {
+                sendMessage({ action: "startTimer", meetName: meetName });
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.remove("hidden");
+                }
+            } else {
+                log("❌ WebSocket is not ready. Cannot send startTimer action.", "error");
+            }
+        });
+    }
+
+    // handle White/Red button clicks
     if (whiteButton) {
         whiteButton.addEventListener('click', function() {
-            // CHANGE: we add a short guard log plus the actual send:
             sendMessage({
                 action: "submitDecision",
                 meetName: meetName,
                 judgeId: judgeId,
                 decision: "white"
-            })
+            });
             log(`[RefereeCommon] Judge '${judgeId}' clicked GOOD LIFT (white).`, "info");
         });
     }
@@ -185,24 +194,14 @@ document.addEventListener('DOMContentLoaded', function() {
             log(`[RefereeCommon] Judge '${judgeId}' clicked NO LIFT (red).`, "info");
         });
     }
+
+    // if you have a "startTimerButton" for something else
     if (startTimerButton) {
         startTimerButton.addEventListener('click', function() {
             // send multiple messages: reset lights, reset timer, start timer
-            sendMessage({
-                action: "resetLights",
-                meetName: meetName,
-                judgeId: judgeId,
-            });
-            sendMessage({
-                action: "resetTimer",
-                meetName: meetName,
-                judgeId: judgeId,
-            });
-            sendMessage({
-                action: "startTimer",
-                meetName: meetName,
-                judgeId: judgeId,
-            });
+            sendMessage({ action: "resetLights", meetName, judgeId });
+            sendMessage({ action: "resetTimer", meetName, judgeId });
+            sendMessage({ action: "startTimer", meetName, judgeId });
         });
     }
 });

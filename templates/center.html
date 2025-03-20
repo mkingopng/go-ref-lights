@@ -8,41 +8,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
-
 <body>
-
-  {{template "header.html" .}}
+{{template "header.html" .}}
 
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
-
 <p id="visibleMeetName">{{ .meetName }}</p>
 
-<div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
+<div class="home-icon">
+  <a href="/"><i class="fa fa-arrow-left"></i></a>
+</div>
 
 <h1 class="title">Center Referee</h1>
 
-<!--ref position health status-->
+<!--referee health status-->
 <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
-<!--connection status-->
+<!--connection status area, if needed-->
 <div id="connectionStatus" class="connection-status"></div>
 
-<!--referee decision button container-->
+<!--referee decision buttons-->
 <div class="button-container">
   <button id="whiteButton" class="action-button white">Good Lift</button>
   <button id="redButton" class="action-button red">No Lift</button>
   <button id="platformReadyButton" class="action-button">Platform Ready</button>
+
   <form action="/position/vacate" method="POST" class="action-button">
     <button type="submit" class="action-button vacate-button">Vacate Position</button>
   </form>
 </div>
 
-<script>
-  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
-  let judgeId = "center";
-</script>
-
-<script src="/static/js/referee-common.js"></script>
-
+<!-- We define judgeId so the JavaScript knows "center" -->
+  <script>
+    let judgeId = "center";
+  </script>
+  <!-- 1) Load ReconnectingWebSocket first -->
+  <script src="/static/js/reconnecting-websocket.min.js"></script>
+  <!-- 2) Then load the main referee script -->
+  <script src="/static/js/referee-common.js"></script>
 </body>
 </html>

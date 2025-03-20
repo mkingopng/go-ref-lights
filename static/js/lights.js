@@ -51,7 +51,8 @@ window.addEventListener("DOMContentLoaded", function () {
         let elem = document.getElementById("meetName");
         let meetName = elem ? elem.dataset.meetName : null;
         if (!meetName) {
-            meetName = sessionStorage.getItem("meetName") || new URLSearchParams(window.location.search).get("meetName");
+            meetName = sessionStorage.getItem("meetName")
+                || new URLSearchParams(window.location.search).get("meetName");
         }
         if (meetName) {
             sessionStorage.setItem("meetName", meetName);
@@ -94,7 +95,7 @@ window.addEventListener("DOMContentLoaded", function () {
                 container.insertBefore(newRow, container.firstChild);
                 timersMap[timer.ID] = newRow;
             }
-            // Update the timer element's text without the index number
+            // Update the timer element's text
             timersMap[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
             container.classList.remove("hidden");
         }
@@ -113,7 +114,7 @@ window.addEventListener("DOMContentLoaded", function () {
                         updatePlatformReadyTimer(timer);
                     }
                 } else {
-                    // For other timer IDs, update the next attempt timer normally
+                    // For other timer IDs, update next attempt timer normally
                     updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
                 }
             });
@@ -121,24 +122,31 @@ window.addEventListener("DOMContentLoaded", function () {
     }
 
     // constants
-    const meetName = getMeetName();  // use the verified meet name for later actions
+    const meetName = getMeetName();
     if (!meetName) return;
     const judgeId = "lights";
 
-    // initialise the global WebSocket object
+    // Build your WebSocket URL
     const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
     const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
-    socket = new WebSocket(wsUrl);
 
-    // grab common DOM elements
+    // -------------------------------------------------------------
+    // NEW: Use ReconnectingWebSocket instead of native WebSocket
+    // -------------------------------------------------------------
+    socket = new ReconnectingWebSocket(wsUrl, null, {
+        reconnectInterval: 2000,   // 2 seconds
+        maxReconnectAttempts: null // infinite
+    });
+
+    // Grab common DOM elements
     const timerDisplay = document.getElementById('timer');
     const healthEl = document.getElementById("healthStatus");
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
+    const statusEl = document.getElementById("connectionStatus");
 
-    // set up WebSocket event handlers
+    // socket onopen
     socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).", "info");
-        const statusEl = document.getElementById("connectionStatus");
         if (statusEl) {
             statusEl.innerText = "Connected";
             statusEl.style.color = "green";
@@ -152,21 +160,21 @@ window.addEventListener("DOMContentLoaded", function () {
         log(`Sent registerRef for lights with meetName=${meetName}`, "info");
     };
 
+    // socket onclose
     socket.onclose = function (event) {
         log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
-        const statusEl = document.getElementById("connectionStatus");
         if (statusEl) {
             statusEl.innerText = "Disconnected";
             statusEl.style.color = "red";
         }
     };
 
+    // socket.onerror
     socket.onerror = function (error) {
         log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
-    log("DOM fully loaded and parsed");
-
+    // socket.onmessage
     socket.onmessage = function (event) {
         let data;
         try {
@@ -178,28 +186,28 @@ window.addEventListener("DOMContentLoaded", function () {
         }
 
         switch (data.action) {
-            case "refereeHealth":
+            case "refereeHealth": {
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
                     healthEl.style.color = isConnected ? "green" : "red";
                 }
                 break;
-
+            }
             case "healthError":
                 alert(data.message);
                 break;
 
             case "startTimer":
                 log("🔵 Received startTimer from server, starting Platform Ready Timer countdown");
-
                 resultsDisplayed = false;
 
                 if (platformReadyInterval) {
                     clearInterval(platformReadyInterval);
                     platformReadyInterval = null;
-                    }
+                }
 
+                // Clear any leftover nextAttemptTimers
                 Object.keys(nextAttemptTimers).forEach((id => {
                     if (multiNextAttemptTimers && nextAttemptTimers[id]) {
                         multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
@@ -219,9 +227,6 @@ window.addEventListener("DOMContentLoaded", function () {
 
             case "updatePlatformReadyTime":
                 log(`⌛ Handling updatePlatformReadyTime: ${data.timeLeft}s left`, "debug");
-
-                // If you want to share logic with the "startTimer" local countdown,
-                // you can either replicate the code or unify them. For a quick fix:
                 if (data.timeLeft <= 0) {
                     // Hide the timer since it's expired
                     if (platformReadyTimerContainer) {
@@ -262,20 +267,13 @@ window.addEventListener("DOMContentLoaded", function () {
                 centerCircle.style.backgroundColor = (data.centerDecision === "white") ? "white" : "red";
                 rightCircle.style.backgroundColor  = (data.rightDecision  === "white") ? "white" : "red";
 
-                // Determine the message to display
                 let whiteCount = 0;
                 let redCount = 0;
-
                 [data.leftDecision, data.centerDecision, data.rightDecision].forEach(decision => {
-                    if (decision === "white") {
-                        whiteCount++;
-                    } else {
-                        redCount++;
-                    }
+                    if (decision === "white") { whiteCount++; } else { redCount++; }
                 });
 
                 const messageEl = document.getElementById("message");
-
                 if (whiteCount >= 2) {
                     messageEl.innerText = "Good Lift";
                     messageEl.style.color = "green";
@@ -283,16 +281,14 @@ window.addEventListener("DOMContentLoaded", function () {
                     messageEl.innerText = "No Lift";
                     messageEl.style.color = "red";
                 }
-
                 messageEl.classList.add("flash");
 
-                // Clear message after 15 seconds
+                // Clear after 15 seconds
                 setTimeout(() => {
                     messageEl.innerText = "";
                     messageEl.classList.remove("flash");
                 }, 15000);
 
-                // Mark that the results have been displayed so that next attempt timers are handled separately
                 resultsDisplayed = true;
                 break;
 
@@ -312,9 +308,11 @@ window.addEventListener("DOMContentLoaded", function () {
                 centerIndicator.style.backgroundColor = "grey";
                 rightIndicator.style.backgroundColor  = "grey";
 
-                // Clear message
-                messageEl.innerText = "";
-                messageEl.classList.remove("flash");
+                const msgEl = document.getElementById("message");
+                if (msgEl) {
+                    msgEl.innerText = "";
+                    msgEl.classList.remove("flash");
+                }
                 resultsDisplayed = false;
                 break;
 

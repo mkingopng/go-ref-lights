@@ -70,12 +70,12 @@ func (h *HeartbeatManager) CleanupInactiveSessions(timeout time.Duration) {
 
 // CleanupRoutine removes referees that have been inactive
 func CleanupRoutine() {
-	ticker := time.NewTicker(10 * time.Second) // Adjust interval as needed
+	ticker := time.NewTicker(10 * time.Second) // adjust interval as needed
 	for range ticker.C {
 		sessionLock.Lock()
 		for id, lastSeen := range refereeSessions {
-			if time.Since(lastSeen) > 30*time.Second { // Configurable timeout
-				delete(refereeSessions, id) // Remove inactive session
+			if time.Since(lastSeen) > 1800*time.Second { // configurable timeout, 30 minutes
+				delete(refereeSessions, id) // remove inactive session
 			}
 		}
 		sessionLock.Unlock()
