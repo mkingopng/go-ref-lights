@@ -129,7 +129,7 @@ func SetupRouter(env string) *gin.Engine {
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   true, // use secure cookies
+		Secure:   true,
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
@@ -140,7 +140,7 @@ func SetupRouter(env string) *gin.Engine {
 	})
 
 	// -----------------------------------------------------------------------
-	// NEW: disable caching for all responses
+	// disable caching for all responses
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")
@@ -178,10 +178,13 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
+	// ------------------------------
+	// Initialize your service layer
 	occupancyService := services.NewOccupancyService()
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 	pc := controllers.NewPositionController(occupancyService)
+	// ------------------------------
 
 	// public routes
 	router.GET("/", controllers.ShowMeets)
@@ -195,7 +198,7 @@ func SetupRouter(env string) *gin.Engine {
 	})
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// ensure "meetName" is set
+	// ensure "meetName" is set (except for a few routes)
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
 			return
@@ -231,12 +234,14 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/right", controllers.Right)
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
 		protected.POST("/position/vacate", pc.VacatePosition)
-		protected.GET("/home", func(c *gin.Context) {
-			controllers.Home(c, occupancyService)
-		})
-		protected.POST("/home", func(c *gin.Context) {
-			controllers.Home(c, occupancyService)
-		})
+
+		//protected.GET("/home", func(c *gin.Context) {
+		//	controllers.Home(c, occupancyService)
+		//})
+		//protected.POST("/home", func(c *gin.Context) {
+		//	controllers.Home(c, occupancyService)
+		//})
+
 		protected.POST("/logout", func(c *gin.Context) {
 			controllers.Logout(c, occupancyService)
 		})
