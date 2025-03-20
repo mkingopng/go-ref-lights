@@ -484,3 +484,78 @@ class RefereeLightsCdkStack(Stack):
             description="The DNS address of the load balancer"
         )
 ```
+
+# some simple real tests
+
+Below is a concise list of scenarios you can methodically run through in the remaining time, covering each major flow. If all (or most) of these work as expected, you’ll be in a good place for your presentation.
+
+1. Single-User (Referee) Flows
+
+   Login & Seat Claim
+   Log in as a referee for “Meet A.”
+   From the “Positions” page, choose a seat (e.g., Center).
+   Verify you see “Connected.”
+
+   Refresh & Re-Claim
+   Hit Refresh in the browser (or close and reopen the tab if feasible).
+   Confirm you are still recognized as occupant of that seat (no “Seat Taken” message).
+
+   Vacate from the Referee Screen
+   Click the “Vacate Position” button.
+   Confirm you are redirected to /index (not a 404), and the seat is freed.
+   (Optional) Re-claim the seat to verify it works.
+
+   Logout from the Referee Screen
+   Click the “Logout” button.
+   Confirm you’re redirected to /index (or /login, depending on your choice) and the seat is freed.
+
+   Phone Sleep / App Switch
+   On your phone, open another app or let the phone sleep ~15 seconds.
+   Come back to the browser, confirm you are still recognized (or reloaded) in that seat.
+   If the connection was dropped, try refreshing. You should reclaim your seat.
+
+2. Admin (Meet Director) Flows
+
+   **Admin Panel**
+   Log in as an Admin, open /admin?meet=YourMeetName.
+   Verify that you see occupancy states for left, center, right (including your phone’s occupant, if claimed).
+
+   **Force Vacate**
+   With your phone in a seat, click “Force Vacate” in the Admin panel.
+   Verify the phone sees it was disconnected (or occupant is forcibly removed), and the seat is free in the Admin panel.
+
+   **Reset Instance**
+   “Reset Instance” from the Admin panel to clear everything.
+   Confirm the seats become vacant and the phone occupant is kicked out.
+
+   **Switch from Admin to Phone**
+   If you have two devices, remain Admin on one, and phone as referee on the other, watch occupancy updates in real time.
+
+3. Multiple-User Collision
+   User A claims “Center.”
+   User B logs in to the same meet and tries to claim “Center.”
+   Expected result: “Seat is already taken” for B.
+   User A refreshes, confirm they keep “Center.”
+   User B tries a different seat, or wait for Admin to “Force Vacate” A’s seat, then claim “Center.”
+
+4. QR Code Flow (If relevant)
+   Generate a QR Code from the admin or the UI (center, left, right).
+   Scan with your phone.
+   If you have the route that automatically assigns “AnonymousReferee,” test that as well.
+   Confirm it joins the seat, and you see healthy connectivity.
+   Phone Sleep again, re-check connectivity upon returning.
+
+5. Verify Logs
+   CloudWatch Logs: watch the container logs to ensure no big errors appear.
+   Confirm you see the typical “SetPosition” or “VacatePosition” messages.
+   If something 404s, you’ll notice it in the logs.
+
+## Additional Tips
+- Use More Than One Browser/Device if possible. Having your phone and one
+  desktop browser helps you see real concurrency.
+- Test Each Flow Once in normal usage, then break it (like phone sleeps).
+  This ensures you’ve tried each path from start to finish.
+- Keep your Admin session open in a separate tab to see real-time occupant
+  changes as you test from the phone.
+
+Good luck—checking these flows thoroughly should leave you in a strong position for your presentation.
