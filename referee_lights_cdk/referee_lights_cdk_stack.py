@@ -154,13 +154,14 @@ class RefereeLightsCdkStack(Stack):
                 "HOST": "0.0.0.0",
                 "PORT": "8080"
             },
-            health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
-                interval=Duration.seconds(30),
-                timeout=Duration.seconds(10),
-                retries=3,
-                start_period=Duration.seconds(120)
-            )
+            health_check=None,
+            # ecs.HealthCheck(
+            #     command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
+            #     interval=Duration.seconds(30),
+            #     timeout=Duration.seconds(10),
+            #     retries=3,
+            #     start_period=Duration.seconds(120)
+            # )
         )
 
         container.add_port_mappings(

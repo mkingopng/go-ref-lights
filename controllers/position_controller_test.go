@@ -23,6 +23,7 @@ import (
 )
 
 var mockOccupancyService = new(services.MockOccupancyService)
+
 var positionController = NewPositionController(mockOccupancyService)
 
 // setup router for PositionController tests
@@ -66,8 +67,10 @@ func TestClaimPosition_Success(t *testing.T) {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		w := httptest.NewRecorder()
 
-		mockOccupancyService.On("SetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
-		mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{LeftUser: "testuser"}).Once()
+		mockOccupancyService.
+			On("SetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
+		mockOccupancyService.On("GetOccupancy", "TestMeet").
+			Return(services.Occupancy{LeftUser: "testuser"}).Once()
 
 		c, _ := gin.CreateTestContext(w)
 		c.Request = req
@@ -80,14 +83,11 @@ func TestClaimPosition_Success(t *testing.T) {
 		_ = session.Save()
 
 		router.ServeHTTP(w, req)
-
 		time.Sleep(200 * time.Millisecond)
-
 		fmt.Println("Assertions after ClaimPosition execution")
 
 		assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
 		assert.Equal(t, "/left", w.Header().Get("Location"))
-
 		time.Sleep(200 * time.Millisecond)
 
 		mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
@@ -120,23 +120,19 @@ func TestVacatePosition_Success(t *testing.T) {
 	_ = session.Save()
 
 	fmt.Println("Session refPosition (before request):", session.Get("refPosition"))
-
 	router.ServeHTTP(w, req)
 
 	time.Sleep(200 * time.Millisecond)
-
 	fmt.Println("Assertions after VacatePosition execution")
-
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
 	assert.Equal(t, "/index", w.Header().Get("Location"))
-
 	time.Sleep(150 * time.Millisecond)
 
 	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet") // Checks at least one call
 	mockOccupancyService.AssertExpectations(t)
 }
 
-// Test GetOccupancyAPI
+// Test GetOccupancyAPI (Successful GetOccupancy)
 func TestGetOccupancyAPI_Success(t *testing.T) {
 	websocket.InitTest()
 	mockOccupancyService = new(services.MockOccupancyService)
@@ -162,7 +158,6 @@ func TestGetOccupancyAPI_Success(t *testing.T) {
 	_ = session.Save()
 
 	router.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	var response map[string]string
@@ -172,6 +167,5 @@ func TestGetOccupancyAPI_Success(t *testing.T) {
 	assert.Contains(t, response, "rightUser")
 
 	time.Sleep(150 * time.Millisecond)
-
 	mockOccupancyService.AssertExpectations(t)
 }

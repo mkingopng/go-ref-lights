@@ -73,19 +73,21 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		if err != nil {
 			logger.Error.Printf("Logout: error vacating position: %v", err)
 		} else {
-			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'",
+				position, userEmail, meetName)
 		}
+
+		activeUsersMu.Lock()
 		delete(activeUsers, userEmail)
+		activeUsersMu.Unlock()
+
 		logger.Info.Printf("Logout: User %s removed from active users list", userEmail)
 	} else {
 		logger.Warn.Println("Logout: Missing user, refPosition, or meetName from session.")
 	}
+
 	session.Clear()
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("Logout: Error saving session: %v", err)
-	} else {
-		logger.Info.Println("Logout: Session cleared successfully")
-	}
+	logger.Info.Println("Logout: Session cleared (will be saved by middleware at end of request)")
 	c.Redirect(http.StatusFound, "/set-meet")
 }
 
@@ -246,7 +248,7 @@ func Lights(c *gin.Context) {
 }
 
 // RefereeHandler renders the referee view based on the position parameter.
-func RefereeHandler(c *gin.Context, occupancyService *services.OccupancyService) {
+func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	meetName := c.Param("meetName")
 	position := c.Param("position")
 

@@ -14,14 +14,12 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"go-ref-lights/websocket"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // setupTestRouter creates a new Gin engine with session middleware and fake HTML templates.
 // It also initialises the websocket package for tests.
 func setupTestRouter(t *testing.T) *gin.Engine {
-	websocket.InitTest()
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
@@ -37,7 +35,6 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 
 	// Use filepath.Join for cross-platform compatibility.
 	router.LoadHTMLGlob(filepath.Join(tmpDir, "*.html"))
-
 	return router
 }
 
@@ -48,6 +45,9 @@ func createDummyTemplates(dir string) error {
 		"login.html":       `<html><body>{{.}}</body></html>`,
 		"positions.html":   `<html><body>{{.}}</body></html>`,
 		"index.html":       `<html><body>{{.}}</body></html>`,
+		"left.html":        `<html><body>Left ref view for {{.meetName}}</body></html>`,
+		"center.html":      `<html><body>Center ref view for {{.meetName}}</body></html>`,
+		"right.html":       `<html><body>Right ref view for {{.meetName}}</body></html>`,
 	}
 
 	for name, content := range templates {
