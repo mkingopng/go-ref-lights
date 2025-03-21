@@ -1,0 +1,22 @@
+<!--templates/select_meet.html-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Select Meet</title>
+  <link rel="stylesheet" href="/static/css/styles.css"/>
+</head>
+<body>
+<h1>Select Which Meet You are Officiating</h1>
+
+<form action="/select-meet" method="POST">
+  <label for="meetNameSelect">Upcoming Meets</label>
+  <select id="meetNameSelect" name="meetName">
+    {{range .Meets}}
+    <option value="{{.MeetName}}">{{.Date}} - {{.MeetName}}</option>
+    {{end}}
+  </select>
+  <button type="submit">Continue</button>
+</form>
+
+</body>
+</html>
