@@ -1,4 +1,4 @@
-// Package logger provides centralised logging functionality for the application.
+// Package logger provides centralized logging for the application.
 // File: logger/logger.go
 package logger
 
@@ -12,40 +12,38 @@ import (
 
 // ------------------- global loggers -------------------
 
-// Predefined loggers accessible throughout the application.
+// four logger levels accessible throughout the application
 var (
-	Info  *log.Logger // Logs informational messages
-	Warn  *log.Logger // Logs warnings
-	Error *log.Logger // Logs errors
-	Debug *log.Logger // Logs debug messages
+	Info  *log.Logger
+	Warn  *log.Logger
+	Error *log.Logger
+	Debug *log.Logger
 )
 
-// ------------------- logger initialisation -------------------
+// ------------------- logger initialization -------------------
 
-// InitLogger initializes the logging system and creates a log file.
-// It ensures that:
-// - A `logs/` directory exists.
-// - Log messages are written both to a file and stdout.
-// - Log files are named using the timestamp format `YYYY-MM-DD_HH-MM-SS.log`.
-// - Each logger (Info, Warn, Error, Debug) is configured with a standardised format.
-// Returns an error if the log directory or file cannot be created.
+// InitLogger creates or reinitializes the logging system. It:
+// - Ensures `./logs` exists.
+// - Creates a timestamped log file in `logs/`.
+// - Writes logs to both the file and stdout by default.
+// - Configures separate loggers (Info, Warn, Error, Debug) with consistent prefixes & flags.
 func InitLogger() error {
-	// ensure the logs directory exists
+	// ensure logs directory exists
 	if err := os.MkdirAll("./logs", 0700); err != nil {
 		return err
 	}
 
-	// generate a timestamped log file name
+	// create a timestamped log file
 	logFileName := filepath.Join("logs", time.Now().Format("2006-01-02_15-04-05")+".log")
-	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600) // #nosec G304
+	file, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600) // #nosec
 	if err != nil {
 		return err
 	}
 
-	// log output will be written to both stdout and the log file
+	// write logs to both stdout and the file
 	multiWriter := io.MultiWriter(os.Stdout, file)
 
-	// initialise loggers with appropriate prefixes
+	// configure each logger
 	Info = log.New(multiWriter, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Warn = log.New(multiWriter, "WARN: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Error = log.New(multiWriter, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -53,14 +51,24 @@ func InitLogger() error {
 	return nil
 }
 
-// ------------------------- automatic logger setup -------------------------
+// SetLogLevel adjusts the Debug logger’s output depending on environment.
+// For example, in production you might want to disable Debug logs
+// by discarding them entirely. In staging or development, you keep them.
+func SetLogLevel(env string) {
+	if env == "production" {
+		// Discard all debug output in production:
+		Debug.SetOutput(io.Discard)
+	} else {
+		// by default, keep debug logs on:
+		// (No-op here, because it’s already set to multiWriter in InitLogger.)
+	}
+}
 
-// init ensures that the logger is initialised when the package is imported.
-// if logger initialisation fails, the application will log a fatal error
-// using the standard `log` package (since our custom loggers won't be available).
+// init is called automatically at package load time. It attempts to initialize
+// the logger. If initialization fails, we log a fatal error via the standard
+// library logger (because our custom ones wouldn’t be ready).
 func init() {
 	if err := InitLogger(); err != nil {
-		// use the standard logger here since our custom one isn't set up.
 		log.Fatalf("Failed to initialise custom logger: %v", err)
 	}
 }

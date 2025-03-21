@@ -68,7 +68,24 @@ go's race detector:
 go test -race ./...
 ```
 
----
+----------------------------------------
+
+load testing & save logs to JSON
+```bash
+k6 run --out json=test/k6/results.json tests/k6/script.js
+```
+
+---------------------------------------
+
+# Next Step – AWS:
+- Spin up an EC2 instance (or run in a Docker container on AWS).
+- Install K6 on that instance or container.
+- Copy over (or fetch) the script.
+- Run the same command.
+- logging to cloudwatch
+
+---------------------------------------
+
 # Best Practices for Maintaining Unit Tests**
 Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
