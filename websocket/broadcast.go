@@ -35,7 +35,8 @@ func HandleMessages() {
 			}
 		}
 
-		// iterate over all active WebSocket connections
+		// Acquire the read lock before iterating the `connections` map
+		connectionsMu.RLock()
 		for c := range connections {
 			// if a meet filter is set, only send to matching connections
 			if meetFilter != "" && c.meetName != meetFilter {
@@ -47,6 +48,8 @@ func HandleMessages() {
 				logger.Warn.Printf("Dropping broadcast message for connection %v", c.conn.RemoteAddr())
 			}
 		}
+		// Release the read lock
+		connectionsMu.RUnlock()
 	}
 }
 

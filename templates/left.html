@@ -1,7 +1,6 @@
 <!-- templates/left.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
@@ -10,35 +9,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
-
 <body>
-
   {{template "header.html" .}}
 
-<div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
-<p id="visibleMeetName">{{ .meetName }}</p>
-<div class="home-icon"><a href="/"><i class="fa fa-arrow-left"></i></a></div>
-<h1 class="title">Left Referee</h1>
+  <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
+  <p id="visibleMeetName">{{ .meetName }}</p>
 
-<!--referee position health status-->
-<div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
+  <div class="home-icon">
+    <a href="/"><i class="fa fa-arrow-left"></i></a>
+  </div>
 
-<!--referee decision button container-->
-<div class="button-container">
-  <button id="whiteButton" class="action-button white">Good Lift</button>
-  <button id="redButton" class="action-button red">No Lift</button>
-  <form action="/position/vacate" method="POST">
-    <button type="submit" class="action-button">Vacate Position</button>
-  </form>
-</div>
+  <h1 class="title">Left Referee</h1>
 
-<!-- 1) Define judgeId before we load referee-common.js! -->
-<script>
-  let websocketUrl = "{{ .WebsocketURL }}?meetName={{ .meetName }}";
-  let judgeId = "left"
-</script>
+  <!--referee position health status-->
+  <div id="healthStatus" style="margin-top:10px; font-size:18px;">Disconnected</div>
 
-<script src="/static/js/referee-common.js"></script>
+  <!--referee decision button container-->
+  <div class="button-container">
+    <button id="whiteButton" class="action-button white">Good Lift</button>
+    <button id="redButton" class="action-button red">No Lift</button>
+    <form action="/position/vacate" method="POST">
+      <button type="submit" class="action-button">Vacate Position</button>
+    </form>
+  </div>
 
+  <script>
+    let judgeId = "left";
+  </script>
+  <script src="/static/js/reconnecting-websocket.min.js"></script>
+  <script src="/static/js/referee-common.js"></script>
 </body>
 </html>

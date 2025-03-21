@@ -51,17 +51,18 @@ func TestLoginHandler_Success(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Set mock meet credentials
 	originalFunc := loadMeetCredsFunc
+
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
-	defer func() { loadMeetCredsFunc = originalFunc }()
+	defer func() {
+		loadMeetCredsFunc = originalFunc
+	}()
 
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
-
 	assert.NotNil(t, sessionCookie, "Session cookie should not be nil")
 
 	reqBody := "username=adminuser&password=securepassword"
@@ -71,7 +72,6 @@ func TestLoginHandler_Success(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
-
 	assert.Equal(t, http.StatusFound, w.Code, "Successful login should redirect")
 	assert.Equal(t, "/index", w.Header().Get("Location"), "Redirect URL should be /index")
 }
@@ -80,12 +80,14 @@ func TestLoginHandler_Success(t *testing.T) {
 func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
-
-	// Set mock meet credentials
+	originalFunc := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
 
+	defer func() {
+		loadMeetCredsFunc = originalFunc
+	}()
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
@@ -99,7 +101,12 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Invalid login should return 401")
-	assert.Contains(t, w.Body.String(), "Invalid username or password", "Response should indicate incorrect credentials")
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"Invalid username or password",
+		"Response should indicate incorrect credentials",
+	)
 }
 
 // TestLoginHandler_UserAlreadyLoggedIn ensures that duplicate logins are prevented.
@@ -107,14 +114,15 @@ func TestLoginHandler_UserAlreadyLoggedIn(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Set mock meet credentials
+	originalFunc := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
-
-	// Mark user as already logged in
+	defer func() {
+		loadMeetCredsFunc = originalFunc
+	}()
 	activeUsers["adminuser"] = true
-	defer delete(activeUsers, "adminuser") // Clean up after test
+	defer delete(activeUsers, "adminuser")
 
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
@@ -129,7 +137,12 @@ func TestLoginHandler_UserAlreadyLoggedIn(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Duplicate login should return 401")
-	assert.Contains(t, w.Body.String(), "This username is already logged in on another device", "Should prevent duplicate logins")
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"This username is already logged in on another device",
+		"Should prevent duplicate logins if user is already active",
+	)
 }
 
 // TestLoginHandler_MissingFields checks that missing username/password fields return errors.
@@ -137,23 +150,21 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// For missing username:
 	reqBody := "password=securepassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Expect a redirect (302) because the production code redirects when meetName is missing.
 	assert.Equal(t, http.StatusFound, w.Code, "Missing fields should redirect")
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 
-	// For missing password:
 	reqBody = "username=adminuser"
 	req, _ = http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
+
 	assert.Equal(t, http.StatusFound, w.Code, "Missing fields should redirect")
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 }
@@ -162,20 +173,21 @@ func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Set mock meet credentials
+	originalFunc := loadMeetCredsFunc
+
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
-	defer func() { loadMeetCredsFunc = nil }()
+	defer func() { loadMeetCredsFunc = originalFunc }()
 
-	// Don't set a session meetName—simulate a request with no meet selected.
 	reqBody := "username=adminuser&password=securepassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Expect a redirect to /choose-meet.
+	// expect a redirect to /choose-meet.
 	assert.Equal(t, http.StatusFound, w.Code, "Login without meet selection should redirect")
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
 }
