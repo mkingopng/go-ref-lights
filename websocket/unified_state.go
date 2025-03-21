@@ -34,6 +34,7 @@ type NextAttemptTimer struct {
 	ID       int  // Unique ID for the timer.
 	TimeLeft int  // Time remaining in seconds.
 	Active   bool // Is the timer active?
+	EndTime  time.Time
 }
 
 // Global map and mutex to store MeetState instances.
