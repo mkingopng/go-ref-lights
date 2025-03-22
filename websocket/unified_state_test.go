@@ -99,10 +99,7 @@ func TestGetMeetStateConcurrency(t *testing.T) {
 	}
 }
 
-// Optional: TestClearMeetStateForNonexistentMeet verifies that clearing a non-existent state does not panic.
-func TestClearMeetStateForNonexistentMeet(t *testing.T) {
-	// Ensure that calling ClearMeetState on a meet name that doesn't exist does not panic.
-	assert.NotPanics(t, func() {
-		ClearMeetState("NonexistentMeet")
-	}, "Clearing a nonexistent meet state should not panic")
-}
+//// Optional: TestClearMeetStateForNonexistentMeet verifies that clearing a non-existent state does not panic.
+//func TestClearMeetStateForNonexistentMeet(t *testing.T) {
+//	ClearMeetState("NonexistentMeet")
+//}

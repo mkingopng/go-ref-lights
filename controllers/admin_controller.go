@@ -119,7 +119,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	}
 
 	// remove user from the active list
-	delete(activeUsers, occupant)
+	delete(ActiveUsers, occupant)
 
 	// update occupancy state
 	if err := ac.OccupancyService.UnsetPosition(meetName, position, occupant); err != nil {
@@ -165,7 +165,7 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 	logger.Info.Printf("[ResetInstance] Resetting meet '%s'", meetName)
 
 	// clear active users
-	activeUsers = make(map[string]bool)
+	ActiveUsers = make(map[string]bool)
 
 	// reset occupancy
 	ac.OccupancyService.ResetOccupancyForMeet(meetName)
@@ -200,13 +200,13 @@ func (ac *AdminController) ForceLogout(c *gin.Context) {
 	}
 
 	// check if user is logged in
-	if _, exists := activeUsers[username]; !exists {
+	if _, exists := ActiveUsers[username]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
 	// remove user from the active list
-	delete(activeUsers, username)
+	delete(ActiveUsers, username)
 
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }

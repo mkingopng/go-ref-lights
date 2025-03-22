@@ -1,6 +1,5 @@
 // Package controllers handles user authentication and session management.
 // File: controllers/loginHandler.go
-
 package controllers
 
 import (
@@ -45,8 +44,24 @@ func PerformLogin(c *gin.Context) {
 	}
 
 	// finally, render the login form
+	meetName := session.Get("meetName")
+	logo := "" // default empty
+
+	// Try to load logo from meet config
+	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
+		if creds, err := loadMeetCredsFunc(); err == nil {
+			for _, meet := range creds.Meets {
+				if meet.Name == meetNameStr {
+					logo = meet.Logo
+					break
+				}
+			}
+		}
+	}
+
 	c.HTML(http.StatusOK, "login.html", gin.H{
-		"MeetName": session.Get("meetName"),
+		"MeetName": meetName,
+		"Logo":     logo,
 	})
 }
 
@@ -84,6 +99,7 @@ func LoginHandler(c *gin.Context) {
 
 	// load meet credentials
 	creds, err := loadMeetCredsFunc()
+
 	if err != nil {
 		logger.Error.Printf("[LoginHandler] Failed to load meet credentials: %v", err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
@@ -144,18 +160,19 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// prevent duplicate logins
-	activeUsersMu.Lock()
-	if activeUsers[username] {
+	ActiveUsersMu.Lock()
+	if ActiveUsers[username] {
 		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
-			"Error":    "This username is already logged in on another device.",
+			"Error":    "Invalid username or password.",
+			"Logo":     getLogoForMeet(meetName), // helper function
 		})
-		activeUsersMu.Unlock()
+		ActiveUsersMu.Unlock()
 		return
 	}
-	activeUsers[username] = true
-	activeUsersMu.Unlock()
+	ActiveUsers[username] = true
+	ActiveUsersMu.Unlock()
 
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
@@ -203,4 +220,18 @@ func LoginHandler(c *gin.Context) {
 
 	// ------------------ default redirect on success ------------------
 	c.Redirect(http.StatusFound, "/index")
+}
+
+// Helper function to retrieve logo for meet
+func getLogoForMeet(meetName string) string {
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		return ""
+	}
+	for _, meet := range creds.Meets {
+		if meet.Name == meetName {
+			return meet.Logo
+		}
+	}
+	return ""
 }

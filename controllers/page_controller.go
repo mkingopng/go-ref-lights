@@ -1,6 +1,5 @@
 // Package controllers handles various page rendering and session management functions.
 // File: controllers/page_controller.go
-
 package controllers
 
 import (
@@ -77,7 +76,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
-// Logout logs the user out, removes them from activeUsers, vacates their
+// Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
@@ -100,9 +99,9 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 				position, userEmail, meetName)
 		}
 
-		activeUsersMu.Lock()
-		delete(activeUsers, userEmail)
-		activeUsersMu.Unlock()
+		ActiveUsersMu.Lock()
+		delete(ActiveUsers, userEmail)
+		ActiveUsersMu.Unlock()
 
 		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
 	} else {
@@ -116,6 +115,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 // -------------------- page rendering --------------------
 
+// Index renders the main dashboard page screen after logging in
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
