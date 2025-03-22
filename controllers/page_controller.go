@@ -157,7 +157,7 @@ func Index(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"meetName": meetName, // lower-case "m" for standardization
+		"meetName": meetName,
 		"IsSudo":   isSudo,
 		"Logo":     currentMeet.Logo,
 	}
@@ -270,15 +270,19 @@ func Right(c *gin.Context) {
 	meetName, ok := session.Get("meetName").(string)
 	refPosition := session.Get("refPosition")
 	logger.Debug.Printf("[Right handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
+
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
+
 	logger.Info.Println("[Right] Rendering right referee view")
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
 	}
+
 	c.HTML(http.StatusOK, "right.html", data)
 }
 
@@ -291,10 +295,34 @@ func Lights(c *gin.Context) {
 		return
 	}
 	logger.Info.Println("[Lights] Rendering lights page")
+
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		logger.Error.Printf("[Lights] Failed to load meet creds: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+		return
+	}
+
+	// find the current meet
+	var currentMeet *models.Meet
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			currentMeet = &m
+			break
+		}
+	}
+	if currentMeet == nil {
+		logger.Warn.Printf("[Lights] Meet not found: %s", meetName)
+		c.String(http.StatusNotFound, "Meet not found")
+		return
+	}
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
+		"Logo":         currentMeet.Logo,
 	}
+
 	c.HTML(http.StatusOK, "lights.html", data)
 }
 

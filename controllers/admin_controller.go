@@ -1,4 +1,4 @@
-// Package controllers provides HTTP handlers for various admin operations.
+// Package controllers provide HTTP handlers for various admin operations.
 // File: controllers/admin_controller.go
 package controllers
 
