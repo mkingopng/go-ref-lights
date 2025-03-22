@@ -14,6 +14,7 @@
 <div id="meetName" data-meet-name="{{ .meetName }}" style="display: none;"></div>
 <p id="visibleMeetName">{{ .meetName }}</p>
 
+<!-- If you don't need to navigate home, you can remove this entire "home-icon" block -->
 <div class="home-icon">
   <a href="/"><i class="fa fa-arrow-left"></i></a>
 </div>
@@ -32,16 +33,18 @@
   <button id="redButton" class="action-button red">No Lift</button>
   <button id="platformReadyButton" class="action-button">Platform Ready</button>
 
-  <form action="/position/vacate" method="POST" class="action-button">
+  <!-- Use a plain form for the POST request -->
+  <form action="/position/vacate" method="POST" class="vacate-form">
+    <!-- Apply your styling classes to the button -->
     <button type="submit" class="action-button vacate-button">Vacate Position</button>
   </form>
 </div>
 
 <!-- We define judgeId so the JavaScript knows "center" -->
-  <script>
-    let judgeId = "center";
-  </script>
-  <script src="/static/js/reconnecting-websocket.min.js"></script>
-  <script src="/static/js/referee-common.js"></script>
+<script>
+  let judgeId = "center";
+</script>
+<script src="/static/js/reconnecting-websocket.min.js"></script>
+<script src="/static/js/referee-common.js"></script>
 </body>
 </html>
