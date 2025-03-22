@@ -1,6 +1,5 @@
 // Package middleware provides request filters and security checks for the application.
 // File: middleware/auth.go
-
 package middleware
 
 import (

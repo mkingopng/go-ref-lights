@@ -4,7 +4,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt" // We'll keep fmt for handling errors in LoadMeetCreds, but remove printing
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -19,14 +19,33 @@ import (
 
 // ---------- global variables ----------
 
-// activeUsers tracks currently logged-in users.
-var activeUsers = make(map[string]bool)
-var activeUsersMu sync.RWMutex
+// ActiveUsers tracks currently logged-in users.
+var ActiveUsers = make(map[string]bool)
+var ActiveUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
 var loadMeetCredsFunc = LoadMeetCreds // Assign to a variable for easier testing
 
 // ----------------------- authentication utilities -----------------------
+
+// In auth_controller.go (or in a _test.go file in the same package)
+// Provide a helper so your test can lock/unlock or set users as needed:
+
+func lockActiveUsers() {
+	ActiveUsersMu.Lock()
+}
+
+func unlockActiveUsers() {
+	ActiveUsersMu.Unlock()
+}
+
+func setUserActive(username string) {
+	ActiveUsers[username] = true
+}
+
+func clearUserActive(username string) {
+	delete(ActiveUsers, username)
+}
 
 // ComparePasswords checks if the given password matches the hashed password
 func ComparePasswords(hashedPassword, plainPassword string) bool {
@@ -152,15 +171,15 @@ func ForceLogoutHandler(c *gin.Context) {
 	}
 
 	// Acquire the write lock for read-check + deletion
-	activeUsersMu.Lock()
-	defer activeUsersMu.Unlock()
+	ActiveUsersMu.Lock()
+	defer ActiveUsersMu.Unlock()
 
-	if _, exists := activeUsers[username]; !exists {
+	if _, exists := ActiveUsers[username]; !exists {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
-	delete(activeUsers, username)
+	delete(ActiveUsers, username)
 	logger.Info.Printf("Admin forcibly logged out user: %s", username)
 
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
@@ -182,11 +201,11 @@ func ActiveUsersHandler(c *gin.Context) {
 	var userList []string
 
 	// Acquire read lock for iteration
-	activeUsersMu.RLock()
-	for user := range activeUsers {
+	ActiveUsersMu.RLock()
+	for user := range ActiveUsers {
 		userList = append(userList, user)
 	}
-	activeUsersMu.RUnlock()
+	ActiveUsersMu.RUnlock()
 
 	c.JSON(http.StatusOK, gin.H{"users": userList})
 }

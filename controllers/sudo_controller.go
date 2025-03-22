@@ -79,10 +79,10 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 		return
 	}
 
-	// optionally remove occupant from activeUsers if you want:
-	activeUsersMu.Lock()
-	delete(activeUsers, occupant)
-	activeUsersMu.Unlock()
+	// optionally remove occupant from ActiveUsers if you want:
+	ActiveUsersMu.Lock()
+	delete(ActiveUsers, occupant)
+	ActiveUsersMu.Unlock()
 
 	// broadcast update
 	logger.Info.Printf("[ForceVacateRefForAnyMeet] Superuser forcibly removed %s from meet=%s pos=%s",
@@ -95,7 +95,7 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 
 // ForceLogoutMeetDirector forcibly logs out a meet director
 // In your app, the meet director is the user who did "admin" login for a meet.
-// So you can do a quick check in activeUsers, or you can define a more direct approach.
+// So you can do a quick check in ActiveUsers, or you can define a more direct approach.
 func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 	username := c.PostForm("username")
 	if username == "" {
@@ -103,16 +103,16 @@ func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 		return
 	}
 
-	// remove them from activeUsers, etc.
-	activeUsersMu.Lock()
-	if _, exists := activeUsers[username]; !exists {
-		activeUsersMu.Unlock()
+	// remove them from ActiveUsers, etc.
+	ActiveUsersMu.Lock()
+	if _, exists := ActiveUsers[username]; !exists {
+		ActiveUsersMu.Unlock()
 		c.String(http.StatusNotFound, "No such user is logged in")
 		return
 	}
 
-	delete(activeUsers, username)
-	activeUsersMu.Unlock()
+	delete(ActiveUsers, username)
+	ActiveUsersMu.Unlock()
 
 	logger.Info.Printf("[ForceLogoutMeetDirector] Superuser forcibly logged out user=%s", username)
 	c.Redirect(http.StatusFound, "/sudo")
@@ -132,12 +132,12 @@ func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
 	// 2) Reset occupancy
 	sc.OccupancyService.ResetOccupancyForMeet(meetName)
 
-	// 3) Optionally remove all users from activeUsers who are in that meet
+	// 3) Optionally remove all users from ActiveUsers who are in that meet
 	//    This is optional. If your logic needs to track which user belongs to which meet,
 	//    you might do that in a specialized structure. For a minimal approach:
 	//      (You might not actually track each user’s meet, so do what fits your design)
 	//
-	//    for userName := range activeUsers {
+	//    for userName := range ActiveUsers {
 	//      // if userName is a ref or admin of meetName => forcibly remove
 	//    }
 

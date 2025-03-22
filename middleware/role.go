@@ -1,6 +1,5 @@
 // Package middleware provides request filters and access control mechanisms for the application.
 // File: middleware/role.go
-
 package middleware
 
 import (
