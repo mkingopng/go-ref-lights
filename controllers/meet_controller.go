@@ -1,5 +1,6 @@
 // Package controllers handles meet selection and configuration management.
 // File: controllers/meet_controller.go
+
 package controllers
 
 import (
@@ -22,13 +23,12 @@ var loadMeetsFunc = LoadMeets
 // LoadMeets loads the meet configuration from `./config/meets.json`.
 // This function retrieves the available meets and their details from the JSON file.
 func LoadMeets() (*models.MeetCreds, error) {
-	// define the file path and read the data
+	// read the config file
 	data, err := os.ReadFile("./config/meets.json")
 	if err != nil {
 		return nil, err
 	}
 
-	// Unmarshal JSON data into the MeetCreds struct
 	var meets models.MeetCreds
 	if err := json.Unmarshal(data, &meets); err != nil {
 		return nil, err
@@ -41,18 +41,18 @@ func LoadMeets() (*models.MeetCreds, error) {
 // -------------- meet selection handling --------------
 
 // ShowMeets renders the meet selection page.
-// It fetches the list of available meets and passes it to the template.
+// It fetches the list of available meets and passes them to the template.
 // If loading fails, it returns an HTTP 500 response.
 func ShowMeets(c *gin.Context) {
-	// retrieve meet data using a mockable function for easier testing.
+	// retrieve meet data using a mockable function for easier testing
 	meetsData, err := loadMeetsFunc()
 	if err != nil {
-		logger.Error.Printf("ShowMeets: failed to load meets: %v", err)
+		logger.Error.Printf("[ShowMeets] Failed to load meets: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meets")
 		return
 	}
 
-	// render the meet selection page with available meets.
+	// render the meet selection page with available meets
 	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
 		"availableMeets": meetsData.Meets,
 	})

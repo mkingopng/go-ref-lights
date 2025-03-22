@@ -1,11 +1,13 @@
 // Package websocket handles real-time WebSocket communication between referees and the meet system.
 // file: websocket/broadcast.go
+
 package websocket
 
 import (
 	"encoding/json"
-	"go-ref-lights/logger"
 	"time"
+
+	"go-ref-lights/logger"
 )
 
 // Allow tests to override the sleep behaviour.
@@ -14,7 +16,7 @@ var sleepFunc = time.Sleep
 // StartNextAttemptTimer is an exported wrapper that triggers the next attempt timer for the given meet.
 func StartNextAttemptTimer(meetState *MeetState) {
 	if defaultTimerManager == nil {
-		logger.Error.Println("defaultTimerManager is nil!")
+		logger.Error.Println("[StartNextAttemptTimer] defaultTimerManager is nil!")
 		return
 	}
 	defaultTimerManager.startNextAttemptTimer(meetState)
@@ -45,7 +47,7 @@ func HandleMessages() {
 			select {
 			case c.send <- msg:
 			default:
-				logger.Warn.Printf("Dropping broadcast message for connection %v", c.conn.RemoteAddr())
+				logger.Warn.Printf("[HandleMessages] Dropping broadcast message for connection %v", c.conn.RemoteAddr())
 			}
 		}
 		// Release the read lock
@@ -55,12 +57,12 @@ func HandleMessages() {
 
 // BroadcastMessage sends a message to all WebSocket clients associated with the given meet.
 func BroadcastMessage(meetName string, message map[string]interface{}) {
-	logger.Debug.Printf("Broadcasting next attempt timers for meet: %s", meetName)
+	logger.Debug.Printf("[BroadcastMessage] Broadcasting next attempt timers for meet=%s", meetName)
 
 	// convert message to JSON
 	msg, err := json.Marshal(message)
 	if err != nil {
-		logger.Error.Printf("Error marshalling message: %v", err)
+		logger.Error.Printf("[BroadcastMessage] Error marshalling message: %v", err)
 		return
 	}
 
@@ -84,10 +86,11 @@ func broadcastFinalResults(meetName string) {
 	// convert submission to JSON
 	resultMsg, err := json.Marshal(submission)
 	if err != nil {
-		logger.Error.Printf("Error marshalling final results message: %v", err)
+		logger.Error.Printf("[broadcastFinalResults] Error marshalling final results message: %v", err)
 		return
 	}
-	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' is being sent with Left=%s, center=%s, Right=%s", meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
+	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' with Left=%s, center=%s, Right=%s",
+		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 
 	// broadcast the results to all clients
 	broadcast <- resultMsg
@@ -103,7 +106,7 @@ func broadcastFinalResults(meetName string) {
 		clearMsg := map[string]string{"action": "clearResults"}
 		clearJSON, err := json.Marshal(clearMsg)
 		if err != nil {
-			logger.Error.Printf("Error marshalling clearResults: %v", err)
+			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults: %v", err)
 			return
 		}
 
@@ -125,7 +128,7 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 		"meetName": meetName,
 	})
 	if err != nil {
-		logger.Error.Printf("Error marshalling time update: %v", err)
+		logger.Error.Printf("[broadcastTimeUpdateWithIndex] Error marshalling time update: %v", err)
 		return
 	}
 

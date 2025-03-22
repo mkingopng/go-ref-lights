@@ -3,23 +3,22 @@
 package controllers
 
 import (
-	"go-ref-lights/logger"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+
+	"go-ref-lights/logger"
 	"go-ref-lights/services"
 )
 
-// ---------------- Admin Controller ----------------
-
-// AdminController provides admin operations for managing meets, referees, and users
+// AdminController provides admin operations for managing meets, referees, and users.
 type AdminController struct {
 	OccupancyService   services.OccupancyServiceInterface
 	PositionController *PositionController
 }
 
-// NewAdminController initializes a new instance of AdminController
+// NewAdminController initializes a new instance of AdminController.
 func NewAdminController(service services.OccupancyServiceInterface, posController *PositionController) *AdminController {
 	return &AdminController{
 		OccupancyService:   service,
@@ -36,10 +35,10 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
 
-	logger.Debug.Printf("AdminPanel: isAdmin value in session: %v", adminVal)
+	// Moved to Debug because it's somewhat verbose
+	logger.Debug.Printf("[AdminPanel] isAdmin from session: %v", adminVal)
 
 	isAdmin, ok := adminVal.(bool)
-
 	if !ok || !isAdmin {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
@@ -76,7 +75,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
-		logger.Warn.Println("ForceVacate: Unauthorized attempt")
+		logger.Warn.Println("[ForceVacate] Unauthorized attempt")
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -102,15 +101,12 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	case "left":
 		occupant = occupancy.LeftUser
 		occupancy.LeftUser = ""
-
 	case "center":
 		occupant = occupancy.CenterUser
 		occupancy.CenterUser = ""
-
 	case "right":
 		occupant = occupancy.RightUser
 		occupancy.RightUser = ""
-
 	default:
 		c.String(http.StatusBadRequest, "Invalid position")
 		return
@@ -131,10 +127,11 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 		return
 	}
 
-	// ensure WebSocket Broadcast function is called Correctly
-	ac.PositionController.BroadcastOccupancy(meetName) // broadcast updated occupancy
+	// ensure WebSocket Broadcast function is called
+	ac.PositionController.BroadcastOccupancy(meetName)
 
-	logger.Info.Printf("ForceVacate: Admin forcibly removed %s from %s position in %s", occupant, position, meetName)
+	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s",
+		occupant, position, meetName)
 
 	// Redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
@@ -149,9 +146,8 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
-
 	if !ok || !isAdmin {
-		logger.Warn.Println("ResetInstance: Unauthorized attempt")
+		logger.Warn.Println("[ResetInstance] Unauthorized attempt")
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -160,22 +156,22 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
 	}
-
 	if meetName == "" {
-		logger.Warn.Println("ResetInstance: No meet specified")
+		logger.Warn.Println("[ResetInstance] No meet specified")
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
 
-	logger.Info.Printf("ResetInstance: Resetting meet '%s'", meetName)
+	logger.Info.Printf("[ResetInstance] Resetting meet '%s'", meetName)
 
-	activeUsers = make(map[string]bool) // clear active users
+	// clear active users
+	activeUsers = make(map[string]bool)
+
+	// reset occupancy
 	ac.OccupancyService.ResetOccupancyForMeet(meetName)
-
-	// broadcast updated occupancy state
 	ac.PositionController.BroadcastOccupancy(meetName)
 
-	logger.Info.Printf("ResetInstance: Meet '%s' reset successfully", meetName)
+	logger.Info.Printf("[ResetInstance] Meet '%s' reset successfully", meetName)
 
 	// redirect back to admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)

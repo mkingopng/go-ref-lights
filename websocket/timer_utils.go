@@ -26,7 +26,7 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	}
 	out, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error.Printf("Error marshaling next attempt timers: %v", err)
+		logger.Error.Printf("[broadcastAllNextAttemptTimers] Error marshalling next attempt timers: %v", err)
 		return
 	}
 	broadcastToMeet(meetName, out)

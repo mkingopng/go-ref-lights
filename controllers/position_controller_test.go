@@ -8,7 +8,6 @@ package controllers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,7 +22,6 @@ import (
 )
 
 var mockOccupancyService = new(services.MockOccupancyService)
-
 var positionController = NewPositionController(mockOccupancyService)
 
 // setup router for PositionController tests
@@ -57,6 +55,7 @@ func TestShowPositionsPage_NoUser(t *testing.T) {
 // Test ClaimPosition (Successful Claim)
 func TestClaimPosition_Success(t *testing.T) {
 	websocket.InitTest()
+
 	t.Run("ClaimPosition_Success", func(t *testing.T) {
 		mockOccupancyService = new(services.MockOccupancyService)
 		positionController = NewPositionController(mockOccupancyService)
@@ -84,8 +83,8 @@ func TestClaimPosition_Success(t *testing.T) {
 
 		router.ServeHTTP(w, req)
 		time.Sleep(200 * time.Millisecond)
-		fmt.Println("Assertions after ClaimPosition execution")
 
+		t.Log("Assertions after ClaimPosition execution")
 		assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
 		assert.Equal(t, "/left", w.Header().Get("Location"))
 		time.Sleep(200 * time.Millisecond)
@@ -119,11 +118,11 @@ func TestVacatePosition_Success(t *testing.T) {
 	session.Set("refPosition", "left")
 	_ = session.Save()
 
-	fmt.Println("Session refPosition (before request):", session.Get("refPosition"))
+	t.Logf("Session refPosition (before request): %v", session.Get("refPosition"))
 	router.ServeHTTP(w, req)
 
 	time.Sleep(200 * time.Millisecond)
-	fmt.Println("Assertions after VacatePosition execution")
+	t.Log("Assertions after VacatePosition execution")
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
 	assert.Equal(t, "/index", w.Header().Get("Location"))
 	time.Sleep(150 * time.Millisecond)

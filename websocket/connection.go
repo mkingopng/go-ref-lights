@@ -68,7 +68,7 @@ var upgrader = websocket.Upgrader{
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	meetName := r.URL.Query().Get("meetName")
 	if meetName == "" {
-		logger.Error.Println("No meet selected; rejecting WebSocket connection")
+		logger.Error.Println("[ServeWs] No meet selected; rejecting WebSocket connection")
 		http.Error(w, "No meet selected", http.StatusBadRequest)
 		return
 	}
@@ -213,36 +213,36 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 	switch dm.Action {
 	case "registerRef":
 		c.judgeID = dm.JudgeID
-		logger.Info.Printf("Referee %s registered on meet %s (conn=%v)",
+		logger.Info.Printf("[handleIncoming] Referee=%s registered on meet=%s (conn=%v)",
 			dm.JudgeID, dm.MeetName, c.conn.RemoteAddr())
 		broadcastRefereeHealth(dm.MeetName)
 
 	case "startTimer":
-		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
+		logger.Info.Printf("[handleIncoming] Received startTimer from %v", c.conn.RemoteAddr())
 		defaultTimerManager.HandleTimerAction("startTimer", dm.MeetName)
 
 	case "resetLights":
-		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
+		logger.Info.Printf("[handleIncoming] Received resetLights from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
 			"action":   "resetLights",
 			"meetName": dm.MeetName,
 		}
 		out, err := json.Marshal(msg)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetLights: %v", err)
+			logger.Error.Printf("[handleIncoming] Error marshaling resetLights: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
 
 	case "resetTimer":
-		logger.Info.Printf("Received resetTimer from %v", c.conn.RemoteAddr())
+		logger.Info.Printf("[handleIncoming] Received resetTimer from %v", c.conn.RemoteAddr())
 		msg := map[string]string{
 			"action":   "resetTimer",
 			"meetName": dm.MeetName,
 		}
 		out, err := json.Marshal(msg)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetTimer: %v", err)
+			logger.Error.Printf("[handleIncoming] Error marshaling resetTimer: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -251,17 +251,17 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		processDecision(c, dm)
 
 	default:
-		logger.Debug.Printf("Unhandled action: %s", dm.Action)
+		logger.Debug.Printf("[handleIncoming] Unhandled action=%s", dm.Action)
 	}
 }
 
 // processDecision checks if all judge decisions have arrived, then broadcasts final results if so.
 func processDecision(c *Connection, dm DecisionMessage) {
 	if dm.JudgeID == "" || dm.Decision == "" {
-		logger.Warn.Printf("Incomplete decision from %v; ignoring", c.conn.RemoteAddr())
+		logger.Warn.Printf("[processDecision] Incomplete decision from %v; ignoring", c.conn.RemoteAddr())
 		return
 	}
-	logger.Info.Printf("Processing decision from %s: %s (meet: %s)",
+	logger.Info.Printf("[processDecision] Processing decision from judge=%s: %s (meet=%s)",
 		dm.JudgeID, dm.Decision, dm.MeetName)
 
 	meetState := DefaultStateProvider.GetMeetState(dm.MeetName)
@@ -279,7 +279,7 @@ func processDecision(c *Connection, dm DecisionMessage) {
 	}
 	out, err := json.Marshal(submission)
 	if err != nil {
-		logger.Error.Printf("Error marshaling judgeSubmitted: %v", err)
+		logger.Error.Printf("[processDecision] Error marshaling judgeSubmitted: %v", err)
 		return
 	}
 	broadcastToMeet(dm.MeetName, out)
@@ -295,7 +295,7 @@ var broadcastToMeet = func(meetName string, message []byte) {
 			select {
 			case c.send <- message:
 			default:
-				logger.Warn.Printf("Dropping message for %v", c.conn.RemoteAddr())
+				logger.Warn.Printf("[broadcastToMeet] Dropping message for %v", c.conn.RemoteAddr())
 			}
 		}
 	}

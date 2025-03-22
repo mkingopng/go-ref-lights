@@ -21,6 +21,7 @@ import (
 	"time"
 )
 
+// GinHeartbeatHandler is a wrapper that calls HeartbeatHandler from your heartbeat.go file
 func GinHeartbeatHandler(c *gin.Context) {
 	HeartbeatHandler(c.Writer, c.Request)
 }
@@ -29,22 +30,22 @@ func main() {
 	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
-		logger.Warn.Println("No .env file found. Using system environment variables.")
+		logger.Warn.Println("[main] No .env file found. Using system environment variables.")
 	}
 
-	// Determine the environment (production by default)
+	// Determine the environment
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "production"
 	}
 
-	// (Optional) Set your logging level based on environment
+	// Set your logging level based on environment
 	logger.SetLogLevel(env)
 
 	// Log the environment
-	logger.Info.Printf("Running in %s mode", env)
+	logger.Info.Printf("[main] Running in %s mode", env)
 
-	// Set application & websocket URLs
+	// Set application & websocket URLs based on environment
 	var applicationURL, websocketURL string
 	if env == "production" {
 		applicationURL = "https://referee-lights.michaelkingston.com.au"
@@ -60,17 +61,12 @@ func main() {
 	// Load credentials
 	creds, err := controllers.LoadMeetCreds()
 	if err != nil {
-		logger.Error.Printf("Error loading credentials: %v", err)
+		logger.Error.Printf("[main] Error loading credentials: %v", err)
 	} else {
-		logger.Info.Printf("Loaded meets: %+v", creds.Meets)
+		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
 	}
 
-	// Re-initialize logger if desired (or rely on its init() if you prefer).
-	// If you want the newly set log level to apply to all messages, call it again:
-	// if err := logger.InitLogger(); err != nil {
-	//    log.Fatalf("Failed to initialize logger: %v", err)
-	// }
-
+	// Announce start
 	logger.Info.Println("[main] Starting application on port :8080")
 
 	// Setup the router
@@ -83,7 +79,7 @@ func main() {
 
 	router.GET("/heartbeat", GinHeartbeatHandler)
 
-	// Read host/port from environment
+	// Read host/port from environment or default
 	host := os.Getenv("APP_HOST")
 	if host == "" {
 		if env == "production" {
@@ -107,11 +103,10 @@ func main() {
 		IdleTimeout:  30 * time.Second,
 	}
 
-	logger.Info.Printf("Server running on %s", addr)
+	logger.Info.Printf("[main] Server running on %s", addr)
 	if err := server.ListenAndServe(); err != nil {
 		// If the server fails to start, we can log a fatal error
-		// We'll keep std log.Fatalf here for a crash message, or you can unify it via logger.Error.Fatalf if you like
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("[main] Failed to start server: %v", err)
 	}
 }
 
@@ -125,11 +120,11 @@ func SetupRouter(env string) *gin.Engine {
 	}
 	router := gin.Default()
 
-	// Optionally reduce logs in non-production
+	// Reduce logs in non-production
 	if env != "production" {
 		gin.DefaultWriter = io.Discard
 		gin.DefaultErrorWriter = io.Discard
-		logger.Debug.Println("Gin logs have been discarded for non-production mode.")
+		logger.Debug.Println("[SetupRouter] Gin logs have been discarded for non-production mode.")
 	}
 
 	// Configure session store
@@ -166,7 +161,7 @@ func SetupRouter(env string) *gin.Engine {
 			Level   string `json:"level"`
 		}
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			logger.Warn.Printf("Invalid log payload: %v", err)
+			logger.Warn.Printf("[SetupRouter /log] Invalid log payload: %v", err)
 			c.Status(http.StatusBadRequest)
 			return
 		}
@@ -185,13 +180,11 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	// ------------------------------
 	// Initialize your service layer
 	occupancyService := services.NewOccupancyService()
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 	pc := controllers.NewPositionController(occupancyService)
-	// ------------------------------
 
 	// Public routes
 	router.GET("/", controllers.ShowMeets)
@@ -284,10 +277,9 @@ func SetupRouter(env string) *gin.Engine {
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "templates")
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		log.Fatalf("Templates directory does not exist: %s", templatesDir)
+		log.Fatalf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
 	}
 
-	// this might be more suited as a debug log:
-	logger.Debug.Printf("Templates Path: %s", templatesDir)
+	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
 	return router
 }

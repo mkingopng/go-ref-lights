@@ -4,7 +4,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -14,8 +13,6 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// ------------------- Position Controller struct -------------------
-
 // PositionController manages referee position assignments.
 type PositionController struct {
 	OccupancyService services.OccupancyServiceInterface
@@ -23,7 +20,7 @@ type PositionController struct {
 
 // NewPositionController initializes a PositionController instance.
 func NewPositionController(service services.OccupancyServiceInterface) *PositionController {
-	logger.Debug.Println("NewPositionController: Initializing PositionController")
+	logger.Debug.Println("[NewPositionController] Initializing PositionController")
 	return &PositionController{OccupancyService: service}
 }
 
@@ -35,14 +32,15 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 	user := session.Get("user")
 	meetName, ok := session.Get("meetName").(string)
 	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /meets")
+		logger.Warn.Println("[ShowPositionsPage] User not logged in or no meet selected; redirecting to /meets")
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
 
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	logger.Debug.Printf("ShowPositionsPage: Retrieved occupancy state: %+v", occ)
+	logger.Debug.Printf("[ShowPositionsPage] Retrieved occupancy state: %+v", occ)
 
+	// Possibly redundant second call?
 	occ = pc.OccupancyService.GetOccupancy(meetName)
 
 	data := gin.H{
@@ -57,34 +55,35 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 		"meetName": meetName,
 	}
 
-	logger.Info.Println("ShowPositionsPage: Rendering positions page")
+	logger.Info.Println("[ShowPositionsPage] Rendering positions page")
 	c.HTML(http.StatusOK, "positions.html", data)
 }
 
 // ------------------- Position assignment -------------------
 
-// ClaimPosition allows a referee to claim a position
+// ClaimPosition allows a referee to claim a position.
 func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
 	meetName, ok := session.Get("meetName").(string)
 
 	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("ClaimPosition: User not logged in or no meet selected; redirecting to /login")
+		logger.Warn.Println("[ClaimPosition] User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
 	position := c.PostForm("position")
 	userEmail := user.(string)
-	logger.Info.Printf("ClaimPosition: User %s attempting to claim position %s in meet %s", userEmail, position, meetName)
+	logger.Info.Printf("[ClaimPosition] User=%s attempting to claim position=%s in meet=%s", userEmail, position, meetName)
 
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
-		logger.Error.Printf("ClaimPosition: Position is taken or invalid. %v", err)
-		fmt.Println("Controller Calling GetOccupancy with:", meetName)
-		occ := pc.OccupancyService.GetOccupancy(meetName)
+		logger.Error.Printf("[ClaimPosition] Position is taken or invalid: %v", err)
+		// Replacing old fmt.Println:
+		logger.Debug.Printf("[ClaimPosition] Controller calling GetOccupancy with: %s", meetName)
 
+		occ := pc.OccupancyService.GetOccupancy(meetName)
 		c.HTML(http.StatusForbidden, "positions.html", gin.H{
 			"Error":    "Sorry, that referee position is already occupied. Please choose a different one.",
 			"meetName": meetName,
@@ -103,13 +102,14 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	// store referee position in session.
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("ClaimPosition: Error saving session for user %s: %v", userEmail, err)
+		logger.Error.Printf("[ClaimPosition] Error saving session for user=%s: %v", userEmail, err)
 		c.String(http.StatusInternalServerError, "Error saving session")
 		return
 	}
 
-	logger.Info.Printf("ClaimPosition: User %s successfully claimed position %s for meet %s", userEmail, position, meetName)
+	logger.Info.Printf("[ClaimPosition] User=%s successfully claimed position=%s for meet=%s", userEmail, position, meetName)
 
+	// redirect to the correct path
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
@@ -118,9 +118,10 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	case "right":
 		c.Redirect(http.StatusFound, "/right")
 	default:
-		logger.Warn.Printf("ClaimPosition: Unknown position %s; redirecting to /positions", position)
+		logger.Warn.Printf("[ClaimPosition] Unknown position %s; redirecting to /positions", position)
 		c.Redirect(http.StatusFound, "/positions")
 	}
+	// broadcast occupancy changes asynchronously
 	go pc.BroadcastOccupancy(meetName)
 }
 
@@ -133,33 +134,32 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 	meetName, ok2 := session.Get("meetName").(string)
 
 	if !ok || !ok2 || userEmail == "" || meetName == "" {
-		logger.Warn.Println("VacatePosition: User not logged in or no meet selected; redirecting to /login")
+		logger.Warn.Println("[VacatePosition] User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	position, ok3 := session.Get("refPosition").(string)
 	if !ok3 || position == "" {
-		logger.Warn.Printf("VacatePosition: user %s not in any seat for meet %s; can't vacate", userEmail, meetName)
+		logger.Warn.Printf("[VacatePosition] user=%s not in any seat for meet=%s; can't vacate", userEmail, meetName)
 		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
-	err := pc.OccupancyService.UnsetPosition(meetName, position, userEmail)
-	if err != nil {
-		logger.Error.Printf("VacatePosition: error unsetting position for user %s: %v", userEmail, err)
+	if err := pc.OccupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
+		logger.Error.Printf("[VacatePosition] Error unsetting position for user=%s: %v", userEmail, err)
 		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
 	session.Delete("refPosition")
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("VacatePosition: Error saving session for user %s: %v", userEmail, err)
+		logger.Error.Printf("[VacatePosition] Error saving session for user=%s: %v", userEmail, err)
 		c.Redirect(http.StatusFound, "/index")
 		return
 	}
 
-	logger.Info.Printf("VacatePosition: user %s vacated seat %s for meet %s", userEmail, position, meetName)
+	logger.Info.Printf("[VacatePosition] user=%s vacated seat=%s for meet=%s", userEmail, position, meetName)
 	go pc.BroadcastOccupancy(meetName)
 	c.Redirect(http.StatusFound, "/index")
 }
@@ -168,10 +168,10 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 // BroadcastOccupancy sends a real-time update of occupied referee positions.
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	logger.Debug.Printf("DEBUG: Entering broadcastOccupancy for meet: %s", meetName)
+	logger.Debug.Printf("[BroadcastOccupancy] Entering for meet=%s", meetName)
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 
-	logger.Debug.Printf("DEBUG: broadcastOccupancy fetched occupancy: %+v", occ)
+	logger.Debug.Printf("[BroadcastOccupancy] Fetched occupancy: %+v", occ)
 
 	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
@@ -181,10 +181,10 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		"meetName":   meetName,
 	}
 	jsonBytes, _ := json.Marshal(msg)
-	logger.Debug.Printf("DEBUG: broadcastOccupancy sending message: %s", string(jsonBytes))
+	logger.Debug.Printf("[BroadcastOccupancy] Sending message: %s", string(jsonBytes))
 
 	go websocket.SendBroadcastMessage(jsonBytes)
-	logger.Debug.Printf("DEBUG: Finished broadcastOccupancy for meet: %s", meetName)
+	logger.Debug.Printf("[BroadcastOccupancy] Finished for meet=%s", meetName)
 }
 
 // ------------------- API endpoints -------------------
@@ -203,7 +203,7 @@ func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	c.JSON(http.StatusOK, gin.H{
 		"leftUser":   occ.LeftUser,
-		"centreUser": occ.CenterUser,
+		"centreUser": occ.CenterUser, // spelled “centreUser” for the JSON response
 		"rightUser":  occ.RightUser,
 	})
 }

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"go-ref-lights/logger"
 )
 
 var (
@@ -23,6 +25,7 @@ type HeartbeatManager struct {
 func HeartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	refereeID := r.URL.Query().Get("referee_id")
 	if refereeID == "" {
+		logger.Warn.Println("[HeartbeatHandler] Missing referee ID in query params")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
 		return
 	}
@@ -31,10 +34,11 @@ func HeartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	refereeSessions[refereeID] = time.Now()
 	sessionLock.Unlock()
 
+	logger.Debug.Printf("[HeartbeatHandler] Updated heartbeat for referee=%s at %v", refereeID, time.Now())
+
 	w.WriteHeader(http.StatusOK)
-	_, err := fmt.Fprintln(w, "Heartbeat received")
-	if err != nil {
-		return
+	if _, err := fmt.Fprintln(w, "Heartbeat received"); err != nil {
+		logger.Warn.Printf("[HeartbeatHandler] Error writing response for referee=%s: %v", refereeID, err)
 	}
 }
 
@@ -50,6 +54,7 @@ func (h *HeartbeatManager) UpdateHeartbeat(refereeID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.activeSessions[refereeID] = time.Now()
+	logger.Debug.Printf("[HeartbeatManager.UpdateHeartbeat] Referee=%s updated at %v", refereeID, time.Now())
 }
 
 // CleanupInactiveSessions removes inactive referees
@@ -60,7 +65,8 @@ func (h *HeartbeatManager) CleanupInactiveSessions(timeout time.Duration) {
 			h.mu.Lock()
 			for id, lastSeen := range h.activeSessions {
 				if time.Since(lastSeen) > timeout {
-					delete(h.activeSessions, id) // Remove inactive referees
+					logger.Info.Printf("[HeartbeatManager.CleanupInactiveSessions] Removing inactive referee=%s (timeout=%v)", id, timeout)
+					delete(h.activeSessions, id)
 				}
 			}
 			h.mu.Unlock()
@@ -75,7 +81,8 @@ func CleanupRoutine() {
 		sessionLock.Lock()
 		for id, lastSeen := range refereeSessions {
 			if time.Since(lastSeen) > 1800*time.Second { // configurable timeout, 30 minutes
-				delete(refereeSessions, id) // remove inactive session
+				logger.Info.Printf("[CleanupRoutine] Removing inactive referee=%s (30 minutes)", id)
+				delete(refereeSessions, id)
 			}
 		}
 		sessionLock.Unlock()

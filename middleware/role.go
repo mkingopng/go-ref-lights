@@ -1,5 +1,6 @@
 // Package middleware provides request filters and access control mechanisms for the application.
 // File: middleware/role.go
+
 package middleware
 
 import (
@@ -10,15 +11,7 @@ import (
 	"go-ref-lights/logger"
 )
 
-// --------------------------- role-based access control middleware -----------
-
 // PositionRequired ensures that a user has the correct referee position to access specific paths.
-//
-// How it works:
-// - Checks if a user session exists.
-// - If not authenticated, redirects to "/login" and aborts the request.
-// - Determines the required referee position based on the request path.
-// - If the user's position doesn't match, redirects to "/positions" and aborts the request.
 //
 // Usage:
 //
@@ -28,18 +21,19 @@ func PositionRequired() gin.HandlerFunc {
 		session := sessions.Default(c)
 		user := session.Get("user")
 
-		// redirect to login if the user is not authenticated
+		// If the user is not authenticated, redirect to /login
 		if user == nil {
-			logger.Warn.Printf("Unauthenticated access attempt to %s. Redirecting to /login", c.Request.URL.Path)
+			logger.Warn.Printf("[PositionRequired] Unauthenticated access attempt to %s. Redirecting to /login",
+				c.Request.URL.Path)
 			c.Redirect(http.StatusFound, "/login")
-			c.Abort() // 🔴 Prevents further execution
+			c.Abort() // prevents further execution
 			return
 		}
 
-		// retrieve the user's assigned referee position
+		// Retrieve the user's assigned referee position
 		refPos := session.Get("refPosition")
 
-		// determine the required position based on the request path
+		// Determine the required position based on the request path
 		path := c.Request.URL.Path
 		var requiredPos string
 		switch path {
@@ -50,25 +44,26 @@ func PositionRequired() gin.HandlerFunc {
 		case "/right":
 			requiredPos = "right"
 		default:
-			logger.Debug.Printf("No specific role required for path: %s", path)
+			logger.Debug.Printf("[PositionRequired] No specific role required for path: %s", path)
 		}
 
-		// If no specific role is required, proceed with the request
+		// If no specific role is required, proceed
 		if requiredPos == "" {
-			logger.Debug.Printf("[PositionRequired] No position restriction for path: %s", path)
+			logger.Debug.Printf("[PositionRequired] Proceeding without role restriction on path: %s", path)
 			c.Next()
 			return
 		}
 
-		// If user's position does not match the required position, redirect
+		// If user’s position does not match the required position, redirect
 		if requiredPos != "" && refPos != requiredPos {
-			logger.Warn.Printf("User %v does not have the required position for %s. Expected: %s, got: %v. Redirecting to /positions", user, path, requiredPos, refPos)
+			logger.Warn.Printf("[PositionRequired] User=%v does not have the required position for %s. Expected=%s, got=%v. Redirecting to /positions",
+				user, path, requiredPos, refPos)
 			c.Redirect(http.StatusFound, "/positions")
-			c.Abort() // 🔴 Prevents further execution
+			c.Abort()
 			return
 		}
 
-		logger.Debug.Printf("User %v authorized for position %s on path %s", user, requiredPos, path)
+		logger.Debug.Printf("[PositionRequired] User=%v authorized for position=%s on path=%s", user, requiredPos, path)
 		c.Next()
 	}
 }

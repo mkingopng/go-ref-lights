@@ -28,7 +28,7 @@ func GenerateQRCode(targetURL string, size int, level qrcode.RecoveryLevel) ([]b
 
 	pngBytes, err := encoder(targetURL, level, size)
 	if err != nil {
-		logger.Error.Printf("GenerateQRCode: Failed to create QR code for %s: %v", targetURL, err)
+		logger.Error.Printf("[GenerateQRCode] Failed to create QR code for url=%s: %v", targetURL, err)
 		return nil, err
 	}
 

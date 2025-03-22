@@ -1,14 +1,16 @@
 // Package controllers handles user authentication and session management.
 // File: controllers/loginHandler.go
+
 package controllers
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
 )
 
 var occupancyService services.OccupancyServiceInterface
@@ -39,7 +41,7 @@ func PerformLogin(c *gin.Context) {
 
 	// persist session changes
 	if err := session.Save(); err != nil {
-		logger.Error.Println("PerformLogin: Failed to save session:", err)
+		logger.Error.Printf("[PerformLogin] Failed to save session: %v", err)
 	}
 
 	// finally, render the login form
@@ -63,7 +65,7 @@ func LoginHandler(c *gin.Context) {
 	meetName, ok := meetNameRaw.(string)
 	if !ok || meetName == "" {
 		// no meet selected: redirect to the choose-meet page.
-		logger.Warn.Println("LoginHandler: No meet selected, redirecting to /choose-meet")
+		logger.Warn.Println("[LoginHandler] No meet selected, redirecting to /choose-meet")
 		c.Redirect(http.StatusFound, "/choose-meet")
 		return
 	}
@@ -73,7 +75,7 @@ func LoginHandler(c *gin.Context) {
 	password := c.PostForm("password")
 
 	if username == "" || password == "" {
-		logger.Warn.Println("LoginHandler: Missing username or password")
+		logger.Warn.Println("[LoginHandler] Missing username or password")
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Please fill in all fields.",
@@ -84,7 +86,7 @@ func LoginHandler(c *gin.Context) {
 	// load meet credentials using the helper.
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
-		logger.Error.Println("LoginHandler: Failed to load meet credentials:", err)
+		logger.Error.Printf("[LoginHandler] Failed to load meet credentials: %v", err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Internal error, please try again later.",
@@ -101,7 +103,8 @@ func LoginHandler(c *gin.Context) {
 		session.Set("isAdmin", true) // superuser gets admin rights
 		session.Set("user", username)
 		_ = session.Save()
-		logger.Info.Printf("LoginHandler: Superuser %s authenticated", username)
+
+		logger.Info.Printf("[LoginHandler] Superuser %s authenticated", username)
 		c.Redirect(http.StatusFound, "/sudo")
 		return
 	}
@@ -121,7 +124,7 @@ func LoginHandler(c *gin.Context) {
 
 	if !valid {
 		// credentials are invalid.
-		logger.Warn.Printf("LoginHandler: Invalid login attempt for user %s at meet %s", username, meetName)
+		logger.Warn.Printf("[LoginHandler] Invalid login attempt for user=%s at meet=%s", username, meetName)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Invalid username or password.",
@@ -132,24 +135,27 @@ func LoginHandler(c *gin.Context) {
 	// prevent duplicate logins.
 	activeUsersMu.Lock() // Acquire write lock for the whole block
 	if activeUsers[username] {
-		logger.Warn.Printf("LoginHandler: User %s already logged in, denying second login", username)
+		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "This username is already logged in on another device.",
 		})
+		activeUsersMu.Unlock()
 		return
 	}
 
 	// mark the user as logged in.
 	activeUsers[username] = true
 	activeUsersMu.Unlock()
+
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
-	logger.Info.Printf("DEBUG: Setting isAdmin=%v for user=%s", isAdmin, username)
+	// This was previously an Info-level with “DEBUG” in the text. Let's convert to Debug-level:
+	logger.Debug.Printf("[LoginHandler] Setting isAdmin=%v for user=%s", isAdmin, username)
 
 	// save the session.
 	if err := session.Save(); err != nil {
-		logger.Error.Println("LoginHandler: Failed to save session:", err)
+		logger.Error.Printf("[LoginHandler] Failed to save session: %v", err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Internal error, please try again.",
@@ -157,15 +163,15 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("LoginHandler: User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
+	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
 
 	// ------------------ auto-claim desired position ------------------
 	desiredPos := session.Get("desiredPosition")
 	if desiredPos != nil {
-		logger.Info.Printf("LoginHandler: Attempting to auto-claim position %s for user %s", desiredPos, username)
+		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", desiredPos, username)
 		posString := desiredPos.(string)
 		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
-			logger.Warn.Printf("LoginHandler: Auto-claim failed for %s on %s: %v", username, posString, err)
+			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
 			c.HTML(http.StatusForbidden, "positions.html", gin.H{
 				"Error":    "Position is already taken or invalid. Please choose another.",
 				"meetName": meetName,
@@ -174,6 +180,7 @@ func LoginHandler(c *gin.Context) {
 		}
 		session.Set("refPosition", posString)
 		_ = session.Save()
+
 		switch posString {
 		case "left":
 			c.Redirect(http.StatusFound, "/left")
@@ -188,6 +195,5 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// ------------------ default redirect on success ------------------
-	// if no desired position is set, redirect to /index.
 	c.Redirect(http.StatusFound, "/index")
 }

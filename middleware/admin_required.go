@@ -1,23 +1,17 @@
 // Package middleware provides request filters and security checks for the application.
 // File: middleware/admin_required.go
+
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
-	"net/http"
 )
 
-// ------------------ admin authorisation middleware -------------------
-
 // AdminRequired is a middleware that restricts access to admin-only routes.
-// How it works:
-// - Retrieves the session from the request context.
-// - Checks if the session contains "isAdmin" and if the value is `true`.
-// - If the user is not an admin, returns HTTP 401 Unauthorized and stops request execution.
-// - Otherwise, the request proceeds.
-//
 // Usage:
 //
 //	router.Use(AdminRequired())
@@ -26,17 +20,17 @@ func AdminRequired() gin.HandlerFunc {
 		session := sessions.Default(c)
 		isAdmin, ok := session.Get("isAdmin").(bool)
 
-		logger.Debug.Printf("AdminRequired Middleware - isAdmin=%v, ok=%v", isAdmin, ok)
+		logger.Debug.Printf("[AdminRequired] isAdmin=%v, ok=%v", isAdmin, ok)
 
 		// Block request if user is not an admin
 		if !ok || !isAdmin {
-			logger.Warn.Println("AdminRequired Middleware - Unauthorized attempt blocked")
+			logger.Warn.Println("[AdminRequired] Unauthorized attempt blocked")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			c.Abort() // 🔴 Prevents further execution
+			c.Abort() // prevents further execution
 			return
 		}
 
-		logger.Debug.Println("AdminRequired Middleware - Passed, continuing request")
+		logger.Debug.Println("[AdminRequired] Authorized, continuing request")
 		c.Next()
 	}
 }

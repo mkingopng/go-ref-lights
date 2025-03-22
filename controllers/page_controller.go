@@ -1,10 +1,10 @@
 // Package controllers handles various page rendering and session management functions.
 // File: controllers/page_controller.go
+
 package controllers
 
 import (
 	"fmt"
-	"go-ref-lights/models"
 	"net/http"
 	"sync"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
+	"go-ref-lights/models"
 	"go-ref-lights/services"
 )
 
@@ -44,7 +45,7 @@ func getNextAnonymousName() string {
 
 // Health provides a simple endpoint to check server health.
 func Health(c *gin.Context) {
-	logger.Info.Println("Health: Health check requested")
+	logger.Info.Println("[Health] Health check requested")
 	c.JSON(http.StatusOK, gin.H{
 		"status": "healthy",
 	})
@@ -62,17 +63,16 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 
 	if ok1 && ok2 && ok3 {
 		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
-			logger.Error.Printf("Home: error vacating position: %v", err)
+			logger.Error.Printf("[Home] Error vacating position: %v", err)
 		} else {
-			logger.Info.Printf("Home: position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
+			logger.Info.Printf("[Home] Position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
 			session.Delete("refPosition")
-			err := session.Save()
-			if err != nil {
-				return
+			if err := session.Save(); err != nil {
+				logger.Error.Printf("[Home] Session save error after vacating position: %v", err)
 			}
 		}
 	} else {
-		logger.Warn.Println("Home: Missing user, refPosition or meetName in session.")
+		logger.Warn.Println("[Home] Missing user, refPosition, or meetName in session.")
 	}
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
@@ -88,16 +88,15 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 	isAdmin, _ := session.Get("isAdmin").(bool)
 	if isAdmin && hasMeet {
-		logger.Info.Printf("Logout: Admin user is logging out; resetting meet: %s", meetName)
+		logger.Info.Printf("[Logout] Admin user is logging out; resetting meet: %s", meetName)
 		occupancyService.ResetOccupancyForMeet(meetName)
 	}
 
 	if hasUser && hasPosition && hasMeet {
-		err := occupancyService.UnsetPosition(meetName, position, userEmail)
-		if err != nil {
-			logger.Error.Printf("Logout: error vacating position: %v", err)
+		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
+			logger.Error.Printf("[Logout] Error vacating position: %v", err)
 		} else {
-			logger.Info.Printf("Logout: position '%s' vacated for user '%s' in meet '%s'",
+			logger.Info.Printf("[Logout] Position '%s' vacated for user '%s' in meet '%s'",
 				position, userEmail, meetName)
 		}
 
@@ -105,13 +104,13 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		delete(activeUsers, userEmail)
 		activeUsersMu.Unlock()
 
-		logger.Info.Printf("Logout: User %s removed from active users list", userEmail)
+		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
 	} else {
-		logger.Warn.Println("Logout: Missing user, refPosition, or meetName from session.")
+		logger.Warn.Println("[Logout] Missing user, refPosition, or meetName from session.")
 	}
 
 	session.Clear()
-	logger.Info.Println("Logout: Session cleared (will be saved by middleware at end of request)")
+	logger.Info.Println("[Logout] Session cleared (will be saved by middleware at end of request)")
 	c.Redirect(http.StatusFound, "/index")
 }
 
@@ -126,10 +125,9 @@ func Index(c *gin.Context) {
 		return
 	}
 
-	// load all meets from memory or your loaded creds
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
-		logger.Error.Printf("Index: failed to load meet creds: %v", err)
+		logger.Error.Printf("[Index] Failed to load meet creds: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 		return
 	}
@@ -144,12 +142,11 @@ func Index(c *gin.Context) {
 	}
 
 	if currentMeet == nil {
-		logger.Warn.Printf("Meet not found: %s", meetName)
+		logger.Warn.Printf("[Index] Meet not found: %s", meetName)
 		c.String(http.StatusNotFound, "Meet not found")
 		return
 	}
 
-	// pass the meet’s Logo to the template
 	data := gin.H{
 		"meetName":     meetName,
 		"WebsocketURL": WebsocketURL,     // if you have that
@@ -164,7 +161,7 @@ func ShowPositionsPage(c *gin.Context) {
 	user := session.Get("user")
 	meetName, ok := session.Get("meetName").(string)
 	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("ShowPositionsPage: User not logged in or no meet selected; redirecting to /meets")
+		logger.Warn.Println("[ShowPositionsPage] User not logged in or no meet selected; redirecting to /meets")
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
@@ -181,13 +178,13 @@ func ShowPositionsPage(c *gin.Context) {
 			"RightUser":      "",
 		},
 	}
-	logger.Info.Println("ShowPositionsPage: Rendering positions page")
+	logger.Info.Println("[ShowPositionsPage] Rendering positions page")
 	c.HTML(http.StatusOK, "positions.html", data)
 }
 
 // GetQRCode generates and returns a QR code for the application URL.
 func GetQRCode(c *gin.Context) {
-	logger.Info.Println("GetQRCode: Generating QR code")
+	logger.Info.Println("[GetQRCode] Generating QR code")
 
 	meetName := c.Query("meetName")
 	position := c.Query("position")
@@ -200,7 +197,7 @@ func GetQRCode(c *gin.Context) {
 
 	qrBytes, err := services.GenerateQRCode(qrURL, 300, qrcode.Medium)
 	if err != nil {
-		logger.Error.Printf("GetQRCode: Error generating QR code: %v", err)
+		logger.Error.Printf("[GetQRCode] Error generating QR code: %v", err)
 		c.String(http.StatusInternalServerError, "QR generation failed")
 		return
 	}
@@ -208,7 +205,7 @@ func GetQRCode(c *gin.Context) {
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
 	if _, err := c.Writer.Write(qrBytes); err != nil {
-		logger.Error.Printf("GetQRCode: Error writing QR code bytes: %v", err)
+		logger.Error.Printf("[GetQRCode] Error writing QR code bytes: %v", err)
 	}
 }
 
@@ -216,7 +213,7 @@ func GetQRCode(c *gin.Context) {
 func SetConfig(appURL, wsURL string) {
 	ApplicationURL = appURL
 	WebsocketURL = wsURL
-	logger.Info.Printf("SetConfig: Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
+	logger.Info.Printf("[SetConfig] Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
 }
 
 // -------------------- referee view rendering --------------------
@@ -226,14 +223,14 @@ func Left(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("Left handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	logger.Debug.Printf("[Left handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Println("Left: Rendering left referee view")
+	logger.Info.Println("[Left] Rendering left referee view")
 	data := gin.H{
-		"WebsocketURL": WebsocketURL, // WebsocketURL is now declared globally
+		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
 	}
 	c.HTML(http.StatusOK, "left.html", data)
@@ -244,12 +241,12 @@ func Center(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("Center handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	logger.Debug.Printf("[Center handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Println("center: Rendering center referee view")
+	logger.Info.Println("[Center] Rendering center referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
@@ -262,12 +259,12 @@ func Right(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
 	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("Right handler: Session meetName='%s', refPosition='%v'", meetName, refPosition)
+	logger.Debug.Printf("[Right handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Println("Right: Rendering right referee view")
+	logger.Info.Println("[Right] Rendering right referee view")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
@@ -283,7 +280,7 @@ func Lights(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Println("Lights: Rendering lights page")
+	logger.Info.Println("[Lights] Rendering lights page")
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
@@ -303,21 +300,20 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 		occupant = getNextAnonymousName()
 		session.Set("anonymousOccupant", occupant)
 		if err := session.Save(); err != nil {
-			logger.Error.Printf("RefereeHandler: session save error: %v", err)
+			logger.Error.Printf("[RefereeHandler] Session save error: %v", err)
 		}
 	}
 
 	// 2) Attempt to claim seat under occupant name
 	err := occupancyService.SetPosition(meetName, position, occupant)
 	if err != nil {
-		logger.Warn.Printf("RefereeHandler: Attempt to claim taken seat %s for meet %s by occupant=%s",
+		logger.Warn.Printf("[RefereeHandler] Attempt to claim taken seat=%s for meet=%s occupant=%s",
 			position, meetName, occupant)
-		// Return 409 Conflict or some suitable error
 		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
 		return
 	}
 
-	logger.Info.Printf("RefereeHandler: meetName=%s, position=%s claimed successfully by occupant=%s",
+	logger.Info.Printf("[RefereeHandler] meetName=%s, position=%s claimed successfully by occupant=%s",
 		meetName, position, occupant)
 
 	// 3) Render the appropriate referee view

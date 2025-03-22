@@ -4,7 +4,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
+	"fmt" // We'll keep fmt for handling errors in LoadMeetCreds, but remove printing
 	"net/http"
 	"os"
 	"strings"
@@ -21,7 +21,6 @@ import (
 
 // activeUsers tracks currently logged-in users.
 var activeUsers = make(map[string]bool)
-
 var activeUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
@@ -46,7 +45,7 @@ func SetMeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Set("meetName", meetName)
 	if err := session.Save(); err != nil {
-		logger.Error.Println("Failed to save meet session:", err)
+		logger.Error.Printf("Failed to save meet session: %v", err)
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error, please try again."})
 		return
 	}
@@ -70,7 +69,7 @@ func MeetHandler(c *gin.Context) {
 	// load meet credentials using the injectable function.
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
-		logger.Error.Println("Failed to load meets:", err)
+		logger.Error.Printf("Failed to load meets: %v", err)
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error loading meets."})
 		return
 	}
@@ -103,7 +102,6 @@ func MeetHandler(c *gin.Context) {
 // LoadMeetCreds loads meet credentials from a JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
 	// define the path to the credentials file.
-	// TODO: Consider storing this path in an environment variable or secure configuration.
 	credPath := "./config/meet_creds.json" // #nosec G101
 
 	// read the JSON file
@@ -126,8 +124,9 @@ func LoadMeetCreds() (*models.MeetCreds, error) {
 		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
 			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
 		}
-		// debug log for confirmation
-		fmt.Printf("✅ Loaded Meet: %s (Admin: %s, IsAdmin: %t)\n", meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
+		// replaced the direct fmt.Printf with a logger call
+		logger.Debug.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)",
+			meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
 	}
 	return &creds, nil
 }

@@ -6,7 +6,6 @@
 package middleware
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -132,12 +131,7 @@ func TestAuthMiddleware_Authorized(t *testing.T) {
 
 	// Extract session cookie
 	result := loginResp.Result()
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Printf("Error closing response body: %v\n", err)
-		}
-	}(result.Body)
+	defer result.Body.Close()
 
 	var sessionCookie string
 	for _, cookieItem := range result.Cookies() {
@@ -157,7 +151,7 @@ func TestAuthMiddleware_Authorized(t *testing.T) {
 
 	// Ensure correct response
 	authBody, _ := io.ReadAll(authResp.Body)
-	fmt.Println("Protected Route Response Body:", string(authBody))
+	t.Logf("Protected Route Response Body: %s", string(authBody))
 	assert.Equal(t, http.StatusOK, authResp.Code, "Expected 200 but got redirected")
 	assert.Equal(t, "Welcome to protected route", string(authBody), "Unexpected response body")
 }
@@ -172,15 +166,10 @@ func TestAuthMiddleware_Logout(t *testing.T) {
 
 	// Extract session cookie from login response
 	result := loginResp.Result()
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Printf("Error closing response body: %v\n", err)
-		}
-	}(result.Body)
+	defer result.Body.Close()
 
 	var sessionCookie string
-	for _, cookieItem := range result.Cookies() { // ✅ Rename 'cookie' to 'cookieItem'
+	for _, cookieItem := range result.Cookies() {
 		if cookieItem.Name == "testsession" {
 			sessionCookie = cookieItem.Name + "=" + cookieItem.Value
 			break
