@@ -110,6 +110,7 @@ func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 		c.String(http.StatusNotFound, "No such user is logged in")
 		return
 	}
+
 	delete(activeUsers, username)
 	activeUsersMu.Unlock()
 

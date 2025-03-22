@@ -5,7 +5,7 @@
             "date": "March 22",
             "admin": {
                 "username": "cairns_cup",
-                "password": "$2b$12$0h4/S0Qrv/sVVHVr50M73eC/Exv6lJYVKZXyXqkxPWwFOBJ1mDQla",
+                "password": "$2b$12$LiW/Qn6JS5Y3mPaBhCv6ieqEsDgR8uBmhP8EHMQNh9fgCHJAosaDC",
                 "isadmin": true
             },
             "logo": "static/images/APL_logo white apl logo HQ.png"
@@ -15,17 +15,22 @@
             "date": "March 22-23",
             "admin": {
                 "username": "nsw_champs",
-                "password": "$2b$12$uw6u9QPPe30yfNsv7ekdFu2euRvTNzkpjr/PuBZlw1tRSyUDfLywO",
+                "password": "$2b$12$PqwGSK0HjZoE4qjr5FJwuO7rsfuMnZbLCOwXQxrIkp/7l3yXpGDxm",
                 "isadmin": true
             },
             "logo": "static/images/APL_logo white apl logo HQ.png"
         },
         {
-            "name": "Wales Classic",
+            "name": "Dragon Cup 2",
             "date": "March 23",
             "admin": {
-                "username": "wales_classic",
-                "password": "$2b$12$nbtfkOlUXuQG8RyVOoXQmuV0k5Ll2e5FLpDfJft0sZ2nEukOrTKem",
+                "username": "dragon_cup",
+                "password": "$2b$12$WVETRnevl11l8QoeO/ZMv.YHMCu0s1jt5lE8pxGrxIbzoDom/aZUm",
+                "isadmin": true
+            },
+            "admin2": {
+                "username": "dragon_cup2",
+                "password": "YqW8qd",
                 "isadmin": true
             },
             "logo": "static/images/UKPU_logo_White-Text_V2.png"

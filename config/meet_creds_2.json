@@ -21,10 +21,15 @@
       "logo": "static/images/APL_logo white apl logo HQ.png"
     },
     {
-      "name": "Wales Classic",
+      "name": "Dragon Cup 2",
       "date": "March 23",
       "admin": {
-        "username": "wales_classic",
+        "username": "dragon_cup",
+        "password": "YqW8qd",
+        "isadmin": true
+      },
+      "admin2": {
+        "username": "dragon_cup2",
         "password": "YqW8qd",
         "isadmin": true
       },

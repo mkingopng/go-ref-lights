@@ -1,15 +1,13 @@
+<!--templates/vacate.html-->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <title>Position Vacated</title>
-    <!-- If not already linked globally, link your styles.css here -->
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
 <div style="text-align:center;">
-    <!-- A heading consistent with your theme -->
     <h2>{{ .Position }} referee seat for {{ .MeetName }} has been vacated</h2>
-    <!-- Simple message or instructions -->
     <p>
         This position is now free. If you wish to take another position,
         please scan the new QR code using your phone's camera.
@@ -17,4 +15,3 @@
 </div>
 </body>
 </html>
-{{ end }}
