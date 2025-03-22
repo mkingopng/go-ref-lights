@@ -116,15 +116,25 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 // -------------------- page rendering --------------------
 
-// Index renders the main application page
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
+	isSudo, _ := session.Get("sudo").(bool)
+
+	// If the user didn't pick any meetName and is not superuser, redirect them
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/set-meet")
 		return
 	}
 
+	// If they selected "Sudo" as their meetName,
+	// we skip normal meet logic and go to /sudo
+	if meetName == "Sudo" {
+		c.Redirect(http.StatusFound, "/sudo")
+		return
+	}
+
+	// Normal meet logic:
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
 		logger.Error.Printf("[Index] Failed to load meet creds: %v", err)
@@ -140,7 +150,6 @@ func Index(c *gin.Context) {
 			break
 		}
 	}
-
 	if currentMeet == nil {
 		logger.Warn.Printf("[Index] Meet not found: %s", meetName)
 		c.String(http.StatusNotFound, "Meet not found")
@@ -148,10 +157,11 @@ func Index(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"meetName":     meetName,
-		"WebsocketURL": WebsocketURL,     // if you have that
-		"Logo":         currentMeet.Logo, // <--- fix_me: potential nil pointer dereference
+		"meetName": meetName, // lower-case "m" for standardization
+		"IsSudo":   isSudo,
+		"Logo":     currentMeet.Logo,
 	}
+
 	c.HTML(http.StatusOK, "index.html", data)
 }
 

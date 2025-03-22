@@ -1,46 +1,45 @@
 <!-- templates/index.html -->
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <meta charset="UTF-8">
-  <title>Home Page</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="/static/css/styles.css" rel="stylesheet">
+  ...
 </head>
-
 <body>
-  {{template "header.html" .}}
-  <h1>Referee Positions for {{ .meetName }}</h1>
+{{template "header.html" .}}
 
-  <!--QR Code container-->
-  <div class="qr-code-container">
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
-      <p>Left Referee</p>
-    </div>
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
-      <p>Center Referee</p>
-    </div>
-    <div class="qr-code-item">
-      <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
-      <p>Right Referee</p>
-    </div>
+<h1>Referee Positions for {{ .meetName }}</h1>
+
+{{ if .IsSudo }}
+<p>
+  <a href="/sudo">
+    <button>Go to Sudo Dashboard</button>
+  </a>
+</p>
+{{ end }}
+
+<div class="qr-code-container">
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
+    <p>Left Referee</p>
   </div>
-
-  <!--button container: lights or select ref positions-->
-  <div class="button-container">
-    <a href="/lights" class="button-link">Lights</a>
-    <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
+    <p>Center Referee</p>
   </div>
-
-  <!--logo container-->
-  <div class="logo-container">
-    <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
+  <div class="qr-code-item">
+    <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
+    <p>Right Referee</p>
   </div>
+</div>
 
+<div class="button-container">
+  <a href="/lights" class="button-link">Lights</a>
+  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+</div>
+
+<div class="logo-container">
+  <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
+</div>
 </body>
 </html>

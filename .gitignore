@@ -64,3 +64,4 @@ config.yaml
 /controllers/logs/
 /models/logs/
 __pycache__/
+/tests/k6/k6_logs/

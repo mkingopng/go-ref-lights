@@ -182,6 +182,24 @@ func SetupRouter(env string) *gin.Engine {
 
 	// Initialize your service layer
 	occupancyService := services.NewOccupancyService()
+
+	// build the SudoController
+	sudoController := controllers.NewSudoController(occupancyService)
+	sudoRoutes := router.Group("/sudo")
+	{
+		// Must be logged in
+		sudoRoutes.Use(middleware.AuthRequired)
+		// Must be superuser
+		sudoRoutes.Use(middleware.SudoRequired())
+		{
+			sudoRoutes.GET("/", sudoController.SudoPanel)
+			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
+			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
+			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
+		}
+	}
+
+	// define other controllers
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 	pc := controllers.NewPositionController(occupancyService)
