@@ -333,28 +333,35 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 
 	// 1) Get or create a unique occupant for this session
 	session := sessions.Default(c)
-	occupant, ok := session.Get("anonymousOccupant").(string)
+
+	// 1) Check if we already have "user" in session
+	occupant, ok := session.Get("user").(string)
+
 	if !ok || occupant == "" {
+		// If no user is in session, generate a name (or do something else), but store it as "user"
 		occupant = getNextAnonymousName()
-		session.Set("anonymousOccupant", occupant)
-		if err := session.Save(); err != nil {
-			logger.Error.Printf("[RefereeHandler] Session save error: %v", err)
-		}
 	}
 
-	// 2) Attempt to claim seat under occupant name
-	err := occupancyService.SetPosition(meetName, position, occupant)
-	if err != nil {
-		logger.Warn.Printf("[RefereeHandler] Attempt to claim taken seat=%s for meet=%s occupant=%s",
-			position, meetName, occupant)
+	// 2) Attempt to claim seat under occupant's name
+	if err := occupancyService.SetPosition(meetName, position, occupant); err != nil {
+		logger.Warn.Printf("[RefereeHandler] Attempt to claim seat=%s for occupant=%s failed: %v",
+			position, occupant, err)
 		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
 		return
 	}
 
+	// 3) Update the session so that .VacatePosition will find "user" + "refPosition"
+	session.Set("user", occupant)
+	session.Set("refPosition", position)
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[RefereeHandler] Failed to save session for occupant=%s: %v", occupant, err)
+	}
+
+	// 4) Log success
 	logger.Info.Printf("[RefereeHandler] meetName=%s, position=%s claimed successfully by occupant=%s",
 		meetName, position, occupant)
 
-	// 3) Render the appropriate referee view
+	// 5) Render the appropriate referee view
 	switch position {
 	case "left", "Left":
 		renderLeft(c, meetName)

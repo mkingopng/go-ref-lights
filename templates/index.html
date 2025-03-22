@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  ...
+  <Title>Select Referee Positions for {{ .meetName }}</Title>
 </head>
 <body>
 {{template "header.html" .}}
@@ -36,6 +36,11 @@
   <a href="/lights" class="button-link">Lights</a>
   <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
 </div>
+
+<h2>Logout (End Admin Session)</h2>
+<form action="/logout" method="GET">
+  <button type="submit">Logout</button>
+</form>
 
 <div class="logo-container">
   <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
