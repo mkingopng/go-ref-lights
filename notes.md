@@ -32,7 +32,15 @@ run unit tests in a specific directory
 go test -v -tags=unit ./websocket
 ```
 
-test coverage
+------------------------
+# test coverage
+
+test coverage of unit packages
+```bash
+go test -v -tags=unit -cover ./...
+```
+
+test coverage of a specific package
 ```bash
 go test -v -tags=unit -coverprofile=cover.out ./controllers
 ```
@@ -40,6 +48,9 @@ or
 ```bash
 go test -v -tags=unit -cover ./controllers
 ```
+
+-----------------------
+# precommit hooks
 
 run precommit hooks:
 ```bash
@@ -52,6 +63,9 @@ poetry run pre-commit run --all-files
 go test -v -tags=unit ./...
 ```
 
+-----------------------
+# integration tests
+
 run integration tests
 ```bash
 go test -v -tags=integration ./...
@@ -62,27 +76,15 @@ run integration tests in a specific directory
 go test -v -tags=integration ./websocket
 ```
 
-
 go's race detector:
 ```bash
 go test -race ./...
 ```
 
-----------------------------------------
-
 load testing & save logs to JSON
 ```bash
 k6 run --out json=test/k6/results.json tests/k6/script.js
 ```
-
----------------------------------------
-
-# Next Step – AWS:
-- Spin up an EC2 instance (or run in a Docker container on AWS).
-- Install K6 on that instance or container.
-- Copy over (or fetch) the script.
-- Run the same command.
-- logging to cloudwatch
 
 ---------------------------------------
 
