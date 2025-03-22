@@ -8,7 +8,7 @@
         "password": "J9uheF",
         "isadmin": true
       },
-        "logo": "static/images/APL_logo white apl logo HQ.png"
+      "logo": "static/images/APL_logo white apl logo HQ.png"
     },
     {
       "name": "New South Wales State Championships",
@@ -28,17 +28,19 @@
         "password": "YqW8qd",
         "isadmin": true
       },
-      "admin2": {
-        "username": "dragon_cup2",
-        "password": "YqW8qd",
-        "isadmin": true
-      },
+      "secondaryAdmins": [
+        {
+          "username": "dragon_cup2",
+          "password": "Pzuf9x",
+          "isadmin": true
+        }
+      ],
       "logo": "static/images/UKPU_logo_White-Text_V2.png"
     }
   ],
   "superuser": {
     "username": "sudo",
-    "password": "247365Racer",
+    "password": "Pzuf9x",
     "isadmin": true,
     "sudo": true
   }

@@ -79,19 +79,23 @@ func TestLoginHandler_Success(t *testing.T) {
 func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
+
+	// Swap mock meet creds
 	originalFunc := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
 	}
-
 	defer func() {
 		loadMeetCredsFunc = originalFunc
 	}()
+
+	// Use a valid user with a wrong password
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
 
-	reqBody := "username=adminuser&password=wrongpassword"
+	// "adminuser" is valid in mock creds, but password is wrong here
+	reqBody := "username=adminuser&password=invalidpassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(sessionCookie)
@@ -100,12 +104,7 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Invalid login should return 401")
-	assert.Contains(
-		t,
-		w.Body.String(),
-		"Invalid username or password",
-		"Response should indicate incorrect credentials",
-	)
+	assert.Contains(t, w.Body.String(), "Invalid username or password", "Response should indicate incorrect credentials")
 }
 
 // TestLoginHandler_UserAlreadyLoggedIn ensures that duplicate logins are prevented.
@@ -189,4 +188,53 @@ func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	// expect a redirect to /choose-meet.
 	assert.Equal(t, http.StatusFound, w.Code, "Login without meet selection should redirect")
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"), "Should redirect to /choose-meet")
+}
+
+func TestLoginHandler_SecondaryAdminSuccess(t *testing.T) {
+	router := setupTestRouter(t)
+	router.POST("/login", LoginHandler)
+
+	originalFunc := loadMeetCredsFunc
+	defer func() { loadMeetCredsFunc = originalFunc }()
+
+	// Inject a meet with both primary and secondary admins
+	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
+		return &models.MeetCreds{
+			Meets: []models.Meet{
+				{
+					Name: "TestMeet",
+					Admin: models.Admin{
+						Username: "adminuser",
+						Password: hashPassword("securepassword"),
+						IsAdmin:  true,
+					},
+					SecondaryAdmins: []models.Admin{
+						{
+							Username: "secondary_admin",
+							Password: hashPassword("backup123"),
+							IsAdmin:  true,
+						},
+					},
+				},
+			},
+		}, nil
+	}
+
+	// Set meet in session
+	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
+		"meetName": "TestMeet",
+	})
+	assert.NotNil(t, sessionCookie)
+
+	// Simulate login as secondary admin
+	reqBody := "username=secondary_admin&password=backup123"
+	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(sessionCookie)
+
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusFound, w.Code, "Login should redirect on success")
+	assert.Equal(t, "/index", w.Header().Get("Location"), "Secondary admin should land on /index")
 }

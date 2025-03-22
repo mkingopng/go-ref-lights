@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"go-ref-lights/controllers"
+	"go-ref-lights/heartbeat"
 	"go-ref-lights/logger"
 	"go-ref-lights/middleware"
 	"go-ref-lights/services"
@@ -23,7 +24,7 @@ import (
 
 // GinHeartbeatHandler is a wrapper that calls HeartbeatHandler from your heartbeat.go file
 func GinHeartbeatHandler(c *gin.Context) {
-	HeartbeatHandler(c.Writer, c.Request)
+	heartbeat.HeartbeatHandler(c.Writer, c.Request)
 }
 
 func main() {
@@ -36,7 +37,7 @@ func main() {
 	// Determine the environment
 	env := os.Getenv("ENV")
 	if env == "" {
-		env = "production"
+		env = "development"
 	}
 
 	// Set your logging level based on environment
@@ -73,7 +74,7 @@ func main() {
 	router := SetupRouter(env)
 
 	// Start background routines
-	hbManager := NewHeartbeatManager()
+	hbManager := heartbeat.NewHeartbeatManager()
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
 	go websocket.HandleMessages()
 
