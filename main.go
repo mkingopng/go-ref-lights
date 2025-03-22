@@ -121,6 +121,9 @@ func SetupRouter(env string) *gin.Engine {
 	}
 	router := gin.Default()
 
+	// Serve /favicon.ico directly
+	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
+
 	// Reduce logs in non-production
 	if env != "production" {
 		gin.DefaultWriter = io.Discard
