@@ -8,7 +8,7 @@
         "password": "J9uheF",
         "isadmin": true
       },
-      "logo": "static/images/APL_logo white apl logo HQ.png"
+      "logo": "/static/images/APL_logo white apl logo HQ.png"
     },
     {
       "name": "New South Wales State Championships",
@@ -18,7 +18,7 @@
         "password": "4pQpCw",
         "isadmin": true
       },
-      "logo": "static/images/APL_logo white apl logo HQ.png"
+      "logo": "/static/images/APL_logo white apl logo HQ.png"
     },
     {
       "name": "Dragon Cup 2",
@@ -35,7 +35,7 @@
           "isadmin": true
         }
       ],
-      "logo": "static/images/UKPU_logo_White-Text_V2.png"
+      "logo": "/static/images/UKPU_logo_White-Text_V2.png"
     }
   ],
   "superuser": {
