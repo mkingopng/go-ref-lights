@@ -1,7 +1,8 @@
-// file: websocket/broadcast_test.go
 //go:build unit
 // +build unit
 
+// file: websocket/broadcast_test.go
+//
 package websocket
 
 import (
@@ -12,22 +13,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// mockBroadcast is a buffered channel that we use to override the global broadcast.
+// mockBroadcast is a buffered channel that we use to override the global broadcast
 var mockBroadcast = make(chan []byte, 10)
 
-// In init, override the global broadcast channel.
+// In init, override the global broadcast channel
 func init() {
 	broadcast = mockBroadcast
 }
 
-// Helper function to flush the broadcast channel.
+// flushBroadcastChannel clears the mockBroadcast channel
 func flushBroadcastChannel() {
 	for len(mockBroadcast) > 0 {
 		<-mockBroadcast
 	}
 }
 
-// TestBroadcastMessage_Success verifies that BroadcastMessage correctly marshals and sends a message.
+// TestBroadcastMessage_Success verifies that BroadcastMessage correctly marshals and sends a message
 func TestBroadcastMessage_Success(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
@@ -51,12 +52,12 @@ func TestBroadcastMessage_Success(t *testing.T) {
 	}
 }
 
-// TestBroadcastFinalResults verifies that broadcastFinalResults sends a displayResults message.
+// TestBroadcastFinalResults verifies that broadcastFinalResults sends a displayResults message
 func TestBroadcastFinalResults(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
 
-	// Set up a MeetState with predefined JudgeDecisions using the unified function.
+	// set up a MeetState with predefined JudgeDecisions using the unified function
 	mockMeetState := GetMeetState("APL Test Meet")
 	mockMeetState.JudgeDecisions = map[string]string{
 		"left":   "good",
@@ -78,16 +79,15 @@ func TestBroadcastFinalResults(t *testing.T) {
 	}
 }
 
-// TestBroadcastFinalResults_ClearsAfterTimeout verifies that broadcastFinalResults
-// sends a clearResults message after the timeout.
+// TestBroadcastFinalResults_ClearsAfterTimeout verifies that broadcastFinalResults sends a clearResults message after a timeout
 func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
 
-	// Set a short display duration.
+	// set a short display duration
 	resultsDisplayDuration = 1
 
-	// Create a controlled MeetState.
+	// create a controlled MeetState
 	mockState := &MeetState{
 		JudgeDecisions: map[string]string{
 			"left":   "good",
@@ -95,19 +95,19 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 			"right":  "good",
 		},
 	}
-	// Insert our controlled state into the global map.
+
+	// insert our controlled state into the global map
 	meetsMutex.Lock()
 	meets["APL Test Meet"] = mockState
 	meetsMutex.Unlock()
 
-	// Override sleepFunc to simulate an immediate timeout.
+	// override sleepFunc to simulate an immediate timeout
 	origSleep := sleepFunc
 	sleepFunc = func(d time.Duration) {}
 	defer func() { sleepFunc = origSleep }()
-
 	broadcastFinalResults("APL Test Meet")
 
-	// First message should be displayResults.
+	// first message should be displayResults
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
@@ -118,7 +118,7 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 		t.Fatal("Expected displayResults broadcast, but got none")
 	}
 
-	// Then, the clearResults message should be sent.
+	// then, the clearResults message should be sent
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
@@ -130,7 +130,7 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 	}
 }
 
-// TestBroadcastTimeUpdateWithIndex verifies that broadcastTimeUpdateWithIndex sends the correct message.
+// TestBroadcastTimeUpdateWithIndex verifies that broadcastTimeUpdateWithIndex sends the correct message
 func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
@@ -150,7 +150,7 @@ func TestBroadcastTimeUpdateWithIndex(t *testing.T) {
 	}
 }
 
-// TestSendBroadcastMessage verifies that SendBroadcastMessage sends raw data.
+// TestSendBroadcastMessage verifies that SendBroadcastMessage sends raw data
 func TestSendBroadcastMessage(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()

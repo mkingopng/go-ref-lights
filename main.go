@@ -1,4 +1,4 @@
-// main.go
+// File main.go
 package main
 
 import (
@@ -28,25 +28,25 @@ func GinHeartbeatHandler(c *gin.Context) {
 }
 
 func main() {
-	// Load environment variables
+	// load environment variables
 	err := godotenv.Load()
 	if err != nil {
 		logger.Warn.Println("[main] No .env file found. Using system environment variables.")
 	}
 
-	// Determine the environment
+	// determine the environment
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "development"
 	}
 
-	// Set your logging level based on environment
+	// set your logging level based on environment
 	logger.SetLogLevel(env)
 
-	// Log the environment
+	// log the environment
 	logger.Info.Printf("[main] Running in %s mode", env)
 
-	// Set application & websocket URLs based on environment
+	// set application & websocket URLs based on environment
 	var applicationURL, websocketURL string
 	if env == "production" {
 		applicationURL = "https://referee-lights.michaelkingston.com.au"
@@ -56,10 +56,10 @@ func main() {
 		websocketURL = "ws://0.0.0.0:8080/referee-updates"
 	}
 
-	// Pass computed URLs to controllers
+	// pass computed URLs to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
-	// Load credentials
+	// load credentials
 	creds, err := controllers.LoadMeetCreds()
 	if err != nil {
 		logger.Error.Printf("[main] Error loading credentials: %v", err)
@@ -67,20 +67,20 @@ func main() {
 		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
 	}
 
-	// Announce start
+	// announce start
 	logger.Info.Println("[main] Starting application on port :8080")
 
-	// Setup the router
+	// setup the router
 	router := SetupRouter(env)
 
-	// Start background routines
+	// start background routines
 	hbManager := heartbeat.NewHeartbeatManager()
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
 	go websocket.HandleMessages()
 
 	router.GET("/heartbeat", GinHeartbeatHandler)
 
-	// Read host/port from environment or default
+	// read host/port from environment or default
 	host := os.Getenv("APP_HOST")
 	if host == "" {
 		if env == "production" {
@@ -95,7 +95,7 @@ func main() {
 	}
 	addr := host + ":" + port
 
-	// Create an HTTP server with timeouts
+	// create an HTTP server with timeouts
 	server := &http.Server{
 		Addr:         addr,
 		Handler:      router,
@@ -106,14 +106,13 @@ func main() {
 
 	logger.Info.Printf("[main] Server running on %s", addr)
 	if err := server.ListenAndServe(); err != nil {
-		// If the server fails to start, we can log a fatal error
 		log.Fatalf("[main] Failed to start server: %v", err)
 	}
 }
 
 // SetupRouter creates and configures a Gin router.
 func SetupRouter(env string) *gin.Engine {
-	// Configure Gin mode
+	// configure Gin mode
 	if env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
@@ -121,33 +120,33 @@ func SetupRouter(env string) *gin.Engine {
 	}
 	router := gin.Default()
 
-	// Serve /favicon.ico directly
+	// serve /favicon.ico directly
 	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
 
-	// Reduce logs in non-production
+	// reduce logs in non-production
 	if env != "production" {
 		gin.DefaultWriter = io.Discard
 		gin.DefaultErrorWriter = io.Discard
 		logger.Debug.Println("[SetupRouter] Gin logs have been discarded for non-production mode.")
 	}
 
-	// Configure session store
+	// configure session store
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
+		MaxAge:   86400, // 1 day
 		HttpOnly: true,
 		Secure:   true,
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
-	// Set security headers
+	// set security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("X-Frame-Options", "ALLOW-FROM https://referee-lights.michaelkingston.com.au")
 		c.Next()
 	})
 
-	// Disable caching for all responses
+	// disable caching for all responses
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")
@@ -155,10 +154,10 @@ func SetupRouter(env string) *gin.Engine {
 		c.Next()
 	})
 
-	// Health endpoint
+	// health endpoint
 	router.GET("/health", controllers.Health)
 
-	// Log endpoint
+	// log endpoint
 	router.POST("/log", func(c *gin.Context) {
 		var payload struct {
 			Message string `json:"message"`
@@ -184,16 +183,16 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	// Initialize your service layer
+	// initialize your service layer
 	occupancyService := services.NewOccupancyService()
 
 	// build the SudoController
 	sudoController := controllers.NewSudoController(occupancyService)
 	sudoRoutes := router.Group("/sudo")
 	{
-		// Must be logged in
+		// must be logged in
 		sudoRoutes.Use(middleware.AuthRequired)
-		// Must be superuser
+		// must be superuser
 		sudoRoutes.Use(middleware.SudoRequired())
 		{
 			sudoRoutes.GET("/", sudoController.SudoPanel)
@@ -208,7 +207,7 @@ func SetupRouter(env string) *gin.Engine {
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 	pc := controllers.NewPositionController(occupancyService)
 
-	// Public routes
+	// public routes
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/meet", controllers.MeetHandler)
@@ -219,10 +218,10 @@ func SetupRouter(env string) *gin.Engine {
 		controllers.RefereeHandler(c, occupancyService)
 	})
 
-	// Load templates
+	// load templates
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// Ensure "meetName" is set (except for a few routes)
+	// ensure "meetName" is set (except for a few routes)
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
 			return
@@ -235,7 +234,7 @@ func SetupRouter(env string) *gin.Engine {
 		}
 	})
 
-	// Protected routes
+	// protected routes
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
 	protected.Use(func(c *gin.Context) {
@@ -277,7 +276,7 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/active-users", controllers.ActiveUsersHandler)
 	}
 
-	// Admin routes
+	// admin routes
 	adminRoutes := router.Group("/admin")
 	adminRoutes.Use(middleware.AdminRequired())
 	{
@@ -291,10 +290,10 @@ func SetupRouter(env string) *gin.Engine {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
 
-	// Serve static files
+	// serve static files
 	router.Static("/static", "./static")
 
-	// Confirm templates path
+	// confirm templates path
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "templates")

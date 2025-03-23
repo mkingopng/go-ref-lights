@@ -1,7 +1,8 @@
-// file: controllers/loginHandler_test.go
 //go:build unit
 // +build unit
 
+// file: controllers/loginHandler_test.go
+//
 package controllers
 
 import (
@@ -17,7 +18,7 @@ import (
 
 // ------------------ MOCK DATA ------------------
 
-// Mock meet credentials
+// mock meet credentials
 var mockMeetCreds = models.MeetCreds{
 	Meets: []models.Meet{
 		{
@@ -33,7 +34,7 @@ var mockMeetCreds = models.MeetCreds{
 
 // ------------------ TESTS ------------------
 
-// TestCheckPasswordHash verifies the correctness of password hashing and validation.
+// TestCheckPasswordHash verifies the correctness of password hashing and validation
 func TestCheckPasswordHash(t *testing.T) {
 	websocket.InitTest()
 	password := "securepassword123"
@@ -45,7 +46,7 @@ func TestCheckPasswordHash(t *testing.T) {
 	assert.False(t, checkPasswordHash(password, ""), "Valid password should not match empty hash")
 }
 
-// TestLoginHandler_Success verifies that a valid login attempt redirects correctly.
+// TestLoginHandler_Success verifies that a valid login attempt redirects correctly
 func TestLoginHandler_Success(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
@@ -75,12 +76,12 @@ func TestLoginHandler_Success(t *testing.T) {
 	assert.Equal(t, "/index", w.Header().Get("Location"), "Redirect URL should be /index")
 }
 
-// TestLoginHandler_InvalidCredentials verifies that an incorrect login attempt is rejected.
+// TestLoginHandler_InvalidCredentials verifies that an incorrect login attempt is rejected
 func TestLoginHandler_InvalidCredentials(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Swap mock meet creds
+	// swap mock meet creds
 	originalFunc := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &mockMeetCreds, nil
@@ -89,7 +90,7 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 		loadMeetCredsFunc = originalFunc
 	}()
 
-	// Use a valid user but a wrong password
+	// use a valid user but a wrong password
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
@@ -154,12 +155,12 @@ func TestLoginHandler_InvalidCredentials(t *testing.T) {
 //		"Should prevent duplicate logins if user is already active")
 //}
 
-// TestLoginHandler_MissingFields checks that missing username/password fields return errors.
+// TestLoginHandler_MissingFields checks that missing username/password fields return errors
 func TestLoginHandler_MissingFields(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
 
-	// Missing username
+	// missing username
 	reqBody := "password=securepassword"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -169,7 +170,7 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 	assert.Equal(t, http.StatusFound, w.Code)
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
 
-	// Missing password
+	// missing password
 	reqBody = "username=adminuser"
 	req, _ = http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -180,7 +181,7 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
 }
 
-// TestLoginHandler_InvalidMeetName covers the scenario where no meetName is set.
+// TestLoginHandler_InvalidMeetName covers the scenario where no meetName is set
 func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
@@ -198,12 +199,12 @@ func TestLoginHandler_InvalidMeetName(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Expect a redirect to /choose-meet.
+	// expect a redirect to /choose-meet
 	assert.Equal(t, http.StatusFound, w.Code)
 	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
 }
 
-// TestLoginHandler_SecondaryAdminSuccess checks that a secondary admin can log in properly.
+// TestLoginHandler_SecondaryAdminSuccess checks that a secondary admin can log in properly
 func TestLoginHandler_SecondaryAdminSuccess(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/login", LoginHandler)
@@ -211,7 +212,7 @@ func TestLoginHandler_SecondaryAdminSuccess(t *testing.T) {
 	originalFunc := loadMeetCredsFunc
 	defer func() { loadMeetCredsFunc = originalFunc }()
 
-	// A meet with both primary and secondary admins
+	// a meet with both primary and secondary admins
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &models.MeetCreds{
 			Meets: []models.Meet{
@@ -234,13 +235,13 @@ func TestLoginHandler_SecondaryAdminSuccess(t *testing.T) {
 		}, nil
 	}
 
-	// Set meet in session
+	// set meet in session
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
 	assert.NotNil(t, sessionCookie)
 
-	// Attempt login as secondary admin
+	// attempt login as secondary admin
 	reqBody := "username=secondary_admin&password=backup123"
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

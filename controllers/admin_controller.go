@@ -35,7 +35,6 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
 
-	// Moved to Debug because it's somewhat verbose
 	logger.Debug.Printf("[AdminPanel] isAdmin from session: %v", adminVal)
 
 	isAdmin, ok := adminVal.(bool)
@@ -59,7 +58,6 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		"meetName":  meetName,
 		"occupancy": occupancy,
 	}
-
 	c.HTML(http.StatusOK, "admin.html", data)
 }
 
@@ -133,7 +131,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s",
 		occupant, position, meetName)
 
-	// Redirect back to the admin panel
+	// redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
 }
 
@@ -151,7 +149,6 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)

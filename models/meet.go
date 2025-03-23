@@ -26,7 +26,7 @@ type Superuser struct {
 // Meet represents a powerlifting meet with associated users.
 type Meet struct {
 	Name            string  `json:"name"`  // Meet name
-	Date            string  `json:"date"`  // Meet date (should use time.Time in production)
+	Date            string  `json:"date"`  // Meet date (todo: should use time.Time in production)
 	Admin           Admin   `json:"admin"` // Meet admin user
 	SecondaryAdmins []Admin `json:"secondaryAdmins,omitempty"`
 	Logo            string  `json:"logo"` // Meet logo URL
@@ -36,6 +36,6 @@ type Meet struct {
 
 // MeetCreds holds a collection of powerlifting meets.
 type MeetCreds struct {
-	Meets     []Meet     `json:"meets"`     // List of meets
+	Meets     []Meet     `json:"meets"`     // list of meets
 	Superuser *Superuser `json:"superuser"` // use a pointer so it can be nil if not provided
 }

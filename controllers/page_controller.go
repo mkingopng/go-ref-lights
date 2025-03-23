@@ -31,7 +31,6 @@ var (
 // -------------------- active users --------------------
 
 // getNextAnonymousName increments and returns a new occupant name,
-// e.g. "AnonRef001", "AnonRef002", etc.
 func getNextAnonymousName() string {
 	anonCounterMu.Lock()
 	defer anonCounterMu.Unlock()
@@ -121,20 +120,19 @@ func Index(c *gin.Context) {
 	meetName, ok := session.Get("meetName").(string)
 	isSudo, _ := session.Get("sudo").(bool)
 
-	// If the user didn't pick any meetName and is not superuser, redirect them
+	// if the user didn't pick any meetName and is not superuser, redirect them
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/set-meet")
 		return
 	}
 
-	// If they selected "Sudo" as their meetName,
-	// we skip normal meet logic and go to /sudo
+	// if they selected "Sudo" as their meetName, skip normal meet logic and go to /sudo
 	if meetName == "Sudo" {
 		c.Redirect(http.StatusFound, "/sudo")
 		return
 	}
 
-	// Normal meet logic:
+	// normal meet logic:
 	creds, err := loadMeetCredsFunc()
 	if err != nil {
 		logger.Error.Printf("[Index] Failed to load meet creds: %v", err)
@@ -146,7 +144,8 @@ func Index(c *gin.Context) {
 	var currentMeet *models.Meet
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
-			currentMeet = &m
+			mCopy := m
+			currentMeet = &mCopy
 			break
 		}
 	}
@@ -305,9 +304,11 @@ func Lights(c *gin.Context) {
 
 	// find the current meet
 	var currentMeet *models.Meet
+
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
-			currentMeet = &m
+			mCopy := m
+			currentMeet = &mCopy
 			break
 		}
 	}
@@ -322,7 +323,6 @@ func Lights(c *gin.Context) {
 		"meetName":     meetName,
 		"Logo":         currentMeet.Logo,
 	}
-
 	c.HTML(http.StatusOK, "lights.html", data)
 }
 
@@ -331,18 +331,18 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	meetName := c.Param("meetName")
 	position := c.Param("position")
 
-	// 1) Get or create a unique occupant for this session
+	// get or create a unique occupant for this session
 	session := sessions.Default(c)
 
-	// 1) Check if we already have "user" in session
+	// check if we already have "user" in session
 	occupant, ok := session.Get("user").(string)
 
 	if !ok || occupant == "" {
-		// If no user is in session, generate a name (or do something else), but store it as "user"
+		// if no user is in session, generate a name, but store it as "user"
 		occupant = getNextAnonymousName()
 	}
 
-	// 2) Attempt to claim seat under occupant's name
+	// attempt to claim seat under occupant's name
 	if err := occupancyService.SetPosition(meetName, position, occupant); err != nil {
 		logger.Warn.Printf("[RefereeHandler] Attempt to claim seat=%s for occupant=%s failed: %v",
 			position, occupant, err)
@@ -350,18 +350,18 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 		return
 	}
 
-	// 3) Update the session so that .VacatePosition will find "user" + "refPosition"
+	// update the session so that VacatePosition will find "user" + "refPosition"
 	session.Set("user", occupant)
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[RefereeHandler] Failed to save session for occupant=%s: %v", occupant, err)
 	}
 
-	// 4) Log success
+	// log success
 	logger.Info.Printf("[RefereeHandler] meetName=%s, position=%s claimed successfully by occupant=%s",
 		meetName, position, occupant)
 
-	// 5) Render the appropriate referee view
+	// render the appropriate referee view
 	switch position {
 	case "left", "Left":
 		renderLeft(c, meetName)

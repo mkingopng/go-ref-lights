@@ -8,21 +8,21 @@ let resultsDisplayed = false; // Flag to indicate that displayResults has been p
 // utility function for logging
 function log(message, level = 'debug') {
     const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${JSON.stringify(message)}`;
 
     // log to console
     switch (level) {
         case 'error':
-            console.error(logMessage);
+            console.error(JSON.stringify(logMessage));
             break;
         case 'warn':
-            console.warn(logMessage);
+            console.warn(JSON.stringify(logMessage));
             break;
         case 'debug':
-            console.debug(logMessage);
+            console.debug(JSON.stringify(logMessage));
             break;
         default:
-            console.log(logMessage);
+            console.log(JSON.stringify(logMessage));
     }
 
     // send logs to a server for saving to a file
@@ -30,7 +30,7 @@ function log(message, level = 'debug') {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: logMessage, level: level }),
-    }).catch(error => console.error('Failed to send log to server:', error));
+    }).catch(error => console.error('Failed to send log to server:', JSON.stringify(error)));
 }
 
 let nextAttemptTimers = {};
@@ -59,7 +59,6 @@ window.addEventListener("DOMContentLoaded", function () {
             log(`✅ Meet name set: ${meetName}`, "info");
         } else {
             log("⚠️ Meet name is missing! Redirecting to meet selection.", "warn");
-            alert("Error: No meet selected. Redirecting.");
             window.location.href = "/meets";
         }
         return meetName;
@@ -178,8 +177,22 @@ window.addEventListener("DOMContentLoaded", function () {
     socket.onmessage = function (event) {
         let data;
         try {
-            data = JSON.parse(event.data);
-            log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
+            const ajv = new Ajv(); // const Ajv = require("ajv")
+            // This is a sample schema. replace with a appropriate schema as per your object's specific data structure.
+            const schema = {
+            	type : "object",
+            	properties : {
+            	    name: {type: "string"}
+            	},
+            	required : ["name"]
+            }
+            const validate = ajv.compile(schema)
+            if(validate(event.data)) {
+                data = JSON.parse(event.data);
+                log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
+            } else {
+                throw new Error('Data does not pass validation');
+            }
         } catch (e) {
             log(`Invalid JSON from server: ${event.data}`, 'error');
             return;

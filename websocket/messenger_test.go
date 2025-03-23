@@ -1,7 +1,8 @@
-// file: websocket/messenger_test.go
 //go:build unit
 // +build unit
 
+// file: websocket/messenger_test.go
+//
 package websocket
 
 import (
@@ -10,20 +11,21 @@ import (
 	"testing"
 )
 
+// TestRealMessenger_BroadcastMessage tests the BroadcastMessage method of the realMessenger.
 func TestRealMessenger_BroadcastMessage(t *testing.T) {
-	// Set up a dummy broadcast collector.
+	// set up a fake broadcast collector.
 	var captured []byte
 	originalBroadcast := broadcast
 	defer func() { broadcast = originalBroadcast }()
 
-	// Override broadcast with a buffered channel.
+	// override broadcast with a buffered channel.
 	broadcast = make(chan []byte, 1)
 
 	rm := &realMessenger{}
 	testMsg := map[string]interface{}{"action": "testAction"}
 	rm.BroadcastMessage("TestMeet", testMsg)
 
-	// Read from the channel.
+	// read from the channel.
 	captured = <-broadcast
 	var result map[string]interface{}
 	err := json.Unmarshal(captured, &result)
@@ -31,8 +33,9 @@ func TestRealMessenger_BroadcastMessage(t *testing.T) {
 	assert.Equal(t, "testAction", result["action"])
 }
 
+// TestRealMessenger_BroadcastTimeUpdate tests the BroadcastTimeUpdate method of the realMessenger.
 func TestRealMessenger_BroadcastTimeUpdate(t *testing.T) {
-	// Set up a dummy broadcast collector.
+	// set up a fake broadcast collector.
 	var captured []byte
 	originalBroadcast := broadcast
 	defer func() { broadcast = originalBroadcast }()
@@ -47,7 +50,7 @@ func TestRealMessenger_BroadcastTimeUpdate(t *testing.T) {
 
 	rm.BroadcastTimeUpdate(action, timeLeft, index, meetName)
 
-	// Read from the channel.
+	// read from the channel.
 	captured = <-broadcast
 	var result map[string]interface{}
 	err := json.Unmarshal(captured, &result)
@@ -59,8 +62,9 @@ func TestRealMessenger_BroadcastTimeUpdate(t *testing.T) {
 	assert.Equal(t, meetName, result["meetName"])
 }
 
+// TestRealMessenger_BroadcastRaw tests the BroadcastRaw method of the realMessenger
 func TestRealMessenger_BroadcastRaw(t *testing.T) {
-	// Set up a dummy broadcast collector.
+	// set up a dummy broadcast collector.
 	var captured []byte
 	originalBroadcast := broadcast
 	defer func() { broadcast = originalBroadcast }()
@@ -71,7 +75,7 @@ func TestRealMessenger_BroadcastRaw(t *testing.T) {
 	rawMsg := []byte(`{"action":"rawTest"}`)
 	rm.BroadcastRaw(rawMsg)
 
-	// Read from the channel.
+	// read from the channel.
 	captured = <-broadcast
 	assert.Equal(t, rawMsg, captured)
 }

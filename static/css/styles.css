@@ -168,14 +168,6 @@ input[type="submit"]:hover {
     text-align: center;
 }
 
-/* next attempt timer */
-.second-timer {
-    font-size: 60px;
-    color: white;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
 /* Circle container */
 .container {
     display: flex;
@@ -376,10 +368,6 @@ input[type="submit"]:hover {
 .action-button.red {
     background-color: red;
     color: white;
-}
-
-.message.flash {
-    animation: flash 1s infinite;
 }
 
 @keyframes flash {

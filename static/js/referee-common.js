@@ -53,7 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
             log(`✅ Meet name set: ${meetName}`, "info");
         } else {
             log("⚠️ Meet name is missing! Redirecting to /meets.", "warn");
-            alert("Error: No meet selected. Redirecting.");
             window.location.href = "/meets";
         }
         return meetName;
@@ -133,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             case "healthError":
-                alert(data.message);
+                log(`Health error: ${data.message}`, "debug");
                 break;
 
             // ------------------------------

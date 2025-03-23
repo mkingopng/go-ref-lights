@@ -1,6 +1,5 @@
 // Package websocket handles real-time WebSocket communication between referees and the meet system.
 // file: websocket/broadcast.go
-
 package websocket
 
 import (
@@ -10,7 +9,7 @@ import (
 	"go-ref-lights/logger"
 )
 
-// Allow tests to override the sleep behaviour.
+// allow tests to override the sleep behaviour.
 var sleepFunc = time.Sleep
 
 // StartNextAttemptTimer is an exported wrapper that triggers the next attempt timer for the given meet.
@@ -25,7 +24,7 @@ func StartNextAttemptTimer(meetState *MeetState) {
 // HandleMessages listens for messages on the broadcast channel and distributes them to connections.
 func HandleMessages() {
 	for {
-		msg := <-broadcast // Read incoming message from the broadcast channel
+		msg := <-broadcast // read incoming message from the broadcast channel
 
 		var msgMap map[string]interface{}
 		var meetFilter string
@@ -37,7 +36,7 @@ func HandleMessages() {
 			}
 		}
 
-		// Acquire the read lock before iterating the `connections` map
+		// acquire the read lock before iterating the `connections` map
 		connectionsMu.RLock()
 		for c := range connections {
 			// if a meet filter is set, only send to matching connections
@@ -50,7 +49,7 @@ func HandleMessages() {
 				logger.Warn.Printf("[HandleMessages] Dropping broadcast message for connection %v", c.conn.RemoteAddr())
 			}
 		}
-		// Release the read lock
+		// release the read lock
 		connectionsMu.RUnlock()
 	}
 }
@@ -70,8 +69,7 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 	broadcast <- msg
 }
 
-// broadcastFinalResults sends the final decisions to all connections in a meet.
-// It then starts the next attempt timer and, after a timeout, broadcasts a "clearResults" message.
+// broadcastFinalResults sends the final decisions to all connections in a meet
 func broadcastFinalResults(meetName string) {
 	meetState := DefaultStateProvider.GetMeetState(meetName) // fetch the current meet state
 

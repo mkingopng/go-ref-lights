@@ -36,18 +36,18 @@ var (
 
 // ------------------- Logger Initialization -------------------
 
-// InitLogger creates or reinitializes the logging system. It:
-//
+// InitLogger creates or reinitialises the logging system. It:
 //   - Ensures `./logs` exists.
 //   - Creates a timestamped log file in `logs/` named using the format `YYYY-MM-DD_HH-MM-SS.log`.
 //   - Writes logs to both the newly created file and stdout by default.
 //   - Configures four separate loggers (Info, Warn, Error, Debug) with consistent prefixes & flags.
 //
+// By default, Debug logs will also appear. You can disable them by call
 // By default, Debug logs will also appear. You can disable them by calling
 // SetLogLevel("production") or a similar environment-based choice.
 func InitLogger() error {
 	// Ensure logs directory exists
-	if err := os.MkdirAll("./logs", 0700); err != nil {
+	if err := os.MkdirAll("./logs", 0600); err != nil {
 		return err
 	}
 
@@ -57,6 +57,7 @@ func InitLogger() error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	// Write logs to both stdout and the file
 	multiWriter := io.MultiWriter(os.Stdout, file)

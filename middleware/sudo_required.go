@@ -1,6 +1,5 @@
 // Package middleware provides request filters and access control mechanisms for the application.
 // File: middleware/sudo_required.go
-
 package middleware
 
 import (
@@ -24,7 +23,7 @@ func SudoRequired() gin.HandlerFunc {
 			return
 		}
 
-		// Pass through if superuser
+		// pass through if superuser
 		c.Next()
 	}
 }

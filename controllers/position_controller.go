@@ -13,12 +13,12 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// PositionController manages referee position assignments.
+// PositionController manages referee position assignments
 type PositionController struct {
 	OccupancyService services.OccupancyServiceInterface
 }
 
-// NewPositionController initializes a PositionController instance.
+// NewPositionController initializes a PositionController instance
 func NewPositionController(service services.OccupancyServiceInterface) *PositionController {
 	logger.Debug.Println("[NewPositionController] Initializing PositionController")
 	return &PositionController{OccupancyService: service}
@@ -26,7 +26,7 @@ func NewPositionController(service services.OccupancyServiceInterface) *Position
 
 // ------------------- Position selection -------------------
 
-// ShowPositionsPage renders the referee position selection page.
+// ShowPositionsPage renders the referee position selection page
 func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
@@ -39,9 +39,6 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	logger.Debug.Printf("[ShowPositionsPage] Retrieved occupancy state: %+v", occ)
-
-	// Possibly redundant second call?
-	occ = pc.OccupancyService.GetOccupancy(meetName)
 
 	data := gin.H{
 		"Positions": map[string]interface{}{
@@ -61,7 +58,7 @@ func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
 
 // ------------------- Position assignment -------------------
 
-// ClaimPosition allows a referee to claim a position.
+// ClaimPosition allows a referee to claim a position
 func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
@@ -80,7 +77,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
 		logger.Error.Printf("[ClaimPosition] Position is taken or invalid: %v", err)
-		// Replacing old fmt.Println:
+
 		logger.Debug.Printf("[ClaimPosition] Controller calling GetOccupancy with: %s", meetName)
 
 		occ := pc.OccupancyService.GetOccupancy(meetName)
@@ -127,7 +124,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 
 // ------------------- Position vacancy -------------------
 
-// VacatePosition allows a referee to vacate their assigned position.
+// VacatePosition allows a referee to vacate their assigned position
 func (pc *PositionController) VacatePosition(c *gin.Context) {
 	session := sessions.Default(c)
 	userEmail, ok := session.Get("user").(string)
@@ -166,7 +163,7 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 // ------------------- Real-time occupancy updates -------------------
 
-// BroadcastOccupancy sends a real-time update of occupied referee positions.
+// BroadcastOccupancy sends a real-time update of occupied referee positions
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
 	logger.Debug.Printf("[BroadcastOccupancy] Entering for meet=%s", meetName)
 	occ := pc.OccupancyService.GetOccupancy(meetName)
@@ -180,6 +177,7 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		"rightUser":  occ.RightUser,
 		"meetName":   meetName,
 	}
+
 	jsonBytes, _ := json.Marshal(msg)
 	logger.Debug.Printf("[BroadcastOccupancy] Sending message: %s", string(jsonBytes))
 
@@ -189,7 +187,7 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 
 // ------------------- API endpoints -------------------
 
-// GetOccupancyAPI provides a JSON response with the current referee occupancy.
+// GetOccupancyAPI provides a JSON response with the current referee occupancy
 func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	session := sessions.Default(c)
 	meetNameRaw := session.Get("meetName")
@@ -203,7 +201,7 @@ func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	c.JSON(http.StatusOK, gin.H{
 		"leftUser":   occ.LeftUser,
-		"centreUser": occ.CenterUser, // spelled “centreUser” for the JSON response
+		"centreUser": occ.CenterUser,
 		"rightUser":  occ.RightUser,
 	})
 }

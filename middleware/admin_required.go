@@ -11,9 +11,6 @@ import (
 )
 
 // AdminRequired is a middleware that restricts access to admin-only routes.
-// Usage:
-//
-//	router.Use(AdminRequired())
 func AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
@@ -21,7 +18,7 @@ func AdminRequired() gin.HandlerFunc {
 
 		logger.Debug.Printf("[AdminRequired] isAdmin=%v, ok=%v", isAdmin, ok)
 
-		// Block request if user is not an admin
+		// block request if the user is not an admin
 		if !ok || !isAdmin {
 			logger.Warn.Println("[AdminRequired] Unauthorized attempt blocked")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})

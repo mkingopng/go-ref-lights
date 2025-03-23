@@ -21,7 +21,7 @@ func NewSudoController(svc services.OccupancyServiceInterface) *SudoController {
 	}
 }
 
-// SudoPanel is an example method in your SudoController
+// SudoPanel is an example method in SudoController
 // data should be a slice of map, or a custom struct slice
 // that your template can iterate over
 func (sc *SudoController) SudoPanel(c *gin.Context) {
@@ -43,7 +43,7 @@ func (sc *SudoController) SudoPanel(c *gin.Context) {
 	})
 }
 
-// ForceVacateRefForAnyMeet forcibly vacates a referee from some meet.
+// ForceVacateRefForAnyMeet forcibly vacates a referee from some meet
 func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 	meetName := c.PostForm("meetName")
 	position := c.PostForm("position")
@@ -79,7 +79,7 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 		return
 	}
 
-	// optionally remove occupant from ActiveUsers if you want:
+	// optionally remove occupant from ActiveUsers
 	ActiveUsersMu.Lock()
 	delete(ActiveUsers, occupant)
 	ActiveUsersMu.Unlock()
@@ -103,7 +103,7 @@ func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 		return
 	}
 
-	// remove them from ActiveUsers, etc.
+	// remove them from ActiveUsers
 	ActiveUsersMu.Lock()
 	if _, exists := ActiveUsers[username]; !exists {
 		ActiveUsersMu.Unlock()

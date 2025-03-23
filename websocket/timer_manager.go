@@ -1,6 +1,5 @@
 // Package websocket manages timers for platform readiness and next attempts.
 // File: websocket/timer_manager.go
-
 package websocket
 
 import (
@@ -52,17 +51,17 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 
 	switch action {
 	case "startTimer":
-		// Clear previous decisions and notify clients to clear results
+		// clear previous decisions and notify clients to clear results
 		logger.Info.Printf("[HandleTimerAction] Clearing old decisions, sending 'clearResults'")
 		meetState.JudgeDecisions = make(map[string]string)
 		clearMsg := map[string]string{"action": "clearResults"}
 		clearJSON, _ := json.Marshal(clearMsg)
 		tm.Messenger.BroadcastRaw(clearJSON)
 
-		// Explicitly cancel any active platform ready timer
+		// explicitly cancel any active platform ready timer
 		CancelPlatformReadyTimer(meetName)
 
-		// Start the platform ready timer
+		// start the platform ready timer
 		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
 		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet='%s'", meetName)
 		tm.startPlatformReadyTimer(meetState)
@@ -80,7 +79,7 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 		tm.startNextAttemptTimer(meetState)
 
 	case "updatePlatformReadyTime":
-		// The UI might be echoing updates; we typically ignore or no-op here
+		// the UI might be echoing updates; we typically ignore or no-op here
 		logger.Debug.Printf("[HandleTimerAction] Ignoring timer update echo from client for meet='%s'", meetName)
 		return
 
@@ -98,28 +97,28 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	logger.Info.Printf("[startPlatformReadyTimer] Called for meet='%s'", meetState.MeetName)
 
 	tm.platformReadyMutex.Lock()
-	// Cancel existing timer if running
+	// cancel existing timer if running
 	if meetState.PlatformReadyCancel != nil {
 		meetState.PlatformReadyCancel()
 	}
 
-	// Create a new cancellable context
+	// create a new cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
 	meetState.PlatformReadyCtx = ctx
 	meetState.PlatformReadyCancel = cancel
 
-	// Increment the timer ID for tracking
+	// increment the timer ID for tracking
 	meetState.PlatformReadyTimerID++
 	localTimerID := meetState.PlatformReadyTimerID
 
-	// Set the single timer to active and store its end time
+	// set the single timer to active and store its end time
 	meetState.PlatformReadyActive = true
 	meetState.PlatformReadyEnd = time.Now().Add(60 * time.Second)
 	logger.Info.Printf("[startPlatformReadyTimer] Timer is set to 60s for meet='%s', endTime=%v",
 		meetState.MeetName, meetState.PlatformReadyEnd)
 	tm.platformReadyMutex.Unlock()
 
-	// Clear lights and broadcast initial time left
+	// clear lights and broadcast initial time left
 	clearMsg := map[string]string{"action": "clearResults"}
 	clearJSON, _ := json.Marshal(clearMsg)
 	tm.Messenger.BroadcastRaw(clearJSON)
@@ -127,7 +126,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	timeLeft := int(meetState.PlatformReadyEnd.Sub(time.Now()).Seconds())
 	tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 
-	// Timer countdown using a ticker
+	// timer countdown using a ticker
 	ticker := time.NewTicker(tm.interval())
 
 	go func(ctx context.Context, timerID int) {
@@ -137,7 +136,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 			case <-ticker.C:
 				tm.platformReadyMutex.Lock()
 
-				// If a new timer started, exit this one
+				// if a new timer started, exit this one
 				if meetState.PlatformReadyTimerID != timerID {
 					logger.Info.Printf("[startPlatformReadyTimer] Timer ID mismatch for meet='%s'; exiting old timer",
 						meetState.MeetName)
@@ -145,7 +144,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 					return
 				}
 
-				// If the timer is no longer active, exit
+				// if the timer is no longer active, exit
 				if !meetState.PlatformReadyActive {
 					logger.Info.Printf("[startPlatformReadyTimer] Timer was stopped early for meet='%s'",
 						meetState.MeetName)
@@ -153,13 +152,13 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 					return
 				}
 
-				// Calculate time left
+				// calculate time left
 				timeLeft := int(meetState.PlatformReadyEnd.Sub(time.Now()).Seconds())
 				if timeLeft < 0 {
 					timeLeft = 0
 				}
 
-				// If time is up, broadcast and reset
+				// if time is up, broadcast and reset
 				if timeLeft <= 0 {
 					logger.Info.Printf("[startPlatformReadyTimer] Timer reached 0; marking expired for meet='%s'",
 						meetState.MeetName)
@@ -170,7 +169,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 					return
 				}
 
-				// Otherwise, broadcast the updated time
+				// otherwise, broadcast the updated time
 				tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 				tm.platformReadyMutex.Unlock()
 
@@ -192,7 +191,7 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 		return
 	}
 	meetState.PlatformReadyActive = false
-	// Optionally reset the time left to 60 if you want
+	// optionally reset the time left to 60 if you want
 	meetState.PlatformReadyTimeLeft = 60
 }
 
@@ -204,13 +203,13 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	tm.nextAttemptIDCounter++
 	timerID := tm.nextAttemptIDCounter
 
-	// Default the next attempt to 60 seconds (or whatever NextAttemptStartValue is)
+	// default the next attempt to 60 seconds (or whatever NextAttemptStartValue is)
 	startVal := 60
 	if tm.NextAttemptStartValue > 0 {
 		startVal = tm.NextAttemptStartValue
 	}
 
-	// Create a new NextAttemptTimer
+	// create a new NextAttemptTimer
 	deadline := time.Now().Add(time.Duration(startVal) * time.Second)
 	newTimer := NextAttemptTimer{
 		ID:       timerID,
@@ -221,10 +220,10 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	meetState.NextAttemptTimers = append(meetState.NextAttemptTimers, newTimer)
 	tm.nextAttemptMutex.Unlock()
 
-	// Broadcast the updated list of timers
+	// broadcast the updated list of timers
 	broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 
-	// Start the countdown in a separate goroutine
+	// start the countdown in a separate goroutine
 	ticker := time.NewTicker(tm.interval())
 	go func(id int) {
 		defer ticker.Stop()
@@ -232,28 +231,28 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 			tm.nextAttemptMutex.Lock()
 			idx := findTimerIndex(meetState.NextAttemptTimers, id)
 			if idx == -1 {
-				// Timer not found; must've been removed or ended
+				// timer not found; must've been removed or ended
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 			if !meetState.NextAttemptTimers[idx].Active {
-				// Already inactive
+				// already inactive
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 
-			// Recalc time left from EndTime
+			// recalc time left from EndTime
 			timeLeft := int(meetState.NextAttemptTimers[idx].EndTime.Sub(time.Now()).Seconds())
 			if timeLeft < 0 {
 				timeLeft = 0
 			}
 			meetState.NextAttemptTimers[idx].TimeLeft = timeLeft
 
-			// Broadcast updated timers
+			// broadcast updated timers
 			broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 
 			if timeLeft <= 0 {
-				// Timer is done
+				// timer is done
 				meetState.NextAttemptTimers[idx].Active = false
 				tm.nextAttemptMutex.Unlock()
 				return
