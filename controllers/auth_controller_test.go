@@ -69,8 +69,8 @@ func TestForceLogoutHandler(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/force-logout", ForceLogoutHandler)
 
-	// populate activeUsers with a test user.
-	activeUsers["test_user"] = true
+	// populate ActiveUsers with a test user.
+	ActiveUsers["test_user"] = true
 
 	t.Run("Admin can force logout user", func(t *testing.T) {
 		// Use a unique helper route for this sub-test.
@@ -90,7 +90,7 @@ func TestForceLogoutHandler(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "User logged out successfully")
-		_, exists := activeUsers["test_user"]
+		_, exists := ActiveUsers["test_user"]
 		assert.False(t, exists, "test_user should have been logged out")
 	})
 
@@ -130,9 +130,9 @@ func TestActiveUsersHandler(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/active-users", ActiveUsersHandler)
 
-	// Populate activeUsers for the test.
-	activeUsers["referee1"] = true
-	activeUsers["referee2"] = true
+	// Populate ActiveUsers for the test.
+	ActiveUsers["referee1"] = true
+	ActiveUsers["referee2"] = true
 
 	t.Run("Admin can see active users", func(t *testing.T) {
 		sessionCookie := SetSession(router, "/set-session-active-1", map[string]interface{}{
@@ -163,7 +163,7 @@ func TestActiveUsersHandler(t *testing.T) {
 	})
 
 	t.Run("Admin sees empty user list when no users are logged in", func(t *testing.T) {
-		activeUsers = make(map[string]bool) // Clear all users.
+		ActiveUsers = make(map[string]bool) // Clear all users.
 		sessionCookie := SetSession(router, "/set-session-active-2", map[string]interface{}{
 			"isAdmin": true,
 		})

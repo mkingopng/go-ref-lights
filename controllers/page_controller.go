@@ -1,6 +1,5 @@
 // Package controllers handles various page rendering and session management functions.
 // File: controllers/page_controller.go
-
 package controllers
 
 import (
@@ -77,7 +76,7 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
-// Logout logs the user out, removes them from activeUsers, vacates their
+// Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
@@ -100,9 +99,9 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 				position, userEmail, meetName)
 		}
 
-		activeUsersMu.Lock()
-		delete(activeUsers, userEmail)
-		activeUsersMu.Unlock()
+		ActiveUsersMu.Lock()
+		delete(ActiveUsers, userEmail)
+		ActiveUsersMu.Unlock()
 
 		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
 	} else {
@@ -116,6 +115,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 // -------------------- page rendering --------------------
 
+// Index renders the main dashboard page screen after logging in
 func Index(c *gin.Context) {
 	session := sessions.Default(c)
 	meetName, ok := session.Get("meetName").(string)
@@ -157,7 +157,7 @@ func Index(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"meetName": meetName, // lower-case "m" for standardization
+		"meetName": meetName,
 		"IsSudo":   isSudo,
 		"Logo":     currentMeet.Logo,
 	}
@@ -270,15 +270,19 @@ func Right(c *gin.Context) {
 	meetName, ok := session.Get("meetName").(string)
 	refPosition := session.Get("refPosition")
 	logger.Debug.Printf("[Right handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
+
 	if !ok || meetName == "" {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
+
 	logger.Info.Println("[Right] Rendering right referee view")
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
 	}
+
 	c.HTML(http.StatusOK, "right.html", data)
 }
 
@@ -291,10 +295,34 @@ func Lights(c *gin.Context) {
 		return
 	}
 	logger.Info.Println("[Lights] Rendering lights page")
+
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		logger.Error.Printf("[Lights] Failed to load meet creds: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+		return
+	}
+
+	// find the current meet
+	var currentMeet *models.Meet
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			currentMeet = &m
+			break
+		}
+	}
+	if currentMeet == nil {
+		logger.Warn.Printf("[Lights] Meet not found: %s", meetName)
+		c.String(http.StatusNotFound, "Meet not found")
+		return
+	}
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
+		"Logo":         currentMeet.Logo,
 	}
+
 	c.HTML(http.StatusOK, "lights.html", data)
 }
 
@@ -305,28 +333,35 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 
 	// 1) Get or create a unique occupant for this session
 	session := sessions.Default(c)
-	occupant, ok := session.Get("anonymousOccupant").(string)
+
+	// 1) Check if we already have "user" in session
+	occupant, ok := session.Get("user").(string)
+
 	if !ok || occupant == "" {
+		// If no user is in session, generate a name (or do something else), but store it as "user"
 		occupant = getNextAnonymousName()
-		session.Set("anonymousOccupant", occupant)
-		if err := session.Save(); err != nil {
-			logger.Error.Printf("[RefereeHandler] Session save error: %v", err)
-		}
 	}
 
-	// 2) Attempt to claim seat under occupant name
-	err := occupancyService.SetPosition(meetName, position, occupant)
-	if err != nil {
-		logger.Warn.Printf("[RefereeHandler] Attempt to claim taken seat=%s for meet=%s occupant=%s",
-			position, meetName, occupant)
+	// 2) Attempt to claim seat under occupant's name
+	if err := occupancyService.SetPosition(meetName, position, occupant); err != nil {
+		logger.Warn.Printf("[RefereeHandler] Attempt to claim seat=%s for occupant=%s failed: %v",
+			position, occupant, err)
 		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
 		return
 	}
 
+	// 3) Update the session so that .VacatePosition will find "user" + "refPosition"
+	session.Set("user", occupant)
+	session.Set("refPosition", position)
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[RefereeHandler] Failed to save session for occupant=%s: %v", occupant, err)
+	}
+
+	// 4) Log success
 	logger.Info.Printf("[RefereeHandler] meetName=%s, position=%s claimed successfully by occupant=%s",
 		meetName, position, occupant)
 
-	// 3) Render the appropriate referee view
+	// 5) Render the appropriate referee view
 	switch position {
 	case "left", "Left":
 		renderLeft(c, meetName)

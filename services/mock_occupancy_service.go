@@ -24,14 +24,12 @@ func (m *MockOccupancyService) SetPosition(meetName, position, userEmail string)
 	return args.Error(0)
 }
 
-// fix_me
 // UnsetPosition removes a user's position from the occupancy service (mocked)
 func (m *MockOccupancyService) UnsetPosition(meetName, position, user string) error {
 	args := m.Called(meetName, position, user)
 	return args.Error(0)
 }
 
-// fix_me
 // ResetOccupancyForMeet is a mocked function that resets the occupancy for a given meet
 func (m *MockOccupancyService) ResetOccupancyForMeet(meetName string) {
 	m.Called(meetName)

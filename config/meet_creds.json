@@ -5,7 +5,7 @@
             "date": "March 22",
             "admin": {
                 "username": "cairns_cup",
-                "password": "$2b$12$HQZQUjiK0rvl7qk44rpNo.HPMkSGtdpwOUkPrNqKab/Keij2gpBTy",
+                "password": "$2b$12$KFKBzEMcKJhuGh6Q7R/GZOBBS4S6EoAWxrML2jv1Zl9Fwf0P0ylVC",
                 "isadmin": true
             },
             "logo": "static/images/APL_logo white apl logo HQ.png"
@@ -15,7 +15,7 @@
             "date": "March 22-23",
             "admin": {
                 "username": "nsw_champs",
-                "password": "$2b$12$h973hVdD2/vKEwwKjjRwgOq/zbWfbqrb0rCkFZaNaRHvelXXQRyam",
+                "password": "$2b$12$K5pKbz.C9HrEu2hIeTckDefbmB7Qb22hGQs/3DDNK22THAqq5Z/TG",
                 "isadmin": true
             },
             "logo": "static/images/APL_logo white apl logo HQ.png"
@@ -25,20 +25,22 @@
             "date": "March 23",
             "admin": {
                 "username": "dragon_cup",
-                "password": "$2b$12$pQzgrauWb2JwLv0ITqnLvOwxGMcKpjwEPSQK9kZ4NGDb1dIuk/yfK",
+                "password": "$2b$12$KxdVnA18RZzYO7eyGOCt3uOc.BX8JaX0MlcBTn0hB/BZ4GAtT4Tnq",
                 "isadmin": true
             },
-            "admin2": {
-                "username": "dragon_cup2",
-                "password": "YqW8qd",
-                "isadmin": true
-            },
+            "secondaryAdmins": [
+                {
+                    "username": "dragon_cup2",
+                    "password": "$2b$12$y7AABTvQPcflVnLsuFN95Oublo69zfKPlbPbPfOIJ2FWBJ2530qZ2",
+                    "isadmin": true
+                }
+            ],
             "logo": "static/images/UKPU_logo_White-Text_V2.png"
         }
     ],
     "superuser": {
         "username": "sudo",
-        "password": "247365Racer",
+        "password": "$2b$12$R92WuVzurQoF4V61YVa5xOA3GgRgf0/DUvOjFWREYITWDPSKWkcey",
         "isadmin": true,
         "sudo": true
     }

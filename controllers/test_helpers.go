@@ -7,8 +7,10 @@ package controllers
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-contrib/sessions"
@@ -97,4 +99,21 @@ func hashPassword(password string) string {
 		panic("failed to hash password: " + err.Error())
 	}
 	return string(hashed)
+}
+
+// in controllers/test_helpers.go
+func createPostRequest(path string, formData map[string]string) *http.Request {
+	form := url.Values{}
+	for k, v := range formData {
+		form.Add(k, v)
+	}
+	req := httptest.NewRequest("POST", path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req
+}
+
+func performRequest(router http.Handler, req *http.Request) *httptest.ResponseRecorder {
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	return w
 }

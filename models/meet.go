@@ -25,10 +25,11 @@ type Superuser struct {
 
 // Meet represents a powerlifting meet with associated users.
 type Meet struct {
-	Name  string `json:"name"`  // Meet name
-	Date  string `json:"date"`  // Meet date (should use time.Time in production)
-	Admin Admin  `json:"admin"` // Meet admin user
-	Logo  string `json:"logo"`  // Meet logo URL
+	Name            string  `json:"name"`  // Meet name
+	Date            string  `json:"date"`  // Meet date (should use time.Time in production)
+	Admin           Admin   `json:"admin"` // Meet admin user
+	SecondaryAdmins []Admin `json:"secondaryAdmins,omitempty"`
+	Logo            string  `json:"logo"` // Meet logo URL
 }
 
 // ---------------------- meet credentials model ----------------------

@@ -1,5 +1,5 @@
 // file: heartbeat.go
-package main
+package heartbeat
 
 import (
 	"fmt"

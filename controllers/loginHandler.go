@@ -1,6 +1,5 @@
 // Package controllers handles user authentication and session management.
 // File: controllers/loginHandler.go
-
 package controllers
 
 import (
@@ -45,8 +44,24 @@ func PerformLogin(c *gin.Context) {
 	}
 
 	// finally, render the login form
+	meetName := session.Get("meetName")
+	logo := "" // default empty
+
+	// Try to load logo from meet config
+	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
+		if creds, err := loadMeetCredsFunc(); err == nil {
+			for _, meet := range creds.Meets {
+				if meet.Name == meetNameStr {
+					logo = meet.Logo
+					break
+				}
+			}
+		}
+	}
+
 	c.HTML(http.StatusOK, "login.html", gin.H{
-		"MeetName": session.Get("meetName"),
+		"MeetName": meetName,
+		"Logo":     logo,
 	})
 }
 
@@ -60,17 +75,16 @@ func PerformLogin(c *gin.Context) {
 func LoginHandler(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// retrieve meet name from session.
+	// retrieve meet name from session
 	meetNameRaw := session.Get("meetName")
 	meetName, ok := meetNameRaw.(string)
 	if !ok || meetName == "" {
-		// no meet selected: redirect to the choose-meet page.
 		logger.Warn.Println("[LoginHandler] No meet selected, redirecting to /choose-meet")
 		c.Redirect(http.StatusFound, "/choose-meet")
 		return
 	}
 
-	// extract username and password from the POST form.
+	// extract username and password from the POST form
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 
@@ -83,8 +97,9 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// load meet credentials using the helper.
+	// load meet credentials
 	creds, err := loadMeetCredsFunc()
+
 	if err != nil {
 		logger.Error.Printf("[LoginHandler] Failed to load meet credentials: %v", err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
@@ -98,9 +113,8 @@ func LoginHandler(c *gin.Context) {
 	if creds.Superuser != nil &&
 		creds.Superuser.Username == username &&
 		checkPasswordHash(password, creds.Superuser.Password) {
-		// the user is the superuser.
 		session.Set("sudo", true)
-		session.Set("isAdmin", true) // superuser gets admin rights
+		session.Set("isAdmin", true)
 		session.Set("user", username)
 		_ = session.Save()
 
@@ -109,21 +123,34 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// validate the provided credentials against meet.
-	var valid bool
+	// validate the provided credentials against the selected meet
 	var isAdmin bool
+	var authenticated bool
 	for _, m := range creds.Meets {
-		if m.Name == meetName {
-			if m.Admin.Username == username && checkPasswordHash(password, m.Admin.Password) {
-				valid = true
-				isAdmin = m.Admin.IsAdmin
+		if m.Name != meetName {
+			continue
+		}
+
+		// primary admin
+		if m.Admin.Username == username && checkPasswordHash(password, m.Admin.Password) {
+			isAdmin = m.Admin.IsAdmin
+			authenticated = true
+			break
+		}
+
+		// secondary admins
+		for _, sa := range m.SecondaryAdmins {
+			if sa.Username == username && checkPasswordHash(password, sa.Password) {
+				isAdmin = sa.IsAdmin
+				authenticated = true
 				break
 			}
 		}
+
+		break // stop after checking this meet
 	}
 
-	if !valid {
-		// credentials are invalid.
+	if !authenticated {
 		logger.Warn.Printf("[LoginHandler] Invalid login attempt for user=%s at meet=%s", username, meetName)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
@@ -132,28 +159,25 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// prevent duplicate logins.
-	activeUsersMu.Lock() // Acquire write lock for the whole block
-	if activeUsers[username] {
+	// prevent duplicate logins
+	ActiveUsersMu.Lock()
+	if ActiveUsers[username] {
 		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
-			"Error":    "This username is already logged in on another device.",
+			"Error":    "Invalid username or password.",
+			"Logo":     getLogoForMeet(meetName), // helper function
 		})
-		activeUsersMu.Unlock()
+		ActiveUsersMu.Unlock()
 		return
 	}
-
-	// mark the user as logged in.
-	activeUsers[username] = true
-	activeUsersMu.Unlock()
+	ActiveUsers[username] = true
+	ActiveUsersMu.Unlock()
 
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
-	// This was previously an Info-level with “DEBUG” in the text. Let's convert to Debug-level:
 	logger.Debug.Printf("[LoginHandler] Setting isAdmin=%v for user=%s", isAdmin, username)
 
-	// save the session.
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[LoginHandler] Failed to save session: %v", err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
@@ -196,4 +220,18 @@ func LoginHandler(c *gin.Context) {
 
 	// ------------------ default redirect on success ------------------
 	c.Redirect(http.StatusFound, "/index")
+}
+
+// Helper function to retrieve logo for meet
+func getLogoForMeet(meetName string) string {
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		return ""
+	}
+	for _, meet := range creds.Meets {
+		if meet.Name == meetName {
+			return meet.Logo
+		}
+	}
+	return ""
 }

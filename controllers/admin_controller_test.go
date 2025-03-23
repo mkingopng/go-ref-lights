@@ -145,9 +145,9 @@ func TestActiveUsersHandler_AdminCanSeeActiveUsers(t *testing.T) {
 
 	router.GET("/active-users", ActiveUsersHandler)
 
-	// prepare activeUsers map for test.
-	activeUsers["referee1"] = true
-	activeUsers["referee2"] = true
+	// prepare ActiveUsers map for test.
+	ActiveUsers["referee1"] = true
+	ActiveUsers["referee2"] = true
 
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"isAdmin": true,
