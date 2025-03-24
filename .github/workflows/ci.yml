@@ -14,6 +14,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Debug workspace
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "List all files (recursive):"
+          ls -alR
+          echo "List config directory specifically:"
+          ls -al config
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
