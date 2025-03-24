@@ -1,8 +1,7 @@
-// file: middleware/role_test.go
-
 //go:build unit
 // +build unit
 
+// file: middleware/role_test.go
 package middleware
 
 import (
@@ -18,20 +17,20 @@ import (
 )
 
 var roleRouter *gin.Engine
-var roleStore sessions.Store // Define a global session store
+var roleStore sessions.Store // define a global session store
 
 // setupRoleTestRouter initializes a test router ONCE with a shared session store
 func setupRoleTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	// Use a single shared session store for all tests
+	// use a single shared session store for all tests
 	if roleStore == nil {
 		roleStore = cookie.NewStore([]byte("super-secret-key"))
 	}
 	router.Use(sessions.Sessions("testsession", roleStore))
 
-	// Test login route to set session
+	// test login route to set session
 	router.GET("/login-test", func(c *gin.Context) {
 		session := sessions.Default(c)
 		session.Set("user", "testuser")

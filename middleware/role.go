@@ -11,7 +11,6 @@ import (
 )
 
 // PositionRequired ensures that a user has the correct referee position to access specific paths.
-//
 // Usage:
 //
 //	router.Use(PositionRequired())
@@ -20,7 +19,7 @@ func PositionRequired() gin.HandlerFunc {
 		session := sessions.Default(c)
 		user := session.Get("user")
 
-		// If the user is not authenticated, redirect to /login
+		// if the user is not authenticated, redirect to /login
 		if user == nil {
 			logger.Warn.Printf("[PositionRequired] Unauthenticated access attempt to %s. Redirecting to /login",
 				c.Request.URL.Path)
@@ -29,10 +28,10 @@ func PositionRequired() gin.HandlerFunc {
 			return
 		}
 
-		// Retrieve the user's assigned referee position
+		// retrieve the user's assigned referee position
 		refPos := session.Get("refPosition")
 
-		// Determine the required position based on the request path
+		// determine the required position based on the request path
 		path := c.Request.URL.Path
 		var requiredPos string
 		switch path {
@@ -46,14 +45,14 @@ func PositionRequired() gin.HandlerFunc {
 			logger.Debug.Printf("[PositionRequired] No specific role required for path: %s", path)
 		}
 
-		// If no specific role is required, proceed
+		// if no specific role is required, proceed
 		if requiredPos == "" {
 			logger.Debug.Printf("[PositionRequired] Proceeding without role restriction on path: %s", path)
 			c.Next()
 			return
 		}
 
-		// If user’s position does not match the required position, redirect
+		// if user’s position does not match the required position, redirect
 		if requiredPos != "" && refPos != requiredPos {
 			logger.Warn.Printf("[PositionRequired] User=%v does not have the required position for %s. Expected=%s, got=%v. Redirecting to /positions",
 				user, path, requiredPos, refPos)

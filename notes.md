@@ -524,7 +524,6 @@ class RefereeLightsCdkStack(Stack):
             description="The DNS address of the load balancer"
         )
 ```
-
 # some simple real tests
 
 Below is a concise list of scenarios you can methodically run through in the remaining time, covering each major flow. If all (or most) of these work as expected, you’ll be in a good place for your presentation.
@@ -601,38 +600,6 @@ Below is a concise list of scenarios you can methodically run through in the rem
 Good luck—checking these flows thoroughly should leave you in a strong position for your presentation.
 ---------------------
 
-# deployment annotations: 12 errors
-1. build: controllers/loginHandler.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-2. build: controllers/meet_controller.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-3. build: controllers/page_controller.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-4. build: controllers/page_controller.go#L119
-   exported function Index should have comment or be unexported
-5. build: middleware/admin_required.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-6. build: middleware/auth.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-7. build: middleware/role.go#L3
-   package comment is detached; there should be no blank lines between it and
-   the package statement
-8. build: middleware/sudo_required.go#L1
-   package comment should be of the form "Package middleware ..."
-9. build: services/mock_occupancy_service.go#L27
-   comment on exported method MockOccupancyService.UnsetPosition should be of
-   the form "UnsetPosition ..."
-10. build: services/mock_occupancy_service.go#L34
-    comment on exported method MockOccupancyService.ResetOccupancyForMeet
-    should be of the form "ResetOccupancyForMeet ..."
-11. deploy
-    Process completed with exit code 1.
-
 ----------------------
 # Environmental Variables in ECS
 Set environment variables in the ECS Task Definition (basic approach)
@@ -642,3 +609,5 @@ Set environment variables in the ECS Task Definition (basic approach)
 - Click Add environment variable. Enter the name (e.g., ENV, APP_HOST, APP_PORT) and the value you want.
 - Save your changes and deploy the new Task Definition revision.
 After redeployment, your container will see these environment variables when it calls os.Getenv("NAME_OF_VARIABLE").
+
+------------------------

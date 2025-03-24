@@ -23,7 +23,7 @@ import (
 
 // SetupRouter creates and configures a Gin router.
 func SetupRouter(env string) *gin.Engine {
-	// Configure Gin mode
+	// configure Gin mode
 	if env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	} else {
@@ -31,33 +31,34 @@ func SetupRouter(env string) *gin.Engine {
 	}
 	router := gin.Default()
 
-	// Serve /favicon.ico directly
+	// serve /favicon.ico directly
 	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
 
-	// Reduce logs in non-production
+	// reduce logs in non-production
 	if env != "production" {
 		gin.DefaultWriter = io.Discard
 		gin.DefaultErrorWriter = io.Discard
 		logger.Debug.Println("[SetupRouter] Gin logs have been discarded for non-production mode.")
 	}
 
-	// Configure session store
+	// configure session store
+	secureFlag := env == "production" // true if production, false if dev/test
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   86400 * 7, // 7 days
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   secureFlag,
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
-	// Set security headers
+	// set security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("X-Frame-Options", "ALLOW-FROM https://referee-lights.michaelkingston.com.au")
 		c.Next()
 	})
 
-	// Disable caching for all responses
+	// disable caching for all responses
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")
@@ -65,10 +66,10 @@ func SetupRouter(env string) *gin.Engine {
 		c.Next()
 	})
 
-	// Health endpoint
+	// health endpoint
 	router.GET("/health", controllers.Health)
 
-	// Log endpoint
+	// log endpoint
 	router.POST("/log", func(c *gin.Context) {
 		var payload struct {
 			Message string `json:"message"`
@@ -94,16 +95,16 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	// Initialize your service layer
+	// initialise your service layer
 	occupancyService := services.NewOccupancyService()
 
 	// build the SudoController
 	sudoController := controllers.NewSudoController(occupancyService)
 	sudoRoutes := router.Group("/sudo")
 	{
-		// Must be logged in
+		// must be logged in
 		sudoRoutes.Use(middleware.AuthRequired)
-		// Must be superuser
+		// must be superuser
 		sudoRoutes.Use(middleware.SudoRequired())
 		{
 			sudoRoutes.GET("/", sudoController.SudoPanel)
@@ -118,7 +119,7 @@ func SetupRouter(env string) *gin.Engine {
 	adminController := controllers.NewAdminController(occupancyService, positionController)
 	pc := controllers.NewPositionController(occupancyService)
 
-	// Public routes
+	// public routes
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/meet", controllers.MeetHandler)
@@ -132,7 +133,7 @@ func SetupRouter(env string) *gin.Engine {
 		heartbeat.Handler(c.Writer, c.Request)
 	})
 
-	// Ensure "meetName" is set (except for a few routes)
+	// ensure "meetName" is set (except for a few routes)
 	router.Use(func(c *gin.Context) {
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
 			return
@@ -145,7 +146,7 @@ func SetupRouter(env string) *gin.Engine {
 		}
 	})
 
-	// Protected routes
+	// protected routes
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
 	protected.Use(func(c *gin.Context) {
@@ -179,7 +180,7 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/active-users", controllers.ActiveUsersHandler)
 	}
 
-	// Admin routes
+	// admin routes
 	adminRoutes := router.Group("/admin")
 	adminRoutes.Use(middleware.AdminRequired())
 	{
@@ -188,15 +189,15 @@ func SetupRouter(env string) *gin.Engine {
 		adminRoutes.POST("/reset-instance", adminController.ResetInstance)
 	}
 
-	// WebSocket route
+	// webSocket route
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
 
-	// Serve static files
+	// serve static files
 	router.Static("/static", "./static")
 
-	// Confirm templates path via runtime.Caller
+	// confirm templates path via runtime.Caller
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")

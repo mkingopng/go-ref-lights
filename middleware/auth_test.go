@@ -1,8 +1,7 @@
-// Description: Test cases for the authentication middleware. middleware/auth_test.go
-
 //go:build unit
 // +build unit
 
+// Description: Test cases for the authentication middleware. middleware/auth_test.go
 package middleware
 
 import (
