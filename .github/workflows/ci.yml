@@ -46,7 +46,7 @@ jobs:
 
       # 2) Run local e2e / integration tests (the ones you tag with //go:build integration)
       - name: Run Local E2E Tests
-        run: go test -v -tags=integration ./test
+        run: go test -v -tags=integration ./tests
 
       - name: Build Docker Image
         run: |
