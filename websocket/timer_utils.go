@@ -20,7 +20,7 @@ func findTimerIndex(timers []NextAttemptTimer, id int) int {
 // broadcastAllNextAttemptTimers sends a message with the current next-attempt timers.
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	msg := map[string]interface{}{
-		"action":   "updateNextAttemptTime", // CHANGED: Use this action name for next-attempt updates.
+		"action":   "updateNextAttemptTime",
 		"timers":   timers,
 		"meetName": meetName,
 	}

@@ -33,6 +33,22 @@ var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 // In auth_controller.go (or in a _test.go file in the same package)
 // Provide a helper so your test can lock/unlock or set users as needed:
 
+func lockActiveUsers() { //nolint:unused
+	ActiveUsersMu.Lock()
+}
+
+func unlockActiveUsers() { //nolint:unused
+	ActiveUsersMu.Unlock()
+}
+
+func setUserActive(username string) { //nolint:unused
+	ActiveUsers[username] = true
+}
+
+func clearUserActive(username string) { //nolint:unused
+	delete(ActiveUsers, username)
+}
+
 // ComparePasswords checks if the given password matches the hashed password
 func ComparePasswords(hashedPassword, plainPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
