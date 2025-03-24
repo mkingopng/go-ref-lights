@@ -78,8 +78,8 @@ func TestRefereeFlow(t *testing.T) {
 	// C) POST /login with meet director’s username/password
 	t.Log("[TestRefereeFlow] Step C: POST /login with credentials")
 	loginForm := url.Values{}
-	loginForm.Set("username", "director") // todo: actual admin user
-	loginForm.Set("password", "secret")   // todo: actual password
+	loginForm.Set("username", "dragon_cup") // todo: actual admin user
+	loginForm.Set("password", "YqW8qd")     // todo: actual password
 
 	respC, errC := client.PostForm(baseURL+"/login", loginForm)
 	if errC != nil {
@@ -175,6 +175,5 @@ func TestRefereeFlow(t *testing.T) {
 			t.Errorf("[TestRefereeFlow] Asset %q returned %d, want 200", assetURL, respAsset.StatusCode)
 		}
 	}
-
 	t.Log("[TestRefereeFlow] Finished successfully!")
 }
