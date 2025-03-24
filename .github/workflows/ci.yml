@@ -8,7 +8,7 @@ on:
     branches: [ master ]
 
 jobs:
-  verify:  # <--- Renamed from “build”
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,13 +38,13 @@ jobs:
       - name: Lint and Static Analysis
         run: |
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          golangci-lint run --exclude-dir=referee_lights_cdk --exclude-dir=.github --timeout=5m
+          golangci-lint run --timeout=5m
 
-      # 1) Run only unit tests (the ones you tag with //go:build unit)
+      # 1) Run only unit tests
       - name: Run Unit Tests
         run: go test -v -tags=unit ./...
 
-      # 2) Run local e2e / integration tests (the ones you tag with //go:build integration)
+      # 2) Run local e2e / integration tests
       - name: Run Local E2E Tests
         run: go test -v -tags=integration ./test/referee_flow_local_test.go
 
@@ -57,7 +57,7 @@ jobs:
 
   deploy:
     # Updated to depend on the 'verify' job
-    needs: verify
+    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master'
     steps:
@@ -96,7 +96,7 @@ jobs:
         working-directory: referee_lights_cdk
         run: poetry run cdk deploy --app "python ../app.py" --require-approval never
 
-      # Optional: Run your Remote E2E Test if you want
+      # Run Remote E2E Test
       - name: Run Remote E2E Test
         if: success()
         env:
