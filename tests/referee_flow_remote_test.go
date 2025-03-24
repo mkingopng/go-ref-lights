@@ -2,6 +2,7 @@
 // +build remote
 
 // file: test/referee_flow_remote_test.go
+//
 package test
 
 import (
@@ -132,11 +133,13 @@ func TestRefereeFlowRemote(t *testing.T) {
 		if strings.HasPrefix(asset, "/") {
 			assetURL = baseURL + asset
 		}
+
 		respAsset, errAsset := client.Get(assetURL)
 		if errAsset != nil {
 			t.Errorf("[Remote] GET asset %q failed: %v", assetURL, errAsset)
 			continue
 		}
+
 		closeRespBodyRemote(t, respAsset.Body, assetURL)
 		if respAsset.StatusCode != http.StatusOK {
 			t.Errorf("[Remote] Asset %q -> %d, want 200", assetURL, respAsset.StatusCode)

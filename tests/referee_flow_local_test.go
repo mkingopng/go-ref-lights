@@ -1,13 +1,6 @@
 //go:build integration
 // +build integration
 
-// file: test/refere
-
-//
-package test
-
-imp
-// file: test/referee
 package test
 
 import (
