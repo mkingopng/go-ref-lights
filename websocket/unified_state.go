@@ -1,4 +1,5 @@
-// unified_state.go
+// Package websocket provides a WebSocket server and client for the Go programming language.
+// File: websocket/unified_state.go
 package websocket
 
 import (

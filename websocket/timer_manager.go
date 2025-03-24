@@ -1,6 +1,5 @@
 // Package websocket manages timers for platform readiness and next attempts.
 // File: websocket/timer_manager.go
-
 package websocket
 
 import (
