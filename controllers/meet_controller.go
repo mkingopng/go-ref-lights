@@ -22,8 +22,12 @@ var loadMeetsFunc = LoadMeets
 // LoadMeets loads the meet configuration from `./config/meets.json`.
 // This function retrieves the available meets and their details from the JSON file.
 func LoadMeets() (*models.MeetCreds, error) {
+	meetsPath := "./config/meets.json" // #nosec G101
+	if env := os.Getenv("MEETS_PATH"); env != "" {
+		meetsPath = env
+	}
 	// read the config file
-	data, err := os.ReadFile("./config/meets.json")
+	data, err := os.ReadFile(meetsPath)
 	if err != nil {
 		return nil, err
 	}

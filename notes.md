@@ -1,6 +1,12 @@
 compile
 ```bash
-go build ./...
+go build -o referee-lights ./cmd/referee-lights
+```
+
+or
+```bash
+cd cmd/referee-lights
+go build -o referee-lights main.go
 ```
 
 ```go
@@ -9,7 +15,7 @@ go run .
 
 run app locally
 ```bash
-ENV=development go run main.go
+go run main.go
 ```
 
 or run from docker:
@@ -62,11 +68,28 @@ run integration tests in a specific directory
 go test -v -tags=integration ./websocket
 ```
 
-
 go's race detector:
 ```bash
 go test -race ./...
 ```
+
+```bash
+cd tests && go test -v ./test/...
+```
+----------------------------------------
+
+test locally
+```bash
+go test -v ./test/referee_flow_local_test.go
+```
+
+test in production
+```bash
+export REMOTE_BASE_URL="https://referee-lights.michaelkingston.com.au"
+
+go test -v ./tests/referee_flow_remote_test.go
+```
+
 
 ----------------------------------------
 
@@ -610,9 +633,12 @@ Good luck—checking these flows thoroughly should leave you in a strong positio
 11. deploy
     Process completed with exit code 1.
 
-
-
-
-
-
-fuck me dead
+----------------------
+# Environmental Variables in ECS
+Set environment variables in the ECS Task Definition (basic approach)
+- Go to your ECS console, then Task Definitions.
+- Create a new revision of your Task Definition (or a new Task Definition if you haven’t already).
+- In the “Container Definitions” section, find the container running your Go app. Look for “Environment” or “Environment Variables.”
+- Click Add environment variable. Enter the name (e.g., ENV, APP_HOST, APP_PORT) and the value you want.
+- Save your changes and deploy the new Task Definition revision.
+After redeployment, your container will see these environment variables when it calls os.Getenv("NAME_OF_VARIABLE").

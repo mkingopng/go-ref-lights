@@ -120,8 +120,10 @@ func MeetHandler(c *gin.Context) {
 
 // LoadMeetCreds loads meet credentials from a JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	// define the path to the credentials file.
 	credPath := "./config/meet_creds.json" // #nosec G101
+	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
+		credPath = env
+	}
 
 	// read the JSON file
 	data, err := os.ReadFile(credPath)

@@ -32,7 +32,7 @@ jobs:
           pip install poetry
           export PATH="$HOME/.local/bin:$PATH"
           cd referee_lights_cdk
-          poetry install  # ✅ No need for 'poetry env use 3.10'
+          poetry install
 
       - name: Install Go dependencies
         run: go mod download
@@ -42,8 +42,18 @@ jobs:
           go install golang.org/x/lint/golint@latest
           golint ./...
 
+      # ------------------------------------------
+      # 1) Run only unit tests (the ones you tag with //go:build unit)
+      # ------------------------------------------
       - name: Run Unit Tests
-        run: go test -v ./...
+        run: go test -v -tags=unit ./...
+
+      # ------------------------------------------
+      # 2) Run local e2e/integration tests
+      #    (the ones you tag with //go:build integration)
+      # ------------------------------------------
+      - name: Run Local E2E Tests
+        run: go test -v -tags=integration ./test/referee_flow_local_test.go
 
       - name: Build Docker Image
         run: |
@@ -92,6 +102,16 @@ jobs:
         working-directory: referee_lights_cdk
         run: poetry run cdk deploy --app "python ../app.py" --require-approval never
 
+      # Optional: Run your Remote E2E Test if you want
+      - name: Run Remote E2E Test
+        if: success()
+        env:
+          REMOTE_BASE_URL: ${{ secrets.REMOTE_BASE_URL }}
+        run: |
+          echo "REMOTE_BASE_URL=$REMOTE_BASE_URL"
+          go test -v -tags=remote ./test/referee_flow_remote_test.go
+
+      # notify slack on success
       - name: Notify Slack on Success
         if: success()
         uses: slackapi/slack-github-action@v1.23.0

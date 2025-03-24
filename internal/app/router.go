@@ -1,11 +1,11 @@
-// main.go
-package main
+// Package app
+// File: internal/app/router.go
+package app
 
 import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go-ref-lights/controllers"
 	"go-ref-lights/heartbeat"
 	"go-ref-lights/logger"
@@ -19,97 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 )
-
-// GinHeartbeatHandler is a wrapper that calls HeartbeatHandler from your heartbeat.go file
-func GinHeartbeatHandler(c *gin.Context) {
-	heartbeat.HeartbeatHandler(c.Writer, c.Request)
-}
-
-func main() {
-	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		logger.Warn.Println("[main] No .env file found. Using system environment variables.")
-	}
-
-	// Determine the environment
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	// Set your logging level based on environment
-	logger.SetLogLevel(env)
-
-	// Log the environment
-	logger.Info.Printf("[main] Running in %s mode", env)
-
-	// Set application & websocket URLs based on environment
-	var applicationURL, websocketURL string
-	if env == "production" {
-		applicationURL = "https://referee-lights.michaelkingston.com.au"
-		websocketURL = "wss://referee-lights.michaelkingston.com.au/referee-updates"
-	} else {
-		applicationURL = "http://0.0.0.0:8080"
-		websocketURL = "ws://0.0.0.0:8080/referee-updates"
-	}
-
-	// Pass computed URLs to controllers
-	controllers.SetConfig(applicationURL, websocketURL)
-
-	// Load credentials
-	creds, err := controllers.LoadMeetCreds()
-	if err != nil {
-		logger.Error.Printf("[main] Error loading credentials: %v", err)
-	} else {
-		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
-	}
-
-	// Announce start
-	logger.Info.Println("[main] Starting application on port :8080")
-
-	// Setup the router
-	router := SetupRouter(env)
-
-	// Start background routines
-	hbManager := heartbeat.NewHeartbeatManager()
-	go hbManager.CleanupInactiveSessions(30 * time.Second)
-	go websocket.HandleMessages()
-
-	router.GET("/heartbeat", GinHeartbeatHandler)
-
-	// Read host/port from environment or default
-	host := os.Getenv("APP_HOST")
-	if host == "" {
-		if env == "production" {
-			host = "0.0.0.0"
-		} else {
-			host = "localhost"
-		}
-	}
-	port := os.Getenv("APP_PORT")
-	if port == "" {
-		port = "8080"
-	}
-	addr := host + ":" + port
-
-	// Create an HTTP server with timeouts
-	server := &http.Server{
-		Addr:         addr,
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  30 * time.Second,
-	}
-
-	logger.Info.Printf("[main] Server running on %s", addr)
-	if err := server.ListenAndServe(); err != nil {
-		// If the server fails to start, we can log a fatal error
-		log.Fatalf("[main] Failed to start server: %v", err)
-	}
-}
 
 // SetupRouter creates and configures a Gin router.
 func SetupRouter(env string) *gin.Engine {
@@ -218,9 +128,9 @@ func SetupRouter(env string) *gin.Engine {
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
 		controllers.RefereeHandler(c, occupancyService)
 	})
-
-	// Load templates
-	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
+	router.GET("/heartbeat", func(c *gin.Context) {
+		heartbeat.HeartbeatHandler(c.Writer, c.Request)
+	})
 
 	// Ensure "meetName" is set (except for a few routes)
 	router.Use(func(c *gin.Context) {
@@ -259,14 +169,6 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
 		protected.POST("/position/vacate", pc.VacatePosition)
 
-		// If you restore your /home routes:
-		// protected.GET("/home", func(c *gin.Context) {
-		//     controllers.Home(c, occupancyService)
-		// })
-		// protected.POST("/home", func(c *gin.Context) {
-		//     controllers.Home(c, occupancyService)
-		// })
-
 		protected.POST("/logout", func(c *gin.Context) {
 			controllers.Logout(c, occupancyService)
 		})
@@ -294,14 +196,19 @@ func SetupRouter(env string) *gin.Engine {
 	// Serve static files
 	router.Static("/static", "./static")
 
-	// Confirm templates path
+	// Confirm templates path via runtime.Caller
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
-	templatesDir := filepath.Join(basePath, "templates")
+	templatesDir := filepath.Join(basePath, "../../templates")
+
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		log.Fatalf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
 	}
 
+	router.SetHTMLTemplate(template.Must(
+		template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
+
 	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
+
 	return router
 }

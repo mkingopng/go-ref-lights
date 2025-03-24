@@ -1,0 +1,10 @@
+# docker-compose.yml
+version: "3.10"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      MEETS_PATH: "./config/meets.json"
+      MEET_CREDS_PATH: "./config/meet_creds.json"

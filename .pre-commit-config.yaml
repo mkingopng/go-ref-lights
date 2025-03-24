@@ -1,4 +1,5 @@
 # .pre-commit-config.yaml
+# .pre-commit-config.yaml
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -24,11 +25,22 @@ repos:
         types: [go]
         pass_filenames: false
         args: ["-exclude-dir=cdk.out", "./..."]
+
       - id: go-test
         name: Go Unit Tests
-        entry: go test -v -tags=unit ./...
+        # The important part: use /bin/bash with `-c`, so we can chain multiple shell commands (export + go test).
         language: system
-        types: [ go ]
+        entry: /bin/bash
+        args:
+          - -c
+          - |
+            # set environment variables for the test
+            export MEETS_PATH="config/meets.json"
+            export MEET_CREDS_PATH="config/meet_creds.json"
+
+            # run your test
+            go test -v -tags=unit ./...
+        types: [go]
         pass_filenames: false
 #      - id: pytest
 #        name: Run Pytest
