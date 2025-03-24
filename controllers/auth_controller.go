@@ -26,28 +26,12 @@ var ActiveUsers = make(map[string]bool)
 var ActiveUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
-var loadMeetCredsFunc = LoadMeetCreds // Assign to a variable for easier testing
+var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 
 // ----------------------- authentication utilities -----------------------
 
 // In auth_controller.go (or in a _test.go file in the same package)
 // Provide a helper so your test can lock/unlock or set users as needed:
-
-func lockActiveUsers() {
-	ActiveUsersMu.Lock()
-}
-
-func unlockActiveUsers() {
-	ActiveUsersMu.Unlock()
-}
-
-func setUserActive(username string) {
-	ActiveUsers[username] = true
-}
-
-func clearUserActive(username string) {
-	delete(ActiveUsers, username)
-}
 
 // ComparePasswords checks if the given password matches the hashed password
 func ComparePasswords(hashedPassword, plainPassword string) bool {

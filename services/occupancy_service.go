@@ -31,7 +31,7 @@ type OccupancyServiceInterface interface {
 
 // OccupancyService is a concrete implementation of OccupancyServiceInterface.
 type OccupancyService struct {
-	mu        sync.Mutex
+	mu        sync.Mutex //nolint:unused
 	occupancy map[string]*Occupancy
 }
 
