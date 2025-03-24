@@ -1,7 +1,7 @@
-// controllers/admin_controller_test.go
 //go:build unit
 // +build unit
 
+// controllers/admin_control
 package controllers
 
 import (

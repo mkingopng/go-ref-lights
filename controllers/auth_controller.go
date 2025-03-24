@@ -21,10 +21,12 @@ import (
 
 // ActiveUsers tracks currently logged-in users.
 var ActiveUsers = make(map[string]bool)
+
+// ActiveUsersMu controls concurrency for ActiveUsers.
 var ActiveUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
-var loadMeetCredsFunc = LoadMeetCreds // Assign to a variable for easier testing
+var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 
 // ----------------------- authentication utilities -----------------------
 
@@ -123,8 +125,10 @@ func MeetHandler(c *gin.Context) {
 
 // LoadMeetCreds loads meet credentials from a JSON file
 func LoadMeetCreds() (*models.MeetCreds, error) {
-	// define the path to the credentials file.
-	credPath := "./config/meet_creds.json" // #nosec G101
+	credPath := "config/meet_creds.json" // #nosec G101
+	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
+		credPath = env
+	}
 
 	// read the JSON file
 	data, err := os.ReadFile(credPath)

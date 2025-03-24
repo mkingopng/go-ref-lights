@@ -1,6 +1,12 @@
 compile
 ```bash
-go build ./...
+go build -o referee-lights ./cmd/referee-lights
+```
+
+or
+```bash
+cd cmd/referee-lights
+go build -o referee-lights main.go
 ```
 
 ```go
@@ -9,7 +15,7 @@ go run .
 
 run app locally
 ```bash
-ENV=development go run main.go
+go run main.go
 ```
 
 or run from docker:
@@ -503,7 +509,6 @@ class RefereeLightsCdkStack(Stack):
             description="The DNS address of the load balancer"
         )
 ```
-
 # some simple real tests
 
 Below is a concise list of scenarios you can methodically run through in the remaining time, covering each major flow. If all (or most) of these work as expected, you’ll be in a good place for your presentation.

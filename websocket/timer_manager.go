@@ -11,7 +11,7 @@ import (
 )
 
 // platformReadyTimer is declared here but not used directly. (We rely on context/cancel.)
-var platformReadyTimer *time.Timer
+var platformReadyTimer *time.Timer //nolint:unused
 
 // Default instance of TimerManager.
 var defaultTimerManager *TimerManager
@@ -123,7 +123,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	clearJSON, _ := json.Marshal(clearMsg)
 	tm.Messenger.BroadcastRaw(clearJSON)
 
-	timeLeft := int(meetState.PlatformReadyEnd.Sub(time.Now()).Seconds())
+	timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
 	tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 
 	// timer countdown using a ticker

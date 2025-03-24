@@ -16,17 +16,17 @@ var (
 	sessionLock     = sync.Mutex{}
 )
 
-// HeartbeatManager tracks active referees
-type HeartbeatManager struct {
+// Manager tracks active referees
+type Manager struct {
 	activeSessions map[string]time.Time
 	mu             sync.Mutex
 }
 
-// HeartbeatHandler updates the last seen timestamp of a referee
-func HeartbeatHandler(w http.ResponseWriter, r *http.Request) {
+// Handler updates the last seen timestamp of a referee
+func Handler(w http.ResponseWriter, r *http.Request) {
 	refereeID := r.URL.Query().Get("referee_id")
 	if refereeID == "" {
-		logger.Warn.Println("[HeartbeatHandler] Missing referee ID in query params")
+		logger.Warn.Println("[Handler] Missing referee ID in query params")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
 		return
 	}
@@ -35,38 +35,38 @@ func HeartbeatHandler(w http.ResponseWriter, r *http.Request) {
 	refereeSessions[refereeID] = time.Now()
 	sessionLock.Unlock()
 
-	logger.Debug.Printf("[HeartbeatHandler] Updated heartbeat for referee=%s at %v", refereeID, time.Now())
+	logger.Debug.Printf("[Handler] Updated heartbeat for referee=%s at %v", refereeID, time.Now())
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := fmt.Fprintln(w, "Heartbeat received"); err != nil {
-		logger.Warn.Printf("[HeartbeatHandler] Error writing response for referee=%s: %v", refereeID, err)
+		logger.Warn.Printf("[Handler] Error writing response for referee=%s: %v", refereeID, err)
 	}
 }
 
 // NewHeartbeatManager initializes a heartbeat tracker
-func NewHeartbeatManager() *HeartbeatManager {
-	return &HeartbeatManager{
+func NewHeartbeatManager() *Manager {
+	return &Manager{
 		activeSessions: make(map[string]time.Time),
 	}
 }
 
 // UpdateHeartbeat marks a referee as active
-func (h *HeartbeatManager) UpdateHeartbeat(refereeID string) {
+func (h *Manager) UpdateHeartbeat(refereeID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.activeSessions[refereeID] = time.Now()
-	logger.Debug.Printf("[HeartbeatManager.UpdateHeartbeat] Referee=%s updated at %v", refereeID, time.Now())
+	logger.Debug.Printf("[Manager.UpdateHeartbeat] Referee=%s updated at %v", refereeID, time.Now())
 }
 
 // CleanupInactiveSessions removes inactive referees
-func (h *HeartbeatManager) CleanupInactiveSessions(timeout time.Duration) {
+func (h *Manager) CleanupInactiveSessions(timeout time.Duration) {
 	ticker := time.NewTicker(timeout)
 	go func() {
 		for range ticker.C {
 			h.mu.Lock()
 			for id, lastSeen := range h.activeSessions {
 				if time.Since(lastSeen) > timeout {
-					logger.Info.Printf("[HeartbeatManager.CleanupInactiveSessions] Removing inactive referee=%s (timeout=%v)", id, timeout)
+					logger.Info.Printf("[Manager.CleanupInactiveSessions] Removing inactive referee=%s (timeout=%v)", id, timeout)
 					delete(h.activeSessions, id)
 				}
 			}

@@ -90,11 +90,11 @@ func SetLogLevel(env string) {
 	if env == "production" {
 		// Discard all debug output in production:
 		Debug.SetOutput(io.Discard)
-	} else {
-		// By default, keep debug logs on. There's nothing more to do here,
-		// because the debug logger has already been set to multiWriter in InitLogger().
-		// This is a no-op for non-production environments.
-	}
+	} // else {
+	// By default, keep debug logs on. There's nothing more to do here,
+	// because the debug logger has already been set to multiWriter in InitLogger().
+	// This is a no-op for non-production environments.
+	// }
 }
 
 // init is called automatically at package load time. It attempts to initialize

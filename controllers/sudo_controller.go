@@ -1,3 +1,5 @@
+// Package controllers contains the controller logic for the web app.
+// File: controllers/sudo_controller.go
 package controllers
 
 import (

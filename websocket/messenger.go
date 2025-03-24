@@ -1,7 +1,6 @@
 // Package websocket Description: This file contains the implementation of the
 // realMessenger struct, which is used to send messages to all connected clients.
 // file: websocket/messenger.go
-
 package websocket
 
 import (
