@@ -2,7 +2,6 @@
 // +build remote
 
 // file: test/referee_flow_remote_test.go
-//
 package test
 
 import (

@@ -169,7 +169,6 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/right", controllers.Right)
 		protected.GET("/occupancy", pc.GetOccupancyAPI)
 		protected.POST("/position/vacate", pc.VacatePosition)
-
 		protected.POST("/logout", func(c *gin.Context) {
 			controllers.Logout(c, occupancyService)
 		})
