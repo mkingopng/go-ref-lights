@@ -37,8 +37,8 @@ jobs:
 
       - name: Lint and Static Analysis
         run: |
-          go install golang.org/x/lint/golint@latest
-          golint ./...
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run --exclude-dir=referee_lights_cdk --exclude-dir=.github --timeout=5m
 
       # 1) Run only unit tests (the ones you tag with //go:build unit)
       - name: Run Unit Tests
