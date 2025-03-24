@@ -1,6 +1,5 @@
 // Package websocket provides WebSocket server functionality and connection handling.
 // file: websocket/connection.go
-
 package websocket
 
 import (

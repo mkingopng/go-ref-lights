@@ -1,6 +1,5 @@
 // Package websocket handles real-time WebSocket communication between referees and the meet system.
 // file: websocket/broadcast.go
-
 package websocket
 
 import (

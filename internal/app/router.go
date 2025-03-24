@@ -1,4 +1,4 @@
-// Package app
+// Package app provides the application router setup and middleware chain.
 // File: internal/app/router.go
 package app
 
@@ -129,7 +129,7 @@ func SetupRouter(env string) *gin.Engine {
 		controllers.RefereeHandler(c, occupancyService)
 	})
 	router.GET("/heartbeat", func(c *gin.Context) {
-		heartbeat.HeartbeatHandler(c.Writer, c.Request)
+		heartbeat.Handler(c.Writer, c.Request)
 	})
 
 	// Ensure "meetName" is set (except for a few routes)

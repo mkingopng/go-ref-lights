@@ -21,6 +21,8 @@ import (
 
 // ActiveUsers tracks currently logged-in users.
 var ActiveUsers = make(map[string]bool)
+
+// ActiveUsersMu controls concurrency for ActiveUsers.
 var ActiveUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.

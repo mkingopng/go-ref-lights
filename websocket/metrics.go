@@ -1,6 +1,5 @@
 // Package websocket - websocket/metrics.go
 // file: websocket/metrics.go
-
 package websocket
 
 import (
