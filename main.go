@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -183,7 +184,7 @@ func SetupRouter(env string) *gin.Engine {
 		c.Status(http.StatusOK)
 	})
 
-	// initialize your service layer
+	// initialise your service layer
 	occupancyService := services.NewOccupancyService()
 
 	// build the SudoController
@@ -221,9 +222,14 @@ func SetupRouter(env string) *gin.Engine {
 	// load templates
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// ensure "meetName" is set (except for a few routes)
+	// ensure "meetName" is set (except for a few routes + /static)
 	router.Use(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
+			c.Next()
+			return
+		}
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
+			c.Next()
 			return
 		}
 		session := sessions.Default(c)
@@ -232,6 +238,7 @@ func SetupRouter(env string) *gin.Engine {
 			c.Abort()
 			return
 		}
+		c.Next()
 	})
 
 	// protected routes

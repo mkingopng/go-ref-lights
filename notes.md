@@ -576,3 +576,4 @@ Below is a concise list of scenarios you can methodically run through in the rem
   This ensures you’ve tried each path from start to finish.
 - Keep your Admin session open in a separate tab to see real-time occupant
   changes as you test from the phone.
+---------------------------
