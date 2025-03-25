@@ -23,7 +23,7 @@ func SudoRequired() gin.HandlerFunc {
 			return
 		}
 
-		// Pass through if superuser
+		// pass through if superuser
 		c.Next()
 	}
 }

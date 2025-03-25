@@ -1,41 +1,38 @@
 {
   "meets": [
     {
-      "name": "Cairns Cup",
+      "name": "Queensland Drug-Tested Raw States",
       "date": "March 22",
       "admin": {
-        "username": "cairns_cup",
-        "password": "J9uheF",
-        "isadmin": true
-      },
-      "logo": "/static/images/APL_logo white apl logo HQ.png"
-    },
-    {
-      "name": "New South Wales State Championships",
-      "date": "March 22-23",
-      "admin": {
-        "username": "nsw_champs",
-        "password": "4pQpCw",
-        "isadmin": true
-      },
-      "logo": "/static/images/APL_logo white apl logo HQ.png"
-    },
-    {
-      "name": "Dragon Cup 2",
-      "date": "March 23",
-      "admin": {
-        "username": "dragon_cup",
-        "password": "YqW8qd",
+        "username": "qld_states",
+        "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "dragon_cup2",
-          "password": "Pzuf9x",
+          "username": "qld_states2",
+          "password": "Y8DrnC",
           "isadmin": true
         }
-      ],
-      "logo": "/static/images/UKPU_logo_White-Text_V2.png"
+        ],
+      "logo": "/static/images/APL_logo_white.png"
+    },
+    {
+      "name": "Peninsula Cup",
+      "date": "March 22-23",
+      "admin": {
+        "username": "peninsula_cup",
+        "password": "2WYcNU",
+        "isadmin": true
+      },
+      "secondaryAdmins": [
+        {
+          "username": "peninsula_cup2",
+          "password": "7XHKXb",
+          "isadmin": true
+        }
+        ],
+      "logo": "APL_logo_white.png"
     }
   ],
   "superuser": {

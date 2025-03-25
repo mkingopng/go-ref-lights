@@ -1,4 +1,4 @@
-// Package heartbeat provides a heartbeat manager and HTTP handler for liveness checks.
+// Package heartbeat
 // file: heartbeat.go
 package heartbeat
 

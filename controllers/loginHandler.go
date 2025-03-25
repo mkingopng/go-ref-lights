@@ -47,7 +47,7 @@ func PerformLogin(c *gin.Context) {
 	meetName := session.Get("meetName")
 	logo := "" // default empty
 
-	// Try to load logo from meet config
+	// try to load logo from meet config
 	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
 		if creds, err := loadMeetCredsFunc(); err == nil {
 			for _, meet := range creds.Meets {
@@ -58,7 +58,6 @@ func PerformLogin(c *gin.Context) {
 			}
 		}
 	}
-
 	c.HTML(http.StatusOK, "login.html", gin.H{
 		"MeetName": meetName,
 		"Logo":     logo,
@@ -117,7 +116,6 @@ func LoginHandler(c *gin.Context) {
 		session.Set("isAdmin", true)
 		session.Set("user", username)
 		_ = session.Save()
-
 		logger.Info.Printf("[LoginHandler] Superuser %s authenticated", username)
 		c.Redirect(http.StatusFound, "/sudo")
 		return
@@ -222,7 +220,7 @@ func LoginHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/index")
 }
 
-// Helper function to retrieve logo for meet
+// helper function to retrieve logo for meet
 func getLogoForMeet(meetName string) string {
 	creds, err := loadMeetCredsFunc()
 	if err != nil {

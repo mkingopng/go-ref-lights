@@ -1,8 +1,8 @@
-// file: models/meet_test.go
-
 //go:build unit
 // +build unit
 
+// file: models/meet_test.go
+//
 package models
 
 import (
@@ -13,7 +13,7 @@ import (
 	"go-ref-lights/websocket"
 )
 
-// Test: Create a User and verify struct fields
+// TestAdminInitialization: Create an Admin and verify struct fields
 func TestAdminInitialization(t *testing.T) {
 	admin := Admin{
 		Username: "testadmin",
@@ -25,7 +25,7 @@ func TestAdminInitialization(t *testing.T) {
 	assert.True(t, admin.IsAdmin)
 }
 
-// Test: Create a Meet and verify struct fields
+// TestMeetInitialization: Create a Meet and verify struct fields
 func TestMeetInitialization(t *testing.T) {
 	websocket.InitTest()
 
@@ -49,7 +49,7 @@ func TestMeetInitialization(t *testing.T) {
 	assert.Equal(t, "championship_logo.png", meet.Logo)
 }
 
-// Test: Create MeetCreds and verify multiple meets
+// TestMeetCredsInitialization: Create a MeetCreds and verify struct fields
 func TestMeetCredsInitialization(t *testing.T) {
 	websocket.InitTest()
 	meet1 := Meet{Name: "Nationals", Date: "2025-06-20"}
@@ -64,7 +64,7 @@ func TestMeetCredsInitialization(t *testing.T) {
 	assert.Equal(t, "2025-04-10", meetCreds.Meets[1].Date)
 }
 
-// Test: Meet JSON Serialization & Deserialization
+// TestMeetJSONSerialization: Serialize and Deserialize Meet struct to/from JSON
 func TestMeetJSONSerialization(t *testing.T) {
 	websocket.InitTest()
 
@@ -79,16 +79,16 @@ func TestMeetJSONSerialization(t *testing.T) {
 		Logo: "deadlift_open_logo.png",
 	}
 
-	// Serialize Meet to JSON.
+	// serialise Meet to JSON.
 	jsonData, err := json.Marshal(meet)
 	assert.NoError(t, err)
 
-	// Deserialize JSON back into Meet struct.
+	// deserialise JSON back into Meet struct.
 	var decodedMeet Meet
 	err = json.Unmarshal(jsonData, &decodedMeet)
 	assert.NoError(t, err)
 
-	// Verify data integrity.
+	// verify data integrity.
 	assert.Equal(t, meet.Name, decodedMeet.Name)
 	assert.Equal(t, meet.Date, decodedMeet.Date)
 	assert.Equal(t, meet.Admin.Username, decodedMeet.Admin.Username)
@@ -97,7 +97,7 @@ func TestMeetJSONSerialization(t *testing.T) {
 	assert.Equal(t, meet.Logo, decodedMeet.Logo)
 }
 
-// Test: MeetCreds JSON Serialization & Deserialization
+// TestMeetCredsJSONSerialization: Serialize and Deserialize MeetCreds struct to/from JSON
 func TestMeetCredsJSONSerialization(t *testing.T) {
 	websocket.InitTest()
 	meetCreds := MeetCreds{
@@ -107,16 +107,16 @@ func TestMeetCredsJSONSerialization(t *testing.T) {
 		},
 	}
 
-	// Serialize MeetCreds to JSON
+	// serialize MeetCreds to JSON
 	jsonData, err := json.Marshal(meetCreds)
 	assert.NoError(t, err)
 
-	// Deserialize JSON back into MeetCreds struct
+	// deserialise JSON back into MeetCreds struct
 	var decodedMeetCreds MeetCreds
 	err = json.Unmarshal(jsonData, &decodedMeetCreds)
 	assert.NoError(t, err)
 
-	// Verify data integrity
+	// verify data integrity
 	assert.Len(t, decodedMeetCreds.Meets, 2)
 	assert.Equal(t, "Nationals", decodedMeetCreds.Meets[0].Name)
 	assert.Equal(t, "2025-04-10", decodedMeetCreds.Meets[1].Date)

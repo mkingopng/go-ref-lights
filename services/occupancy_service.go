@@ -70,7 +70,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 	logger.Info.Printf("[SetPosition] Attempting to assign position=%s to user=%s for meet=%s", position, userEmail, meetName)
 
-	// Validate position
+	// validate position
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
 		err := errors.New("invalid position selected, please choose left, center, or right")
@@ -101,7 +101,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		}
 	}
 
-	// Remove the user from other positions if they're currently seated
+	// remove the user from other positions if they're currently seated
 	if occ.LeftUser == userEmail {
 		occ.LeftUser = ""
 	}
@@ -112,7 +112,7 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = ""
 	}
 
-	// Now seat them in the chosen position
+	// now seat them in the chosen position
 	switch position {
 	case "left":
 		occ.LeftUser = userEmail
@@ -122,14 +122,14 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = userEmail
 	}
 
-	// Touch activity to update LastUpdated
+	// touch activity to update LastUpdated
 	s.TouchActivity(meetName)
 	logger.Info.Printf("[SetPosition] Position=%s assigned to user=%s for meet=%s. Current occupancy: %+v",
 		position, userEmail, meetName, occ)
 	return nil
 }
 
-// UnsetPosition removes the occupant from a specified position (if the occupant matches userEmail).
+// UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -141,6 +141,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 	}
 
 	switch position {
+
 	case "left":
 		if occ.LeftUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing left position for user=%s in meet=%s", userEmail, meetName)
@@ -148,6 +149,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 		} else {
 			return errors.New("user does not hold this position")
 		}
+
 	case "center":
 		if occ.CenterUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing center position for user=%s in meet=%s", userEmail, meetName)
@@ -155,6 +157,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 		} else {
 			return errors.New("user does not hold this position")
 		}
+
 	case "right":
 		if occ.RightUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing right position for user=%s in meet=%s", userEmail, meetName)
@@ -162,6 +165,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 		} else {
 			return errors.New("user does not hold this position")
 		}
+
 	default:
 		err := errors.New("invalid position")
 		logger.Error.Printf("[UnsetPosition] %v", err)
@@ -173,7 +177,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 	return nil
 }
 
-// ResetOccupancyForMeet clears all occupant fields for the specified meet.
+// ResetOccupancyForMeet clears all occupant fields for the specified meet
 func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -186,7 +190,7 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	}
 }
 
-// TouchActivity updates the LastUpdated timestamp for the given meet.
+// TouchActivity updates the LastUpdated timestamp for the given meet
 func (s *OccupancyService) TouchActivity(meetName string) {
 	if occ, exists := occupancyMap[meetName]; exists {
 		occ.LastUpdated = time.Now()

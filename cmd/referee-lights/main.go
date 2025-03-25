@@ -1,8 +1,10 @@
-// cmd/referee-lights/main.go
+// Package main
+// File: cmd/referee-lights/main.go
 package main
 
 import (
 	"github.com/joho/godotenv"
+	"go-ref-lights/internal/app"
 	"log"
 	"net/http"
 	"os"
@@ -10,26 +12,32 @@ import (
 
 	"go-ref-lights/controllers"
 	"go-ref-lights/heartbeat"
-	"go-ref-lights/internal/app"
 	"go-ref-lights/logger"
 	"go-ref-lights/websocket"
 )
 
 func main() {
-	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		logger.Warn.Println("[main] No .env file found. Using system environment variables.")
+	// Load env variables
+	_ = godotenv.Load()
+
+	// explicitly initialize the logger
+	if err := logger.InitLogger(); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
 	// Determine the environment
 	env := os.Getenv("ENV")
 	if env == "" {
-		env = "development"
+		env = "production"
 	}
-
-	// Set your logging level based on environment
 	logger.SetLogLevel(env)
+
+	// Optionally defer close:
+	defer func() {
+		if err := logger.CloseLogger(); err != nil {
+			log.Printf("Error closing logger: %v", err)
+		}
+	}()
 
 	// Log the environment
 	logger.Info.Printf("[main] Running in %s mode", env)

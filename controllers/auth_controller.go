@@ -33,19 +33,31 @@ var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 // In auth_controller.go (or in a _test.go file in the same package)
 // Provide a helper so your test can lock/unlock or set users as needed:
 
-func lockActiveUsers() { //nolint:unused
+// lockActiveUsers locks the ActiveUsers map for testing.
+//
+//nolint:unused
+func lockActiveUsers() {
 	ActiveUsersMu.Lock()
 }
 
-func unlockActiveUsers() { //nolint:unused
+// unlockActiveUsers unlocks the ActiveUsers map for testing.
+//
+//nolint:unused
+func unlockActiveUsers() {
 	ActiveUsersMu.Unlock()
 }
 
-func setUserActive(username string) { //nolint:unused
+// setUserActive sets a user as active for testing.
+//
+//nolint:unused
+func setUserActive(username string) {
 	ActiveUsers[username] = true
 }
 
-func clearUserActive(username string) { //nolint:unused
+// clearUserActive clears a user from the active users map for testing.
+//
+//nolint:unused
+func clearUserActive(username string) {
 	delete(ActiveUsers, username)
 }
 
@@ -62,7 +74,6 @@ func SetMeetHandler(c *gin.Context) {
 		c.HTML(http.StatusBadRequest, "choose_meet.html", gin.H{"Error": "Please select a meet."})
 		return
 	}
-
 	session := sessions.Default(c)
 	session.Set("meetName", meetName)
 	if err := session.Save(); err != nil {
@@ -70,7 +81,6 @@ func SetMeetHandler(c *gin.Context) {
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error, please try again."})
 		return
 	}
-
 	logger.Info.Printf("Meet %s selected, redirecting to meet page.", meetName)
 	c.Redirect(http.StatusFound, "/login")
 }
@@ -99,7 +109,8 @@ func MeetHandler(c *gin.Context) {
 	var currentMeet *models.Meet
 	for _, meet := range creds.Meets {
 		if meet.Name == meetName {
-			currentMeet = &meet
+			meetCopy := meet
+			currentMeet = &meetCopy
 			break
 		}
 	}
@@ -174,7 +185,7 @@ func ForceLogoutHandler(c *gin.Context) {
 		return
 	}
 
-	// Acquire the write lock for read-check + deletion
+	// acquire the write lock for read-check + deletion
 	ActiveUsersMu.Lock()
 	defer ActiveUsersMu.Unlock()
 
@@ -204,7 +215,7 @@ func ActiveUsersHandler(c *gin.Context) {
 
 	var userList []string
 
-	// Acquire read lock for iteration
+	// acquire read lock for iteration
 	ActiveUsersMu.RLock()
 	for user := range ActiveUsers {
 		userList = append(userList, user)

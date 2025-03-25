@@ -11,9 +11,6 @@ import (
 )
 
 // PositionRequired ensures that a user has the correct referee position to access specific paths.
-// Usage:
-//
-//	router.Use(PositionRequired())
 func PositionRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)

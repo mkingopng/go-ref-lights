@@ -19,8 +19,8 @@ var loadMeetsFunc = LoadMeets
 
 // ------------- meet configuration management -------------
 
-// LoadMeets loads the meet configuration from `config/meets.json`.
-// This function retrieves the available meets and their details from the JSON file.
+// LoadMeets loads the meet configuration from `./config/meets.json`.
+// this function retrieves the available meets and their details from the JSON file.
 func LoadMeets() (*models.MeetCreds, error) {
 	meetsPath := "config/meets.json" // #nosec G101
 	if env := os.Getenv("MEETS_PATH"); env != "" {
@@ -44,8 +44,8 @@ func LoadMeets() (*models.MeetCreds, error) {
 // -------------- meet selection handling --------------
 
 // ShowMeets renders the meet selection page.
-// It fetches the list of available meets and passes them to the template.
-// If loading fails, it returns an HTTP 500 response.
+// it fetches the list of available meets and passes them to the template.
+// if loading fails, it returns an HTTP 500 response.
 func ShowMeets(c *gin.Context) {
 	// retrieve meet data using a mockable function for easier testing
 	meetsData, err := loadMeetsFunc()

@@ -1,21 +1,11 @@
-compile
+run app locally
 ```bash
-go build -o referee-lights ./cmd/referee-lights
+go run ./cmd/referee-lights
 ```
 
 or
 ```bash
-cd cmd/referee-lights
-go build -o referee-lights main.go
-```
-
-```go
-go run .
-```
-
-run app locally
-```bash
-go run main.go
+go run cmd/referee-lights/main.go
 ```
 
 or run from docker:
@@ -38,7 +28,15 @@ run unit tests in a specific directory
 go test -v -tags=unit ./websocket
 ```
 
-test coverage
+------------------------
+# test coverage
+
+test coverage of unit packages
+```bash
+go test -v -tags=unit -cover ./...
+```
+
+test coverage of a specific package
 ```bash
 go test -v -tags=unit -coverprofile=cover.out ./controllers
 ```
@@ -46,6 +44,9 @@ or
 ```bash
 go test -v -tags=unit -cover ./controllers
 ```
+
+-----------------------
+# precommit hooks
 
 run precommit hooks:
 ```bash
@@ -57,6 +58,9 @@ before committing, run:
 poetry run pre-commit run --all-files
 go test -v -tags=unit ./...
 ```
+
+-----------------------
+# integration tests
 
 run integration tests
 ```bash
@@ -73,39 +77,10 @@ go's race detector:
 go test -race ./...
 ```
 
-```bash
-cd tests && go test -v ./test/...
-```
-----------------------------------------
-
-test locally
-```bash
-go test -v ./test/referee_flow_local_test.go
-```
-
-test in production
-```bash
-export REMOTE_BASE_URL="https://referee-lights.michaelkingston.com.au"
-
-go test -v ./tests/referee_flow_remote_test.go
-```
-
-
-----------------------------------------
-
 load testing & save logs to JSON
 ```bash
 k6 run --out json=test/k6/results.json tests/k6/script.js
 ```
-
----------------------------------------
-
-# Next Step – AWS:
-- Spin up an EC2 instance (or run in a Docker container on AWS).
-- Install K6 on that instance or container.
-- Copy over (or fetch) the script.
-- Run the same command.
-- logging to cloudwatch
 
 ---------------------------------------
 
@@ -596,18 +571,4 @@ Below is a concise list of scenarios you can methodically run through in the rem
   This ensures you’ve tried each path from start to finish.
 - Keep your Admin session open in a separate tab to see real-time occupant
   changes as you test from the phone.
-
-Good luck—checking these flows thoroughly should leave you in a strong position for your presentation.
----------------------
-
-----------------------
-# Environmental Variables in ECS
-Set environment variables in the ECS Task Definition (basic approach)
-- Go to your ECS console, then Task Definitions.
-- Create a new revision of your Task Definition (or a new Task Definition if you haven’t already).
-- In the “Container Definitions” section, find the container running your Go app. Look for “Environment” or “Environment Variables.”
-- Click Add environment variable. Enter the name (e.g., ENV, APP_HOST, APP_PORT) and the value you want.
-- Save your changes and deploy the new Task Definition revision.
-After redeployment, your container will see these environment variables when it calls os.Getenv("NAME_OF_VARIABLE").
-
-------------------------
+---------------------------

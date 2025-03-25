@@ -2,6 +2,7 @@
 // +build unit
 
 // file: middleware/role_test.go
+//
 package middleware
 
 import (
@@ -35,7 +36,7 @@ func setupRoleTestRouter() *gin.Engine {
 		session := sessions.Default(c)
 		session.Set("user", "testuser")
 
-		// Force session save
+		// force session save
 		if err := session.Save(); err != nil {
 			c.String(http.StatusInternalServerError, "Failed to save session")
 			return
@@ -43,15 +44,13 @@ func setupRoleTestRouter() *gin.Engine {
 		c.String(http.StatusOK, "Session set")
 	})
 
-	// Attach PositionRequired middleware
+	// attach PositionRequired middleware
 	router.Use(PositionRequired())
 
-	// Protected referee routes
+	// protected referee routes
 	router.GET("/left", func(c *gin.Context) { c.String(http.StatusOK, "Left Judge") })
 	router.GET("/center", func(c *gin.Context) { c.String(http.StatusOK, "Center Judge") })
 	router.GET("/right", func(c *gin.Context) { c.String(http.StatusOK, "Right Judge") })
-
-	// Route without a required position
 	router.GET("/other", func(c *gin.Context) { c.String(http.StatusOK, "No role required") })
 
 	return router
@@ -79,16 +78,16 @@ func TestPositionRequired_NoRefPositionAllowed(t *testing.T) {
 		roleRouter = setupRoleTestRouter()
 	}
 
-	// Perform a request to set the session
+	// perform a request to set the session
 	loginReq := httptest.NewRequest("GET", "/login-test", nil)
 	loginResp := httptest.NewRecorder()
 	roleRouter.ServeHTTP(loginResp, loginReq)
 
-	// Extract session cookie
+	// extract session cookie
 	sessionCookie := loginResp.Header().Get("Set-Cookie")
 	assert.NotEmpty(t, sessionCookie, "Session cookie should not be empty")
 
-	// Make request to `/other` (which does not require a role)
+	// make request to `/other` (which does not require a role)
 	req, _ := http.NewRequest("GET", "/other", nil)
 	req.Header.Set("Cookie", sessionCookie)
 	w := httptest.NewRecorder()
@@ -97,23 +96,23 @@ func TestPositionRequired_NoRefPositionAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "Expected 200 OK for route without position requirement")
 }
 
-// Test: User with incorrect `refPosition` should be redirected to /positions
+// TestPositionRequired_WrongRefPosition should redirect to /positions
 func TestPositionRequired_WrongRefPosition(t *testing.T) {
 	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}
 
-	// Perform a request to set the session
+	// perform a request to set the session
 	loginReq := httptest.NewRequest("GET", "/login-test", nil)
 	loginResp := httptest.NewRecorder()
 	roleRouter.ServeHTTP(loginResp, loginReq)
 
-	// Extract session cookie
+	// extract session cookie
 	sessionCookie := loginResp.Header().Get("Set-Cookie")
 	assert.NotEmpty(t, sessionCookie, "Session cookie should not be empty")
 
-	// Make request with wrong `refPosition`
+	// make request with wrong `refPosition`
 	req, _ := http.NewRequest("GET", "/left", nil)
 	req.Header.Set("Cookie", sessionCookie)
 
@@ -121,59 +120,59 @@ func TestPositionRequired_WrongRefPosition(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	sessions.Sessions("testsession", roleStore)(c) // ✅ Attach session middleware
+	sessions.Sessions("testsession", roleStore)(c) // attach session middleware
 	session := sessions.Default(c)
 	session.Set("user", "testuser")
-	session.Set("refPosition", "center") // ✅ Incorrect position
+	session.Set("refPosition", "center") // incorrect position
 	err := session.Save()
 	if err != nil {
 		return
 	}
 
-	// Perform request
+	// perform request
 	roleRouter.ServeHTTP(w, req)
 
-	// Validate response
+	// validate response
 	assert.Equal(t, http.StatusFound, w.Code, "Expected 302 redirect to /positions")
 	assert.Equal(t, "/positions", w.Header().Get("Location"), "User with wrong position should be redirected")
 }
 
-// Test: User with correct `refPosition` should be allowed
+// TestPositionRequired_CorrectRefPosition should be allowed
 func TestPositionRequired_CorrectRefPosition(t *testing.T) {
 	websocket.InitTest()
 	if roleRouter == nil {
 		roleRouter = setupRoleTestRouter()
 	}
 
-	// Perform a request to set the session
+	// perform a request to set the session
 	loginReq := httptest.NewRequest("GET", "/login-test", nil)
 	loginResp := httptest.NewRecorder()
 	roleRouter.ServeHTTP(loginResp, loginReq)
 
-	// Extract session cookie
+	// extract session cookie
 	sessionCookie := loginResp.Header().Get("Set-Cookie")
 	assert.NotEmpty(t, sessionCookie, "Session cookie should not be empty")
 
-	// Make request with correct `refPosition`
+	// make request with correct `refPosition`
 	req, _ := http.NewRequest("GET", "/center", nil)
 	req.Header.Set("Cookie", sessionCookie)
 
-	// Set correct refPosition in session
+	// set correct refPosition in session
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
-	sessions.Sessions("testsession", roleStore)(c) // Attach session middleware
+	sessions.Sessions("testsession", roleStore)(c) // attach session middleware
 	session := sessions.Default(c)
 	session.Set("user", "testuser")
-	session.Set("refPosition", "center") // Correct position
+	session.Set("refPosition", "center") // correct position
 	err := session.Save()
 	if err != nil {
 		return
 	}
 
-	// Perform request
+	// perform request
 	roleRouter.ServeHTTP(w, req)
 
-	// Validate response
+	// validate response
 	assert.Equal(t, http.StatusOK, w.Code)
 }

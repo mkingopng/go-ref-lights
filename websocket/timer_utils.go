@@ -7,7 +7,7 @@ import (
 
 // --------------- utility functions -------------------------------------
 
-// findTimerIndex returns the index of the timer with the given ID.
+// findTimerIndex returns the index of the timer with the given ID
 func findTimerIndex(timers []NextAttemptTimer, id int) int {
 	for i, t := range timers {
 		if t.ID == id {
@@ -17,7 +17,7 @@ func findTimerIndex(timers []NextAttemptTimer, id int) int {
 	return -1
 }
 
-// broadcastAllNextAttemptTimers sends a message with the current next-attempt timers.
+// broadcastAllNextAttemptTimers sends a message with the current next-attempt timers
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	msg := map[string]interface{}{
 		"action":   "updateNextAttemptTime",

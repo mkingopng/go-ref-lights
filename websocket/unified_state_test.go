@@ -1,7 +1,8 @@
-// file: websocket/unified_state_test.go
 //go:build unit
 // +build unit
 
+// file: websocket/unified_state_test.go
+//
 package websocket
 
 import (
@@ -11,9 +12,8 @@ import (
 	"testing"
 )
 
-// TestGetMeetStateCreatesNewState verifies that a new MeetState is created with default values.
+// TestGetMeetStateCreatesNewState verifies that a new MeetState is created with default values
 func TestGetMeetStateCreatesNewState(t *testing.T) {
-	// Ensure we start fresh.
 	ClearMeetState("TestMeet1")
 	state := GetMeetState("TestMeet1")
 	require.NotNil(t, state)
@@ -24,11 +24,10 @@ func TestGetMeetStateCreatesNewState(t *testing.T) {
 	assert.NotNil(t, state.RefereeSessions, "RefereeSessions map should be non-nil")
 }
 
-// TestGetMeetStateRetrievesExistingState verifies that calling GetMeetState twice returns the same state.
+// TestGetMeetStateRetrievesExistingState verifies that calling GetMeetState twice returns the same state
 func TestGetMeetStateRetrievesExistingState(t *testing.T) {
 	ClearMeetState("TestMeet2")
 	state1 := GetMeetState("TestMeet2")
-	// Modify the state.
 	state1.JudgeDecisions["left"] = "good"
 	state2 := GetMeetState("TestMeet2")
 	assert.Equal(t, state1, state2, "Expected the same state instance")
@@ -37,17 +36,15 @@ func TestGetMeetStateRetrievesExistingState(t *testing.T) {
 
 // TestGetMeetStateCancelsExistingTimer verifies that an active timer is cancelled on a later call.
 func TestGetMeetStateCancelsExistingTimer(t *testing.T) {
-	// Ensure no state exists for "TestMeet3"
 	ClearMeetState("TestMeet3")
 	state := GetMeetState("TestMeet3")
 
-	// Set a dummy cancel function to simulate an active timer.
+	// set a dummy cancel function to simulate an active timer
 	cancelled := false
 	state.PlatformReadyCancel = func() { cancelled = true }
 	state.PlatformReadyActive = true
 
-	// Instead of calling GetMeetState (which no longer cancels timers),
-	// we now explicitly cancel the timer.
+	// instead of calling GetMeetState (which no longer cancels timers), we now explicitly cancel the timer.
 	CancelPlatformReadyTimer("TestMeet3")
 
 	assert.True(t, cancelled, "Existing timer should have been cancelled")
@@ -57,18 +54,14 @@ func TestGetMeetStateCancelsExistingTimer(t *testing.T) {
 
 // TestClearMeetState verifies that ClearMeetState removes a MeetState.
 func TestClearMeetState(t *testing.T) {
-	// Create a state.
 	state1 := GetMeetState("TestMeet4")
 	require.NotNil(t, state1)
-	// Clear the state.
 	ClearMeetState("TestMeet4")
-	// Get a new state; a pointer should differ.
 	state2 := GetMeetState("TestMeet4")
-	// Use NotSame to verify that the two pointers are different.
 	assert.NotSame(t, state1, state2, "After clearing, GetMeetState should create a new instance")
 }
 
-// TestUnifiedStateProvider_GetMeetState verifies that the unified provider returns the same state as GetMeetState.
+// TestUnifiedStateProvider_GetMeetState verifies that the unified provider returns the same state as GetMeetState
 func TestUnifiedStateProvider_GetMeetState(t *testing.T) {
 	ClearMeetState("TestMeet5")
 	provider := DefaultStateProvider
@@ -77,7 +70,7 @@ func TestUnifiedStateProvider_GetMeetState(t *testing.T) {
 	assert.Equal(t, state1, state2, "UnifiedStateProvider should return the same state as GetMeetState")
 }
 
-// TestGetMeetStateConcurrency verifies that concurrent calls to GetMeetState return the same state.
+// TestGetMeetStateConcurrency verifies that concurrent calls to GetMeetState return the same state
 func TestGetMeetStateConcurrency(t *testing.T) {
 	ClearMeetState("ConcurrentMeet")
 	const count = 100

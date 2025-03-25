@@ -39,7 +39,7 @@ func setupPositionTestRouter() *gin.Engine {
 	return router
 }
 
-// test ShowPositionsPage (Redirect when not logged in)
+// Test ShowPositionsPage (Redirect when not logged in)
 func TestShowPositionsPage_NoUser(t *testing.T) {
 	websocket.InitTest()
 	router := setupPositionTestRouter()

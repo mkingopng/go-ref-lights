@@ -1,8 +1,8 @@
-// file: services/occupancy_service_test.go
-
 //go:build unit
 // +build unit
 
+// file: services/occupancy_service_test.go
+//
 package services
 
 import (
@@ -12,6 +12,7 @@ import (
 	"go-ref-lights/websocket"
 )
 
+// TestGetOccupancy_NewMeet ensures that a new meet has no users assigned to any positions
 func TestGetOccupancy_NewMeet(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}
@@ -25,6 +26,7 @@ func TestGetOccupancy_NewMeet(t *testing.T) {
 	assert.Empty(t, occupancy.RightUser)
 }
 
+// TestSetPosition_Success ensures that a user can take a position that is not already occupied
 func TestSetPosition_Success(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}
@@ -39,6 +41,7 @@ func TestSetPosition_Success(t *testing.T) {
 	assert.Equal(t, "referee1@example.com", occupancy.LeftUser)
 }
 
+// TestSetPosition_FailsIfTaken ensures that a user cannot take a position that is already occupied
 func TestSetPosition_FailsIfTaken(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}
@@ -57,6 +60,7 @@ func TestSetPosition_FailsIfTaken(t *testing.T) {
 	assert.Equal(t, "ref1@example.com", occupancy.LeftUser)
 }
 
+// TestSetPosition_ClearsOldSeatBeforeAssigningNewOne ensures that a user can only hold one position at a time
 func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}
@@ -75,6 +79,7 @@ func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
 	assert.Equal(t, "ref1@example.com", occupancy.CenterUser)
 }
 
+// TestResetOccupancyForMeet ensures that all positions are cleared when a meet is reset
 func TestResetOccupancyForMeet(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}
@@ -111,6 +116,7 @@ func TestUnsetPosition(t *testing.T) {
 	assert.Empty(t, occupancy.RightUser)
 }
 
+// TestUnsetPosition_FailsIfPositionDoesNotMatchUser ensures that a user cannot unset a position that they do not hold
 func TestUnsetPosition_FailsIfPositionDoesNotMatchUser(t *testing.T) {
 	websocket.InitTest()
 	service := &OccupancyService{}

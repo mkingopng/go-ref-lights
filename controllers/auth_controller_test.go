@@ -2,6 +2,7 @@
 // +build unit
 
 // controllers/auth_controller_test.go
+//
 package controllers
 
 import (
@@ -29,13 +30,14 @@ var testMeetCreds = models.MeetCreds{
 	},
 }
 
+// TestLoginHandler tests the LoginHandler function
 func TestComparePasswords(t *testing.T) {
 	hashed := hashPassword("securepassword")
 	assert.True(t, ComparePasswords(hashed, "securepassword"))
 	assert.False(t, ComparePasswords(hashed, "wrongpassword"))
 }
 
-// TestSetMeetHandler tests the SetMeetHandler function.
+// TestSetMeetHandler tests the SetMeetHandler function
 func TestSetMeetHandler(t *testing.T) {
 	router := setupTestRouter(t)
 	router.POST("/set-meet", SetMeetHandler)
@@ -51,6 +53,7 @@ func TestSetMeetHandler(t *testing.T) {
 	assert.Equal(t, "/login", w.Header().Get("Location"))
 }
 
+// TestLoginHandler tests the LoginHandler function
 func TestLoadMeetCreds(t *testing.T) {
 	original := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
@@ -63,17 +66,19 @@ func TestLoadMeetCreds(t *testing.T) {
 	assert.Equal(t, "TestMeet", loaded.Meets[0].Name)
 }
 
+// TestLoginHandler tests the LoginHandler function
 func TestForceLogoutHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	// use a fresh router with our shared test helpers.
+
+	// use a fresh router with our shared test helpers
 	router := setupTestRouter(t)
 	router.POST("/force-logout", ForceLogoutHandler)
 
-	// populate ActiveUsers with a test user.
+	// populate ActiveUsers with a test user
 	ActiveUsers["test_user"] = true
 
 	t.Run("Admin can force logout user", func(t *testing.T) {
-		// Use a unique helper route for this sub-test.
+		// use a unique helper route for this sub-test
 		sessionCookie := SetSession(router, "/set-session-force-logout-1", map[string]interface{}{
 			"isAdmin": true,
 		})
@@ -97,7 +102,7 @@ func TestForceLogoutHandler(t *testing.T) {
 	t.Run("Non-admin cannot force logout", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/force-logout", strings.NewReader("username=test_user"))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		// No valid admin session cookie is attached.
+		// no valid admin session cookie is attached.
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -106,7 +111,7 @@ func TestForceLogoutHandler(t *testing.T) {
 	})
 
 	t.Run("Cannot force logout a non-existent user", func(t *testing.T) {
-		// Use a unique helper route for this sub-test.
+		// use a unique helper route for this sub-test.
 		sessionCookie := SetSession(router, "/set-session-force-logout-2", map[string]interface{}{
 			"isAdmin": true,
 		})
@@ -125,12 +130,13 @@ func TestForceLogoutHandler(t *testing.T) {
 	})
 }
 
+// TestActiveUsersHandler tests the ActiveUsersHandler function
 func TestActiveUsersHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupTestRouter(t)
 	router.GET("/active-users", ActiveUsersHandler)
 
-	// Populate ActiveUsers for the test.
+	// populate ActiveUsers for the test
 	ActiveUsers["referee1"] = true
 	ActiveUsers["referee2"] = true
 
@@ -163,7 +169,7 @@ func TestActiveUsersHandler(t *testing.T) {
 	})
 
 	t.Run("Admin sees empty user list when no users are logged in", func(t *testing.T) {
-		ActiveUsers = make(map[string]bool) // Clear all users.
+		ActiveUsers = make(map[string]bool) // clear all users.
 		sessionCookie := SetSession(router, "/set-session-active-2", map[string]interface{}{
 			"isAdmin": true,
 		})

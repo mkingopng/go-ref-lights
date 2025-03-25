@@ -1,4 +1,4 @@
-// Package app provides the application router setup and middleware chain.
+// Package app
 // File: internal/app/router.go
 package app
 
@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // SetupRouter creates and configures a Gin router.
@@ -42,13 +43,12 @@ func SetupRouter(env string) *gin.Engine {
 	}
 
 	// configure session store
-	secureFlag := env == "production" // true if production, false if dev/test
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   86400 * 7, // 7 days
+		MaxAge:   86400, // 1 day
 		HttpOnly: true,
-		Secure:   secureFlag,
+		Secure:   true,
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
@@ -133,9 +133,17 @@ func SetupRouter(env string) *gin.Engine {
 		heartbeat.Handler(c.Writer, c.Request)
 	})
 
-	// ensure "meetName" is set (except for a few routes)
+	// load templates
+	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
+
+	// ensure "meetName" is set (except for a few routes + /static)
 	router.Use(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
+			c.Next()
+			return
+		}
 		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
+			c.Next()
 			return
 		}
 		session := sessions.Default(c)
@@ -144,6 +152,7 @@ func SetupRouter(env string) *gin.Engine {
 			c.Abort()
 			return
 		}
+		c.Next()
 	})
 
 	// protected routes
@@ -196,7 +205,7 @@ func SetupRouter(env string) *gin.Engine {
 	// serve static files
 	router.Static("/static", "./static")
 
-	// confirm templates path via runtime.Caller
+	// confirm templates path
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")

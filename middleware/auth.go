@@ -13,7 +13,6 @@ import (
 // -------------- authentication middleware --------------
 
 // AuthRequired is a middleware that ensures the user is logged in.
-//
 // How it works:
 // - Retrieves the session from the request context.
 // - Checks if the "user" session variable is set.

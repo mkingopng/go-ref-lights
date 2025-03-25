@@ -49,8 +49,12 @@ func TestLogout_NoSession(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
+	// We still expect a 302 redirect (StatusFound):
 	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/index", w.Header().Get("Location"))
+
+	// Instead of expecting "/index", we now expect "/choose-meet":
+	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
+
 	mockService.AssertExpectations(t)
 }
 
@@ -175,22 +179,22 @@ func TestIndex_WithMeetName(t *testing.T) {
 	router := setupTestRouter(t)
 	router.GET("/index", Index)
 
-	// Save and override loadMeetCredsFunc
+	// save and override loadMeetCredsFunc
 	originalFunc := loadMeetCredsFunc
 	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
 		return &models.MeetCreds{
 			Meets: []models.Meet{
-				// Provide a meet name that matches our test session
+				// provide a meet name that matches our test session
 				{Name: "TestMeet", Logo: "test_logo.png"},
 			},
 		}, nil
 	}
-	// Restore after test
+	// restore after test
 	defer func() {
 		loadMeetCredsFunc = originalFunc
 	}()
 
-	// Put "meetName" in the session so the /index route sees we selected "TestMeet"
+	// put "meetName" in the session so the /index route sees we selected "TestMeet"
 	sessionCookie := SetSession(router, "/set-session", map[string]interface{}{
 		"meetName": "TestMeet",
 	})
@@ -198,13 +202,13 @@ func TestIndex_WithMeetName(t *testing.T) {
 		t.Fatal("Session cookie not found")
 	}
 
-	// Now make a GET /index request, simulating a user visiting the main page
+	// now make a GET /index request, simulating a user visiting the main page
 	req, _ := http.NewRequest("GET", "/index", nil)
 	req.AddCookie(sessionCookie)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// The /index handler should succeed and contain "TestMeet" in the HTML
+	// the /index handler should succeed and contain "TestMeet" in the HTML
 	assert.Equal(t, http.StatusOK, w.Code, "Expected 200 OK if meetName is valid and loadMeetCredsFunc returns it.")
 	assert.Contains(
 		t,
@@ -214,17 +218,17 @@ func TestIndex_WithMeetName(t *testing.T) {
 	)
 }
 
-// TestRefereeHandler_Success tests the RefereeHandler function when it should succeed.
+// TestRefereeHandler_Success tests the RefereeHandler function when it should succeed
 func TestRefereeHandler_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupTestRouter(t)
 
-	// For this route, the code calls RefereeHandler(..., mockOccService)
+	// for this route, the code calls RefereeHandler(..., mockOccService)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
 		RefereeHandler(c, mockOccService)
 	})
 
-	// The occupant tries to claim seat => success => Return nil (no error)
+	// the occupant tries to claim seat => success => Return nil (no error)
 	mockOccService.
 		On("SetPosition", "DemoMeet", "left", mock.AnythingOfType("string")).
 		Return(nil).
@@ -234,14 +238,14 @@ func TestRefereeHandler_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// We expect a 200 response from a successful seat claim
+	// we expect a 200 response from a successful seat claim
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "DemoMeet")
 
 	mockOccService.AssertExpectations(t)
 }
 
-// TestRefereeHandler_Conflict tests the RefereeHandler function when SetPosition should fail.
+// TestRefereeHandler_Conflict tests the RefereeHandler function when SetPosition should fail
 func TestRefereeHandler_Conflict(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := setupTestRouter(t)
@@ -250,7 +254,7 @@ func TestRefereeHandler_Conflict(t *testing.T) {
 		RefereeHandler(c, mockOccService)
 	})
 
-	// This time, for the first (and only) call, we simulate an already-occupied seat => return error
+	// this time, for the first (and only) call, we simulate an already-occupied seat => return error
 	mockOccService.
 		On("SetPosition", "DemoMeet", "left", mock.AnythingOfType("string")).
 		Return(fmt.Errorf("left seat is already taken")).
@@ -260,7 +264,7 @@ func TestRefereeHandler_Conflict(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Because the seat is "already taken", the code returns 409 Conflict
+	// because the seat is "already taken", the code returns 409 Conflict
 	assert.Equal(t, http.StatusConflict, w.Code)
 	assert.Contains(t, w.Body.String(), "already taken")
 

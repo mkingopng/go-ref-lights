@@ -1,7 +1,8 @@
-// connection_test.go
 //go:build unit
 // +build unit
 
+// websocket/connection_test.go
+//
 package websocket
 
 import (
@@ -29,30 +30,36 @@ func (fc *fakeConn) WriteMessage(messageType int, data []byte) error {
 }
 
 func (fc *fakeConn) SetWriteDeadline(t time.Time) error { return nil }
+
 func (fc *fakeConn) ReadMessage() (int, []byte, error) {
-	// Return a dummy message if needed. Some tests won't use it anyway.
+	// return a dummy message if needed. Some tests won't use it anyway.
 	return websocket.TextMessage, []byte(`{"action":"dummy"}`), nil
 }
+
 func (fc *fakeConn) Close() error { return nil }
+
 func (fc *fakeConn) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
 }
-func (fc *fakeConn) SetReadLimit(limit int64)            {}
-func (fc *fakeConn) SetReadDeadline(t time.Time) error   { return nil }
+
+func (fc *fakeConn) SetReadLimit(limit int64) {}
+
+func (fc *fakeConn) SetReadDeadline(t time.Time) error { return nil }
+
 func (fc *fakeConn) SetPongHandler(h func(string) error) {}
 
 // ----------------- TESTS -----------------
 
 func TestWritePump_Ping(t *testing.T) {
-	// Save original pingPeriod/pongWait
+	// save original pingPeriod/pongWait
 	origPing := pingPeriod
 	origPong := pongWait
 
-	// Shorten them for test
+	// shorten them for test
 	pongWait = 50 * time.Millisecond
 	pingPeriod = (pongWait * 9) / 10 // e.g. 45ms
 
-	// Restore after test
+	// restore after test
 	defer func() {
 		pingPeriod = origPing
 		pongWait = origPong
@@ -71,20 +78,20 @@ func TestWritePump_Ping(t *testing.T) {
 		close(done)
 	}()
 
-	// Wait enough time to see a ping
+	// wait enough time to see a ping
 	time.Sleep(2 * pingPeriod)
 
-	// Close the send channel to stop the writePump
+	// close the send channel to stop the writePump
 	close(conn.send)
 	<-done
 
 	assert.True(t, fc.pingCaptured, "Expected a ping to be sent at least once")
 }
 
-// Example of testing register/unregister if needed
+// TestRegisterUnregisterConnection tests the registerConnection and unregisterConnection functions
 func TestRegisterUnregisterConnection(t *testing.T) {
 	InitTest()
-	// Clear global connections
+	// clear global connections
 	connections = make(map[*Connection]bool)
 
 	fc := &fakeConn{}

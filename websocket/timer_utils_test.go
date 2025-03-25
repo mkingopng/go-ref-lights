@@ -1,7 +1,8 @@
-// file: websocket/timer_utils_test.go
 //go:build unit
 // +build unit
 
+// file: websocket/timer_utils_test.go
+//
 package websocket
 
 import (
@@ -23,8 +24,9 @@ func TestFindTimerIndex(t *testing.T) {
 	assert.Equal(t, -1, index)
 }
 
+// TestBroadcastAllNextAttemptTimers tests the broadcastAllNextAttemptTimers function.
 func TestBroadcastAllNextAttemptTimers(t *testing.T) {
-	// Override broadcastToMeet to capture output.
+	// override broadcastToMeet to capture output
 	var captured []byte
 	originalFunc := broadcastToMeet
 	defer func() { broadcastToMeet = originalFunc }()

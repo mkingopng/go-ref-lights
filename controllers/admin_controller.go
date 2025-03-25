@@ -35,7 +35,6 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
 
-	// Moved to Debug because it's somewhat verbose
 	logger.Debug.Printf("[AdminPanel] isAdmin from session: %v", adminVal)
 
 	isAdmin, ok := adminVal.(bool)
@@ -53,11 +52,30 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
+	// 1) load meets
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to load meets")
+		return
+	}
 
+	// 2) find the correct logo
+	var logo string
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			logo = m.Logo
+			break
+		}
+	}
+
+	// get occupancy
 	occupancy := ac.OccupancyService.GetOccupancy(meetName)
+
+	// pass everything to the template
 	data := gin.H{
 		"meetName":  meetName,
 		"occupancy": occupancy,
+		"Logo":      logo,
 	}
 
 	c.HTML(http.StatusOK, "admin.html", data)
@@ -133,7 +151,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s",
 		occupant, position, meetName)
 
-	// Redirect back to the admin panel
+	// redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
 }
 
@@ -151,7 +169,6 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)

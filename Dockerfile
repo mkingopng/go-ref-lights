@@ -22,7 +22,7 @@ COPY . .
 RUN go mod tidy
 
 # build the application
-RUN go build -o /app/main .
+RUN go build -o /app/main ./cmd/referee-lights
 
 # stage 2: Create the final lightweight image
 FROM alpine:latest

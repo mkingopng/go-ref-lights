@@ -32,9 +32,7 @@ func PublishBroadcastBacklog(depth int, meetName string) {
 	putMetric("BroadcastQueueDepth", float64(depth), "Count", meetName)
 }
 
-// -----------------------------------------------------------
-// internal helper function to package up CloudWatch calls
-// -----------------------------------------------------------
+// putMetric sends a single metric to CloudWatch
 func putMetric(metricName string, value float64, unit string, meetName string) {
 	_, err := cwClient.PutMetricData(&cloudwatch.PutMetricDataInput{
 		Namespace: aws.String(metricsNamespace),

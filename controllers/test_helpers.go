@@ -19,28 +19,27 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// setupTestRouter creates a new Gin engine with session middleware and fake HTML templates.
-// It also initialises the websocket package for tests.
+// setupTestRouter creates a new Gin engine with session middleware and fake HTML templates
 func setupTestRouter(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 
-	// Set up sessions with cookie store.
+	// set up sessions with cookie store
 	store := cookie.NewStore([]byte("test-secret"))
 	router.Use(sessions.Sessions("testsession", store))
 
-	// Create minimal templates to avoid panics during testing.
+	// create minimal templates to avoid panics during testing
 	tmpDir := t.TempDir()
 	if err := createDummyTemplates(tmpDir); err != nil {
 		t.Fatalf("Failed to create dummy templates: %v", err)
 	}
 
-	// Use filepath.Join for cross-platform compatibility.
+	// use filepath.Join for cross-platform compatibility
 	router.LoadHTMLGlob(filepath.Join(tmpDir, "*.html"))
 	return router
 }
 
-// createDummyTemplates writes a set of minimal HTML templates to the provided directory.
+// createDummyTemplates writes a set of minimal HTML templates to the provided directory
 func createDummyTemplates(dir string) error {
 	templates := map[string]string{
 		"choose_meet.html": `<html><body>{{.}}</body></html>`,
@@ -54,7 +53,7 @@ func createDummyTemplates(dir string) error {
 
 	for name, content := range templates {
 		path := filepath.Join(dir, name)
-		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			return err
 		}
 	}
@@ -62,7 +61,7 @@ func createDummyTemplates(dir string) error {
 }
 
 // SetSession sets the given key/value pairs in the session using a helper route
-// and returns the session cookie that can be attached to subsequent test requests.
+// and returns the session cookie that can be attached to subsequent test requests
 func SetSession(router *gin.Engine, route string, data map[string]interface{}) *http.Cookie {
 	// Create a helper route for setting session values.
 	router.GET(route, func(c *gin.Context) {
@@ -77,12 +76,16 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 		c.String(http.StatusOK, "session set")
 	})
 
-	// Call the helper route.
-	req, _ := http.NewRequest("GET", route, nil)
+	// call the helper route
+	parsedURL, err := url.Parse(route)
+	if err != nil || parsedURL.Host != "" {
+		return nil
+	}
+	req, _ := http.NewRequest("GET", parsedURL.Path, nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Extract and return the session cookie.
+	// extract and return the session cookie
 	for _, cookie := range w.Result().Cookies() {
 		if cookie.Name == "testsession" {
 			return cookie
@@ -91,8 +94,7 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 	return nil
 }
 
-// hashPassword hashes the given password using bcrypt.
-// This helper function is used by tests to prepare expected hashed values.
+// hashPassword hashes the given password using bcrypt
 func hashPassword(password string) string {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -101,7 +103,7 @@ func hashPassword(password string) string {
 	return string(hashed)
 }
 
-// in controllers/test_helpers.go
+// createPostRequest creates a new POST request with the given form data
 func createPostRequest(path string, formData map[string]string) *http.Request {
 	form := url.Values{}
 	for k, v := range formData {
@@ -112,6 +114,7 @@ func createPostRequest(path string, formData map[string]string) *http.Request {
 	return req
 }
 
+// performRequest executes the given request on the provided router and returns the response
 func performRequest(router http.Handler, req *http.Request) *httptest.ResponseRecorder {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)

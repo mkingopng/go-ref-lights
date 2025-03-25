@@ -169,7 +169,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 					return
 				}
 
-				// Otherwise, broadcast the updated time
+				// otherwise, broadcast the updated time
 				tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 				tm.platformReadyMutex.Unlock()
 
@@ -191,7 +191,7 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 		return
 	}
 	meetState.PlatformReadyActive = false
-	// Optionally reset the time left to 60 if you want
+	// optionally reset the time left to 60 if you want
 	meetState.PlatformReadyTimeLeft = 60
 }
 
@@ -203,13 +203,13 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	tm.nextAttemptIDCounter++
 	timerID := tm.nextAttemptIDCounter
 
-	// Default the next attempt to 60 seconds (or whatever NextAttemptStartValue is)
+	// default the next attempt to 60 seconds (or whatever NextAttemptStartValue is)
 	startVal := 60
 	if tm.NextAttemptStartValue > 0 {
 		startVal = tm.NextAttemptStartValue
 	}
 
-	// Create a new NextAttemptTimer
+	// create a new NextAttemptTimer
 	deadline := time.Now().Add(time.Duration(startVal) * time.Second)
 	newTimer := NextAttemptTimer{
 		ID:       timerID,
@@ -220,10 +220,10 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	meetState.NextAttemptTimers = append(meetState.NextAttemptTimers, newTimer)
 	tm.nextAttemptMutex.Unlock()
 
-	// Broadcast the updated list of timers
+	// broadcast the updated list of timers
 	broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 
-	// Start the countdown in a separate goroutine
+	// start the countdown in a separate goroutine
 	ticker := time.NewTicker(tm.interval())
 	go func(id int) {
 		defer ticker.Stop()
@@ -231,28 +231,28 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 			tm.nextAttemptMutex.Lock()
 			idx := findTimerIndex(meetState.NextAttemptTimers, id)
 			if idx == -1 {
-				// Timer not found; must've been removed or ended
+				// timer not found; must've been removed or ended
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 			if !meetState.NextAttemptTimers[idx].Active {
-				// Already inactive
+				// already inactive
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 
-			// Recalc time left from EndTime
+			// recalc time left from EndTime
 			timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
 			if timeLeft < 0 {
 				timeLeft = 0
 			}
 			meetState.NextAttemptTimers[idx].TimeLeft = timeLeft
 
-			// Broadcast updated timers
+			// broadcast updated timers
 			broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 
 			if timeLeft <= 0 {
-				// Timer is done
+				// timer is done
 				meetState.NextAttemptTimers[idx].Active = false
 				tm.nextAttemptMutex.Unlock()
 				return

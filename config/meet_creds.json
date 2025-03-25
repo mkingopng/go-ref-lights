@@ -1,46 +1,43 @@
 {
     "meets": [
         {
-            "name": "Cairns Cup",
+            "name": "Queensland Drug-Tested Raw States",
             "date": "March 22",
             "admin": {
-                "username": "cairns_cup",
-                "password": "$2b$12$KFKBzEMcKJhuGh6Q7R/GZOBBS4S6EoAWxrML2jv1Zl9Fwf0P0ylVC",
-                "isadmin": true
-            },
-            "logo": "static/images/APL_logo white apl logo HQ.png"
-        },
-        {
-            "name": "New South Wales State Championships",
-            "date": "March 22-23",
-            "admin": {
-                "username": "nsw_champs",
-                "password": "$2b$12$K5pKbz.C9HrEu2hIeTckDefbmB7Qb22hGQs/3DDNK22THAqq5Z/TG",
-                "isadmin": true
-            },
-            "logo": "static/images/APL_logo white apl logo HQ.png"
-        },
-        {
-            "name": "Dragon Cup 2",
-            "date": "March 23",
-            "admin": {
-                "username": "dragon_cup",
-                "password": "$2b$12$KxdVnA18RZzYO7eyGOCt3uOc.BX8JaX0MlcBTn0hB/BZ4GAtT4Tnq",
+                "username": "qld_states",
+                "password": "$2b$12$lWyDU2EEIJkD5WGrmB8HL.bT2pSmM8Vu0asiydOOKQHl9DfK5T9qq",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
-                    "username": "dragon_cup2",
-                    "password": "$2b$12$y7AABTvQPcflVnLsuFN95Oublo69zfKPlbPbPfOIJ2FWBJ2530qZ2",
+                    "username": "qld_states2",
+                    "password": "$2b$12$1M1Rt1co.DGfs0IbHTLQQOZqKGmvbgp8BclNaJKxRvU6gcoD9FvaS",
                     "isadmin": true
                 }
             ],
-            "logo": "static/images/UKPU_logo_White-Text_V2.png"
+            "logo": "/static/images/APL_logo_white.png"
+        },
+        {
+            "name": "Peninsula Cup",
+            "date": "March 22-23",
+            "admin": {
+                "username": "peninsula_cup",
+                "password": "$2b$12$FsAEN9ZOGbYK7d3COoV05.1pzgvWF.Sr0S2BMyGnMd.G8qqK93vJO",
+                "isadmin": true
+            },
+            "secondaryAdmins": [
+                {
+                    "username": "peninsula_cup2",
+                    "password": "$2b$12$GW8T/aA/2yLTowYXa0b5g.m7LScivKKq.BwXYauHJ6PTam3waieBy",
+                    "isadmin": true
+                }
+            ],
+            "logo": "APL_logo_white.png"
         }
     ],
     "superuser": {
         "username": "sudo",
-        "password": "$2b$12$R92WuVzurQoF4V61YVa5xOA3GgRgf0/DUvOjFWREYITWDPSKWkcey",
+        "password": "$2b$12$0d9cPpLPJ3DjqNyCp57xiO2FOSHAB5cWZRXAkE..SZszxj48e/K.W",
         "isadmin": true,
         "sudo": true
     }
