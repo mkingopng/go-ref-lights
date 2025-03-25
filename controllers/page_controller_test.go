@@ -2,7 +2,6 @@
 // +build unit
 
 // controllers/page_controller_test.go
-//
 package controllers
 
 import (
@@ -50,8 +49,12 @@ func TestLogout_NoSession(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
+	// We still expect a 302 redirect (StatusFound):
 	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/index", w.Header().Get("Location"))
+
+	// Instead of expecting "/index", we now expect "/choose-meet":
+	assert.Equal(t, "/choose-meet", w.Header().Get("Location"))
+
 	mockService.AssertExpectations(t)
 }
 

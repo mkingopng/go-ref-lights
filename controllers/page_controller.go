@@ -80,36 +80,59 @@ func Home(c *gin.Context, occupancyService *services.OccupancyService) {
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
 	session := sessions.Default(c)
 
-	userEmail, hasUser := session.Get("user").(string)
-	position, hasPosition := session.Get("refPosition").(string)
-	meetName, hasMeet := session.Get("meetName").(string)
-
+	userEmail, _ := session.Get("user").(string)
+	position, _ := session.Get("refPosition").(string)
+	meetName, _ := session.Get("meetName").(string)
 	isAdmin, _ := session.Get("isAdmin").(bool)
-	if isAdmin && hasMeet {
-		logger.Info.Printf("[Logout] Admin user is logging out; resetting meet: %s", meetName)
-		occupancyService.ResetOccupancyForMeet(meetName)
-	}
 
-	if hasUser && hasPosition && hasMeet {
-		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
-			logger.Error.Printf("[Logout] Error vacating position: %v", err)
-		} else {
-			logger.Info.Printf("[Logout] Position '%s' vacated for user '%s' in meet '%s'",
-				position, userEmail, meetName)
+	// If the user email is empty, there's no seat or active user to remove
+	if userEmail == "" {
+		logger.Warn.Println("[Logout] No userEmail in session, skipping logout steps.")
+	} else if isAdmin {
+		// ---------------- ADMIN LOGIC ----------------
+		logger.Info.Printf("[Logout] Admin (%s) logging out of meet: %s", userEmail, meetName)
+
+		// Optionally reset the meet occupancy for admin logout
+		if meetName != "" {
+			occupancyService.ResetOccupancyForMeet(meetName)
 		}
 
+		// Remove from ActiveUsers
+		ActiveUsersMu.Lock()
+		delete(ActiveUsers, userEmail)
+		ActiveUsersMu.Unlock()
+
+		logger.Info.Printf("[Logout] Admin user %s removed from active users list", userEmail)
+
+	} else {
+		// ---------------- REFEREE LOGIC ----------------
+		logger.Info.Printf("[Logout] Referee user=%s is logging out for meet=%s", userEmail, meetName)
+
+		// If the referee has a seat, vacate it:
+		if position != "" && meetName != "" {
+			if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
+				logger.Error.Printf("[Logout] Error vacating seat for user=%s: %v", userEmail, err)
+			} else {
+				logger.Info.Printf("[Logout] Freed seat=%s for user=%s in meet=%s",
+					position, userEmail, meetName)
+			}
+		}
+
+		// Remove from ActiveUsers
 		ActiveUsersMu.Lock()
 		delete(ActiveUsers, userEmail)
 		ActiveUsersMu.Unlock()
 
 		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
-	} else {
-		logger.Warn.Println("[Logout] Missing user, refPosition, or meetName from session.")
 	}
 
+	// ---------------- UNCONDITIONAL SESSION CLEAR + REDIRECT ----------------
 	session.Clear()
-	logger.Info.Println("[Logout] Session cleared (will be saved by middleware at end of request)")
-	c.Redirect(http.StatusFound, "/index")
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[Logout] Error saving session after clearing: %v", err)
+	}
+	logger.Info.Println("[Logout] Session cleared. Redirecting to /choose-meet.")
+	c.Redirect(http.StatusFound, "/choose-meet")
 }
 
 // -------------------- page rendering --------------------

@@ -52,12 +52,32 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
+	// 1) load meets
+	creds, err := loadMeetCredsFunc()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to load meets")
+		return
+	}
 
+	// 2) find the correct logo
+	var logo string
+	for _, m := range creds.Meets {
+		if m.Name == meetName {
+			logo = m.Logo
+			break
+		}
+	}
+
+	// get occupancy
 	occupancy := ac.OccupancyService.GetOccupancy(meetName)
+
+	// pass everything to the template
 	data := gin.H{
 		"meetName":  meetName,
 		"occupancy": occupancy,
+		"Logo":      logo,
 	}
+
 	c.HTML(http.StatusOK, "admin.html", data)
 }
 

@@ -1,21 +1,11 @@
-compile
+run app locally
 ```bash
-go build -o referee-lights ./cmd/referee-lights
+go run ./cmd/referee-lights
 ```
 
 or
 ```bash
-cd cmd/referee-lights
-go build -o referee-lights main.go
-```
-
-```go
-go run .
-```
-
-run app locally
-```bash
-go run main.go
+go run cmd/referee-lights/main.go
 ```
 
 or run from docker:

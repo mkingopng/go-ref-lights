@@ -1,7 +1,7 @@
 {
   "meets": [
     {
-      "name": "Queensland Drug-Tested Raw States ",
+      "name": "Queensland Drug-Tested Raw States",
       "date": "March 22",
       "admin": {
         "username": "qld_states",
@@ -15,7 +15,7 @@
           "isadmin": true
         }
         ],
-      "logo": "/static/images/APL_logo white apl logo HQ.png"
+      "logo": "/static/images/APL_logo_white.png"
     },
     {
       "name": "Peninsula Cup",
@@ -32,7 +32,7 @@
           "isadmin": true
         }
         ],
-      "logo": "/static/images/APL_logo white apl logo HQ.png"
+      "logo": "APL_logo_white.png"
     }
   ],
   "superuser": {
