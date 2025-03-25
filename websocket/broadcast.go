@@ -25,7 +25,6 @@ func StartNextAttemptTimer(meetState *MeetState) {
 func HandleMessages() {
 	for {
 		msg := <-broadcast // read incoming message from the broadcast channel
-
 		var msgMap map[string]interface{}
 		var meetFilter string
 
@@ -99,7 +98,6 @@ func broadcastFinalResults(meetName string) {
 	// after a timeout, send a message to clear results
 	go func() {
 		sleepFunc(time.Duration(resultsDisplayDuration) * time.Second)
-
 		// prepare a clear message
 		clearMsg := map[string]string{"action": "clearResults"}
 		clearJSON, err := json.Marshal(clearMsg)
@@ -107,17 +105,16 @@ func broadcastFinalResults(meetName string) {
 			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults: %v", err)
 			return
 		}
-
 		// send the clear message to the broadcast channel
 		broadcast <- clearJSON
 	}()
-
 	// reset judge decisions for the next round
 	meetState.JudgeDecisions = make(map[string]string)
 }
 
 // broadcastTimeUpdateWithIndex sends a time update message with an index to all clients in the meet.
 //
+//nolint:unu
 //nolint:unused
 func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) { //nolint:unused
 	msg, err := json.Marshal(map[string]interface{}{
