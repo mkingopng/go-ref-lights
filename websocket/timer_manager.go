@@ -153,7 +153,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 				}
 
 				// calculate time left
-				timeLeft := int(meetState.PlatformReadyEnd.Sub(time.Now()).Seconds())
+				timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
 				if timeLeft < 0 {
 					timeLeft = 0
 				}
@@ -242,7 +242,7 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 			}
 
 			// recalc time left from EndTime
-			timeLeft := int(meetState.NextAttemptTimers[idx].EndTime.Sub(time.Now()).Seconds())
+			timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
 			if timeLeft < 0 {
 				timeLeft = 0
 			}

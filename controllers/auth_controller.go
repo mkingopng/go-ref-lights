@@ -34,21 +34,29 @@ var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 // Provide a helper so your test can lock/unlock or set users as needed:
 
 // lockActiveUsers locks the ActiveUsers map for testing.
+//
+//nolint:unused
 func lockActiveUsers() {
 	ActiveUsersMu.Lock()
 }
 
 // unlockActiveUsers unlocks the ActiveUsers map for testing.
+//
+//nolint:unused
 func unlockActiveUsers() {
 	ActiveUsersMu.Unlock()
 }
 
 // setUserActive sets a user as active for testing.
+//
+//nolint:unused
 func setUserActive(username string) {
 	ActiveUsers[username] = true
 }
 
 // clearUserActive clears a user from the active users map for testing.
+//
+//nolint:unused
 func clearUserActive(username string) {
 	delete(ActiveUsers, username)
 }
