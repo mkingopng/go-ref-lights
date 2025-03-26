@@ -30,7 +30,11 @@ func SetupRouter(env string) *gin.Engine {
 	} else {
 		gin.SetMode(gin.TestMode)
 	}
+
 	router := gin.Default()
+
+	// serve static files
+	router.Static("/static", "./static")
 
 	// serve /favicon.ico directly
 	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
@@ -201,9 +205,6 @@ func SetupRouter(env string) *gin.Engine {
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
-
-	// serve static files
-	router.Static("/static", "./static")
 
 	// confirm templates path
 	_, b, _, _ := runtime.Caller(0)

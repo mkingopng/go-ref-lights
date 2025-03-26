@@ -66,3 +66,4 @@ config.yaml
 __pycache__/
 /tests/k6/k6_logs/
 /meet_logs/
+/cmd/referee-lights/logs/
