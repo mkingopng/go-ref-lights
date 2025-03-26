@@ -206,7 +206,7 @@ func SetupRouter(env string) *gin.Engine {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
 
-	// confirm templates path
+	// confirm template path
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")
