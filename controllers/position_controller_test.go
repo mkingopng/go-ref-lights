@@ -94,6 +94,7 @@ func TestClaimPosition_Success(t *testing.T) {
 }
 
 // Test VacatePosition (Successful Vacate)
+// TestVacatePosition_Success (Your existing code)
 func TestVacatePosition_Success(t *testing.T) {
 	websocket.InitTest()
 	mockOccupancyService = new(services.MockOccupancyService)
@@ -103,14 +104,15 @@ func TestVacatePosition_Success(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/vacate-position", nil)
 	w := httptest.NewRecorder()
 
+	// We expect these two calls from the code:
 	mockOccupancyService.On("UnsetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
 	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{}).Once()
 
+	// Setup session
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	store := cookie.NewStore([]byte("test-secret"))
 	sessions.Sessions("testsession", store)(c)
-
 	session := sessions.Default(c)
 	session.Set("user", "testuser")
 	session.Set("meetName", "TestMeet")
@@ -118,15 +120,19 @@ func TestVacatePosition_Success(t *testing.T) {
 	_ = session.Save()
 
 	t.Logf("Session refPosition (before request): %v", session.Get("refPosition"))
+	// Serve the POST /vacate-position request
 	router.ServeHTTP(w, req)
 
+	// Wait a bit for async broadcast
 	time.Sleep(200 * time.Millisecond)
 	t.Log("Assertions after VacatePosition execution")
+
+	// We expect a redirect
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
 	assert.Equal(t, "/index", w.Header().Get("Location"))
-	time.Sleep(150 * time.Millisecond)
 
-	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet") // Checks at least one call
+	// Confirm that the broadcast calls mockOccupancyService.GetOccupancy
+	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
 	mockOccupancyService.AssertExpectations(t)
 }
 

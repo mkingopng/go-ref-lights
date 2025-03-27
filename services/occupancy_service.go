@@ -2,7 +2,9 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"sync"
 	"time"
 
@@ -59,6 +61,25 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 
 // SetPosition seats a user at a given position, allowing them to re-enter the seat if they’re already occupant.
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
+	ctx := context.Background() // fallback context in case upstream doesn’t pass one
+	_, seg := xray.BeginSubsegment(ctx, "SetPosition")
+
+	// only annotate if we got a real subsegment.
+	if seg != nil {
+		defer seg.Close(nil)
+
+		// ignore errors from AddAnnotation, or handle them
+		if err := seg.AddAnnotation("meet", meetName); err != nil {
+			return err
+		}
+		if err := seg.AddAnnotation("position", position); err != nil {
+			return err
+		}
+		if err := seg.AddAnnotation("user", userEmail); err != nil {
+			return err
+		}
+	}
+
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
@@ -131,9 +152,35 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
+	// create a new subsegment for this operation
+	ctx := context.Background()
+
+	// fallback context in case upstream doesn’t pass one
+	_, seg := xray.BeginSubsegment(ctx, "UnsetPosition")
+
+	// only annotate if we got a real subsegment.
+	if seg != nil {
+		defer seg.Close(nil)
+
+		err := seg.AddAnnotation("meet", meetName)
+		if err != nil {
+			return err
+		}
+		err = seg.AddAnnotation("position", position)
+		if err != nil {
+			return err
+		}
+		err = seg.AddAnnotation("user", userEmail)
+		if err != nil {
+			return err
+		}
+	}
+
+	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
+	// get the occupancy record for the meet
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		logger.Warn.Printf("[UnsetPosition] No occupancy record for meet=%s", meetName)
@@ -142,6 +189,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 
 	switch position {
 
+	// if occupant is "", or occupant == userEmail => allow
 	case "left":
 		if occ.LeftUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing left position for user=%s in meet=%s", userEmail, meetName)
@@ -150,6 +198,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if occupant is another user => error
 	case "center":
 		if occ.CenterUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing center position for user=%s in meet=%s", userEmail, meetName)
@@ -158,6 +207,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if occupant is another user => error
 	case "right":
 		if occ.RightUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing right position for user=%s in meet=%s", userEmail, meetName)
@@ -166,6 +216,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if position is invalid => error
 	default:
 		err := errors.New("invalid position")
 		logger.Error.Printf("[UnsetPosition] %v", err)
@@ -183,6 +234,8 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	defer occupancyMutex.Unlock()
 
 	logger.Info.Printf("[ResetOccupancyForMeet] Clearing all positions for meet=%s", meetName)
+
+	// clear all occupant fields
 	if occ, exists := occupancyMap[meetName]; exists {
 		occ.LeftUser = ""
 		occ.CenterUser = ""

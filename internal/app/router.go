@@ -146,10 +146,12 @@ func SetupRouter(env string) *gin.Engine {
 			c.Next()
 			return
 		}
-		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" {
+		// add /referee-updates to your exception list:
+		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
 			c.Next()
 			return
 		}
+
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
 			c.Redirect(http.StatusFound, "/")

@@ -46,7 +46,7 @@ class RefereeLightsCdkStack(Stack):
             self,
             "RefereeLightsVPC",
             ip_addresses=ec2.IpAddresses.cidr("10.0.0.0/16"),
-            max_azs=2,  # Ensure two different AZs
+            max_azs=2,  # ensure two different AZs
             nat_gateways=0,
             subnet_configuration=[
                 ec2.SubnetConfiguration(
@@ -57,7 +57,7 @@ class RefereeLightsCdkStack(Stack):
             ]
         )
 
-        # Ensure an Internet Gateway exists for Public Subnets
+        # ensure an Internet Gateway exists for Public Subnets
         vpc.add_gateway_endpoint(
             "S3Endpoint",
             service=ec2.GatewayVpcEndpointAwsService.S3
@@ -164,6 +164,21 @@ class RefereeLightsCdkStack(Stack):
             # )
         )
 
+        xray_container = task_definition.add_container(
+            "XRayDaemon",
+            image=ecs.ContainerImage.from_registry("amazon/aws-xray-daemon"),
+            memory_reservation_mib=256,
+            essential=False,
+            logging=ecs.LogDrivers.aws_logs(stream_prefix="xray"),
+        )
+        xray_container.add_port_mappings(
+            ecs.PortMapping(container_port=2000, protocol=ecs.Protocol.UDP)
+        )
+
+        task_role.add_managed_policy(
+            iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess")
+        )
+
         container.add_port_mappings(
             ecs.PortMapping(container_port=8080),
         )
@@ -183,7 +198,7 @@ class RefereeLightsCdkStack(Stack):
             cluster=cluster,
             task_definition=task_definition,
             public_load_balancer=True,
-            assign_public_ip=True,  # Ensure ECS tasks get an internet IP
+            assign_public_ip=True,  # ensure ECS tasks get an internet IP
             desired_count=1,
             listener_port=443,
             certificate=certificate,

@@ -1,8 +1,7 @@
 //go:build unit
 // +build unit
 
-// main_test.go
-//
+// cmd/referee-lights/main_test.go
 package main
 
 import (
