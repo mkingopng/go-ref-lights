@@ -3,7 +3,10 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"net"
 	"net/http"
 	"sync"
@@ -35,6 +38,7 @@ type Connection struct {
 	send     chan []byte // outbound messages get queued here
 	meetName string      // the meet to which this connection belongs
 	judgeID  string      // identifies which judge (e.g., "left", "center", etc.) is using it
+	ctx      context.Context
 }
 
 // global map to store active WebSocket connections
@@ -47,10 +51,10 @@ var connectionsMu sync.RWMutex
 // By default, they have the same long durations as before.
 
 var (
-	writeWait      = 4 * time.Hour       // Max time to complete a write
-	pongWait       = 4 * time.Hour       // Max time between pongs from the client
-	pingPeriod     = (pongWait * 9) / 10 // When to send ping (90% of pongWait)
-	maxMessageSize = 2048                // Maximum inbound message size in bytes
+	writeWait  = 4 * time.Hour       // Max time to complete a write
+	pongWait   = 4 * time.Hour       // Max time between pongs from the client
+	pingPeriod = (pongWait * 9) / 10 // When to send ping (90% of pongWait)
+	//maxMessageSize = 2048                // Maximum inbound message size in bytes
 )
 
 // Upgrader config: allow any origin for now
@@ -72,20 +76,38 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 1) Start a short subsegment for the WebSocket upgrade event
+	ctx, seg := xray.BeginSubsegment(r.Context(), "WebSocketUpgrade")
+	err := seg.AddAnnotation("remoteAddr", r.RemoteAddr)
+	if err != nil {
+		return
+	}
+	err = seg.AddAnnotation("meetName", meetName)
+	if err != nil {
+		return
+	}
+
 	logger.Info.Printf("[ServeWs] Upgrading to WS: remoteAddr=%v, meetName=%q", r.RemoteAddr, meetName)
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logger.Error.Printf("[ServeWs] WebSocket upgrade error: %v", err)
 		http.Error(w, "Failed to upgrade WebSocket", http.StatusBadRequest)
+
+		// close the subsegment on error
+		seg.Close(nil)
 		return
 	}
 
-	// create and register new WebSocket connection
+	// 2) End the short subsegment once we have the WebSocket
+	seg.Close(nil)
+
+	// 3) Create a Connection carrying the same context
 	conn := &Connection{
 		conn:     wsConn,
-		send:     make(chan []byte, 256), // buffered channel
+		send:     make(chan []byte, 256),
 		meetName: meetName,
-		judgeID:  "", // set by "registerRef" message
+		judgeID:  "",
+		ctx:      ctx,
 	}
 
 	registerConnection(conn)
@@ -104,35 +126,36 @@ func (c *Connection) readPump() {
 		_ = c.conn.Close()
 	}()
 
-	// limit message size
-	c.conn.SetReadLimit(int64(maxMessageSize))
-
-	// initial read deadline
-	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
-
-	// whenever we get a Pong frame, reset the read deadline
-	c.conn.SetPongHandler(func(string) error {
-		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	})
-
 	for {
+		// create a subsegment for each read cycle
+		_, subSeg := xray.BeginSubsegment(c.ctx, "WebSocketRead")
+
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
-			logger.Warn.Printf("[readPump] Read error from %v: %v", c.conn.RemoteAddr(), err)
+			err := subSeg.AddAnnotation("readError", err.Error())
+			if err != nil {
+				return
+			}
+			subSeg.Close(nil)
 			break
 		}
 
-		if messageType != websocket.TextMessage {
-			logger.Debug.Printf("[readPump] Ignoring non-text messageType=%d", messageType)
-			continue
+		err = subSeg.AddAnnotation("messageType", fmt.Sprintf("%d", messageType))
+		if err != nil {
+			return
 		}
+		subSeg.Close(nil)
 
-		var dm DecisionMessage
-		if err := json.Unmarshal(message, &dm); err != nil {
-			logger.Warn.Printf("[readPump] Invalid JSON from %v: %v", c.conn.RemoteAddr(), err)
-			continue
+		if messageType == websocket.TextMessage {
+			var dm DecisionMessage
+			if jsonErr := json.Unmarshal(message, &dm); jsonErr != nil {
+				// record parse error
+				logger.Warn.Printf("[readPump] JSON parse error: %v", jsonErr)
+				// optionally add an annotation or subsegment
+			} else {
+				handleIncoming(c, dm)
+			}
 		}
-		handleIncoming(c, dm)
 	}
 }
 
@@ -206,6 +229,23 @@ type DecisionMessage struct {
 
 // handleIncoming processes inbound JSON messages
 func handleIncoming(c *Connection, dm DecisionMessage) {
+	// start a subsegment for each message action
+	_, seg := xray.BeginSubsegment(c.ctx, "HandleIncoming")
+	defer seg.Close(nil)
+
+	err := seg.AddAnnotation("action", dm.Action)
+	if err != nil {
+		return
+	}
+	err = seg.AddAnnotation("judgeID", dm.JudgeID)
+	if err != nil {
+		return
+	}
+	err = seg.AddAnnotation("meet", dm.MeetName)
+	if err != nil {
+		return
+	}
+
 	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s",
 		dm.Action, dm.JudgeID, dm.MeetName)
 
