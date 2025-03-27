@@ -3,7 +3,9 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"time"
 
 	"go-ref-lights/logger"
@@ -23,33 +25,60 @@ func StartNextAttemptTimer(meetState *MeetState) {
 
 // HandleMessages listens for messages on the broadcast channel and distributes them to connections.
 func HandleMessages() {
+	// no request context here, so start from background
+	rootCtx := context.Background()
+
 	for {
-		msg := <-broadcast // read incoming message from the broadcast channel
+		// 1) Start a short subsegment for each broadcast iteration
+		_, bcSeg := xray.BeginSubsegment(rootCtx, "HandleBroadcast")
+
+		msg := <-broadcast // read incoming message
 		var msgMap map[string]interface{}
 		var meetFilter string
 
-		// attempt to parse the message as JSON
 		if err := json.Unmarshal(msg, &msgMap); err == nil {
 			if m, ok := msgMap["meetName"].(string); ok {
 				meetFilter = m
+				err := bcSeg.AddAnnotation("meetFilter", meetFilter)
+				if err != nil {
+					return
+				}
+			}
+		} else {
+			// if JSON parse fails, note it
+			err := bcSeg.AddAnnotation("unmarshalError", err.Error())
+			if err != nil {
+				return
 			}
 		}
 
-		// acquire the read lock before iterating the `connections` map
+		// optionally note msg size
+		err := bcSeg.AddAnnotation("msgLength", len(msg))
+		if err != nil {
+			return
+		}
+
+		// 2) Acquire lock, broadcast to each connection
 		connectionsMu.RLock()
 		for c := range connections {
-			// if a meet filter is set, only send to matching connections
 			if meetFilter != "" && c.meetName != meetFilter {
 				continue
 			}
 			select {
 			case c.send <- msg:
+				// message queued
 			default:
-				logger.Warn.Printf("[HandleMessages] Dropping broadcast message for connection %v", c.conn.RemoteAddr())
+				logger.Warn.Printf("[HandleMessages] Dropping broadcast msg for %v", c.conn.RemoteAddr())
+				err := bcSeg.AddAnnotation("droppedMsg", c.conn.RemoteAddr().String())
+				if err != nil {
+					return
+				}
 			}
 		}
-		// release the read lock
 		connectionsMu.RUnlock()
+
+		// 3) End the subsegment
+		bcSeg.Close(nil)
 	}
 }
 
