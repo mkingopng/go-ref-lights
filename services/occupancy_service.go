@@ -152,10 +152,28 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
+	ctx := context.Background()
+	_, seg := xray.BeginSubsegment(ctx, "UnsetPosition")
+	if seg != nil {
+		defer seg.Close(nil)
+
+		err := seg.AddAnnotation("meet", meetName)
+		if err != nil {
+			return err
+		}
+		err = seg.AddAnnotation("position", position)
+		if err != nil {
+			return err
+		}
+		err = seg.AddAnnotation("user", userEmail)
+		if err != nil {
+			return err
+		}
+	}
+
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
-	// validate position
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		logger.Warn.Printf("[UnsetPosition] No occupancy record for meet=%s", meetName)

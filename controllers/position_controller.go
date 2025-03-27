@@ -134,6 +134,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 
 // VacatePosition allows a referee to vacate their assigned position
 func (pc *PositionController) VacatePosition(c *gin.Context) {
+	// create a new context and subsegment
 	ctx := c.Request.Context()
 	ctx, seg := xray.BeginSubsegment(ctx, "VacatePosition")
 
@@ -206,11 +207,11 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 // BroadcastOccupancy sends a real-time update of occupied referee positions
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	// Instead of reusing c.Request.Context(), just do a fallback context:
+	// create a new context and subsegment
 	ctx := context.Background()
 	_, seg := xray.BeginSubsegment(ctx, "BroadcastOccupancy")
 
-	// If we actually got a valid subsegment, then do your annotation calls
+	// check if seg is nil; if so, skip annotation calls to avoid a panic
 	if seg != nil {
 		defer seg.Close(nil)
 		if err := seg.AddAnnotation("meet", meetName); err != nil {
@@ -218,10 +219,11 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		}
 	}
 
-	// ...the rest remains the same...
+	// get the current occupancy state
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	logger.Debug.Printf("[BroadcastOccupancy] Fetched occupancy: %+v", occ)
 
+	// create the message
 	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
 		"leftUser":   occ.LeftUser,
@@ -230,9 +232,11 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		"meetName":   meetName,
 	}
 
+	// send the message
 	jsonBytes, _ := json.Marshal(msg)
 	logger.Debug.Printf("[BroadcastOccupancy] Sending message: %s", string(jsonBytes))
 
+	// send the message to all connected clients
 	go websocket.SendBroadcastMessage(jsonBytes)
 	logger.Debug.Printf("[BroadcastOccupancy] Finished for meet=%s", meetName)
 }
@@ -241,15 +245,18 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 
 // GetOccupancyAPI provides a JSON response with the current referee occupancy
 func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
+	// get the meet from the session
 	session := sessions.Default(c)
 	meetNameRaw := session.Get("meetName")
 	meetName, ok := meetNameRaw.(string)
 
+	// check if user is logged in and a meet is selected
 	if !ok || meetName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No meet selected"})
 		return
 	}
 
+	// get the current occupancy state
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	c.JSON(http.StatusOK, gin.H{
 		"leftUser":   occ.LeftUser,
