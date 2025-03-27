@@ -4,13 +4,13 @@ package controllers
 
 import (
 	"encoding/json"
-	"net/http"
-
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
+	"net/http"
 )
 
 // PositionController manages referee position assignments
@@ -126,12 +126,35 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 
 // VacatePosition allows a referee to vacate their assigned position
 func (pc *PositionController) VacatePosition(c *gin.Context) {
+	ctx := c.Request.Context()
+	ctx, seg := xray.BeginSubsegment(ctx, "VacatePosition")
+	// Check if seg is nil; if so, skip annotation calls to avoid a panic
+	if seg != nil {
+		defer seg.Close(nil)
+	}
+	// Put the updated context back in the request
+	c.Request = c.Request.WithContext(ctx)
+
 	session := sessions.Default(c)
 	userEmail, ok := session.Get("user").(string)
-	meetName, ok2 := session.Get("meetName").(string)
+	position, ok2 := session.Get("refPosition").(string)
+	meetName, _ := session.Get("meetName").(string)
+
+	// Only do AddAnnotation calls if seg != nil, so we don’t crash on nil subsegment
+	if seg != nil {
+		if err := seg.AddAnnotation("user", userEmail); err != nil {
+			logger.Warn.Printf("[VacatePosition] AddAnnotation('user') failed: %v", err)
+		}
+		if err := seg.AddAnnotation("position", position); err != nil {
+			logger.Warn.Printf("[VacatePosition] AddAnnotation('position') failed: %v", err)
+		}
+		if err := seg.AddAnnotation("meet", meetName); err != nil {
+			logger.Warn.Printf("[VacatePosition] AddAnnotation('meet') failed: %v", err)
+		}
+	}
 
 	if !ok || !ok2 || userEmail == "" || meetName == "" {
-		logger.Warn.Println("[VacatePosition] User not logged in or no meet selected; redirecting to /login")
+		logger.Warn.Println("[VacatePosition] User not logged in or no meet selected; redirecting to /index")
 		c.Redirect(http.StatusFound, "/index")
 		return
 	}
@@ -149,6 +172,7 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 		return
 	}
 
+	// remove refPosition from session
 	session.Delete("refPosition")
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[VacatePosition] Error saving session for user=%s: %v", userEmail, err)
@@ -157,7 +181,11 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 	}
 
 	logger.Info.Printf("[VacatePosition] user=%s vacated seat=%s for meet=%s", userEmail, position, meetName)
+
+	// Broadcast the new occupancy, which calls GetOccupancy internally
 	go pc.BroadcastOccupancy(meetName)
+
+	// Redirect as normal
 	c.Redirect(http.StatusFound, "/index")
 }
 

@@ -64,11 +64,11 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	ctx := context.Background() // fallback context in case upstream doesn’t pass one
 	_, seg := xray.BeginSubsegment(ctx, "SetPosition")
 
-	// Only annotate if we got a real subsegment.
+	// only annotate if we got a real subsegment.
 	if seg != nil {
 		defer seg.Close(nil)
 
-		// We can ignore errors from AddAnnotation, or handle them—up to you
+		// ignore errors from AddAnnotation, or handle them
 		if err := seg.AddAnnotation("meet", meetName); err != nil {
 			return err
 		}
@@ -155,6 +155,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
+	// validate position
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		logger.Warn.Printf("[UnsetPosition] No occupancy record for meet=%s", meetName)
@@ -163,6 +164,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 
 	switch position {
 
+	// if occupant is "", or occupant == userEmail => allow
 	case "left":
 		if occ.LeftUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing left position for user=%s in meet=%s", userEmail, meetName)
@@ -171,6 +173,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if occupant is another user => error
 	case "center":
 		if occ.CenterUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing center position for user=%s in meet=%s", userEmail, meetName)
@@ -179,6 +182,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if occupant is another user => error
 	case "right":
 		if occ.RightUser == userEmail {
 			logger.Info.Printf("[UnsetPosition] Clearing right position for user=%s in meet=%s", userEmail, meetName)
@@ -187,6 +191,7 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			return errors.New("user does not hold this position")
 		}
 
+	// if position is invalid => error
 	default:
 		err := errors.New("invalid position")
 		logger.Error.Printf("[UnsetPosition] %v", err)
@@ -204,6 +209,8 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 	defer occupancyMutex.Unlock()
 
 	logger.Info.Printf("[ResetOccupancyForMeet] Clearing all positions for meet=%s", meetName)
+
+	// clear all occupant fields
 	if occ, exists := occupancyMap[meetName]; exists {
 		occ.LeftUser = ""
 		occ.CenterUser = ""
