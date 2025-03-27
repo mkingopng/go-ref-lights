@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/joho/godotenv"
 	"go-ref-lights/internal/app"
 	"log"
@@ -17,32 +18,32 @@ import (
 )
 
 func main() {
-	// Load env variables
+	// load env variables
 	_ = godotenv.Load()
 
-	// explicitly initialize the logger
+	// explicitly initialise the logger
 	if err := logger.InitLogger(); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 
-	// Determine the environment
+	// determine the environment
 	env := os.Getenv("ENV")
 	if env == "" {
 		env = "production"
 	}
 	logger.SetLogLevel(env)
 
-	// Optionally defer close:
+	// optionally defer close:
 	defer func() {
 		if err := logger.CloseLogger(); err != nil {
 			log.Printf("Error closing logger: %v", err)
 		}
 	}()
 
-	// Log the environment
+	// log the environment
 	logger.Info.Printf("[main] Running in %s mode", env)
 
-	// Set application & websocket URLs based on environment
+	// set application & websocket URLs based on environment
 	var applicationURL, websocketURL string
 	if env == "production" {
 		applicationURL = "https://referee-lights.michaelkingston.com.au"
@@ -52,10 +53,10 @@ func main() {
 		websocketURL = "ws://0.0.0.0:8080/referee-updates"
 	}
 
-	// Pass computed URLs to controllers
+	// pass computed URLs to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
-	// Load credentials
+	// load credentials
 	creds, err := controllers.LoadMeetCreds()
 	if err != nil {
 		logger.Error.Printf("[main] Error loading credentials: %v", err)
@@ -63,18 +64,30 @@ func main() {
 		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
 	}
 
-	// Announce start
+	// announce start
 	logger.Info.Println("[main] Starting application on port :8080")
 
-	// Setup the router
+	// setup the router
 	router := app.SetupRouter(env)
 
-	// Start background routines
+	// optional: Set X-Ray config
+	err = xray.Configure(xray.Config{
+		ServiceVersion: "1.0.0",
+	})
+	if err != nil {
+		return
+	}
+
+	// wrap router with X-Ray middleware
+	xraySegmentNamer := xray.NewFixedSegmentNamer("RefereeLightsApp")
+	xrayHandler := xray.Handler(xraySegmentNamer, router)
+
+	// start background routines
 	hbManager := heartbeat.NewHeartbeatManager()
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
 	go websocket.HandleMessages()
 
-	// Read host/port from environment or default
+	// read host/port from environment or default
 	host := os.Getenv("APP_HOST")
 	if host == "" {
 		if env == "production" {
@@ -89,10 +102,10 @@ func main() {
 	}
 	addr := host + ":" + port
 
-	// Create an HTTP server with timeouts
+	// create an HTTP server with timeouts
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      xrayHandler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,
@@ -100,7 +113,7 @@ func main() {
 
 	logger.Info.Printf("[main] Server running on %s", addr)
 	if err := server.ListenAndServe(); err != nil {
-		// If the server fails to start, we can log a fatal error
+		// if the server fails to start, we can log a fatal error
 		log.Fatalf("[main] Failed to start server: %v", err)
 	}
 }
