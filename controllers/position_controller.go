@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/gin-contrib/sessions"
@@ -205,9 +206,20 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 // BroadcastOccupancy sends a real-time update of occupied referee positions
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	logger.Debug.Printf("[BroadcastOccupancy] Entering for meet=%s", meetName)
-	occ := pc.OccupancyService.GetOccupancy(meetName)
+	// Instead of reusing c.Request.Context(), just do a fallback context:
+	ctx := context.Background()
+	_, seg := xray.BeginSubsegment(ctx, "BroadcastOccupancy")
 
+	// If we actually got a valid subsegment, then do your annotation calls
+	if seg != nil {
+		defer seg.Close(nil)
+		if err := seg.AddAnnotation("meet", meetName); err != nil {
+			logger.Warn.Printf("[BroadcastOccupancy] AddAnnotation('meet') error: %v", err)
+		}
+	}
+
+	// ...the rest remains the same...
+	occ := pc.OccupancyService.GetOccupancy(meetName)
 	logger.Debug.Printf("[BroadcastOccupancy] Fetched occupancy: %+v", occ)
 
 	msg := map[string]interface{}{
