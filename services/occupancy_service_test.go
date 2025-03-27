@@ -2,13 +2,13 @@
 // +build unit
 
 // file: services/occupancy_service_test.go
-//
 package services
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go-ref-lights/websocket"
 )
 
@@ -28,16 +28,13 @@ func TestGetOccupancy_NewMeet(t *testing.T) {
 
 // TestSetPosition_Success ensures that a user can take a position that is not already occupied
 func TestSetPosition_Success(t *testing.T) {
-	websocket.InitTest()
-	service := &OccupancyService{}
-	meetName := "APL Nationals"
+	service := NewOccupancyService()
 
-	// assign a user to the left position
-	err := service.SetPosition(meetName, "left", "referee1@example.com")
-	assert.NoError(t, err)
+	// call the existing signature
+	err := service.SetPosition("APL Nationals", "left", "referee1@example.com")
+	require.NoError(t, err)
 
-	// verify that the position is correctly assigned
-	occupancy := service.GetOccupancy(meetName)
+	occupancy := service.GetOccupancy("APL Nationals")
 	assert.Equal(t, "referee1@example.com", occupancy.LeftUser)
 }
 

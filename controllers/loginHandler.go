@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -72,6 +73,11 @@ func PerformLogin(c *gin.Context) {
 // - Regular users → `/index`
 // If authentication fails, it returns an appropriate error message.
 func LoginHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	ctx, seg := xray.BeginSubsegment(ctx, "LoginHandler")
+	defer seg.Close(nil) // you can also pass an error if one occurs
+	c.Request = c.Request.WithContext(ctx)
+
 	session := sessions.Default(c)
 
 	// retrieve meet name from session

@@ -2,7 +2,9 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"sync"
 	"time"
 
@@ -59,6 +61,25 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 
 // SetPosition seats a user at a given position, allowing them to re-enter the seat if they’re already occupant.
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
+	ctx := context.Background() // fallback context in case upstream doesn’t pass one
+	_, seg := xray.BeginSubsegment(ctx, "SetPosition")
+
+	// Only annotate if we got a real subsegment.
+	if seg != nil {
+		defer seg.Close(nil)
+
+		// We can ignore errors from AddAnnotation, or handle them—up to you
+		if err := seg.AddAnnotation("meet", meetName); err != nil {
+			return err
+		}
+		if err := seg.AddAnnotation("position", position); err != nil {
+			return err
+		}
+		if err := seg.AddAnnotation("user", userEmail); err != nil {
+			return err
+		}
+	}
+
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
