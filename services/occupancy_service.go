@@ -152,7 +152,9 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
+	// create a new subsegment for this operation
 	ctx := context.Background()
+	// fallback context in case upstream doesn’t pass one
 	_, seg := xray.BeginSubsegment(ctx, "UnsetPosition")
 	if seg != nil {
 		defer seg.Close(nil)
