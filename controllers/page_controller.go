@@ -79,10 +79,10 @@ func Health(c *gin.Context) {
 // Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
-	// We still want the raw context for possible subsegment usage
+	// get the context
 	ctx := c.Request.Context()
 
-	// 1) Check if X-Ray parent segment is present
+	// check if X-Ray parent segment is present
 	parent := xray.GetSegment(ctx)
 	var seg *xray.Segment
 
@@ -95,14 +95,14 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		c.Request = c.Request.WithContext(ctx)
 	}
 
-	// 2) Grab session data
+	// grab session data
 	session := sessions.Default(c)
 	userEmail, _ := session.Get("user").(string)
 	position, _ := session.Get("refPosition").(string)
 	meetName, _ := session.Get("meetName").(string)
 	isAdmin, _ := session.Get("isAdmin").(bool)
 
-	// 3) Only add annotations if seg != nil
+	// only add annotations if seg != nil
 	if seg != nil {
 		_ = seg.AddAnnotation("user", userEmail)
 		_ = seg.AddAnnotation("position", position)
@@ -113,7 +113,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	if userEmail == "" {
 		logger.Warn.Println("[Logout] No userEmail in session, skipping logout steps.")
 	} else if isAdmin {
-		// Admin logic
+		// admin logic
 		logger.Info.Printf("[Logout] Admin (%s) logging out of meet: %s", userEmail, meetName)
 		if meetName != "" {
 			occupancyService.ResetOccupancyForMeet(meetName)
@@ -138,12 +138,13 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
 	}
 
-	// Unconditional session clear + redirect
+	// unconditional session clear + redirect
 	session.Clear()
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[Logout] Error saving session after clearing: %v", err)
 	}
 
+	// redirect to /choose-meet
 	logger.Info.Println("[Logout] Session cleared. Redirecting to /choose-meet.")
 	c.Redirect(http.StatusFound, "/choose-meet")
 }
