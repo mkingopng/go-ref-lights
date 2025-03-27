@@ -4,6 +4,7 @@ package heartbeat
 
 import (
 	"fmt"
+	"github.com/aws/aws-xray-sdk-go/xray"
 	"net/http"
 	"sync"
 	"time"
@@ -24,7 +25,18 @@ type Manager struct {
 
 // Handler updates the last seen timestamp of a referee
 func Handler(w http.ResponseWriter, r *http.Request) {
+	ctx, seg := xray.BeginSubsegment(r.Context(), "HeartbeatHandler")
+	defer seg.Close(nil)
+	r = r.WithContext(ctx)
+
 	refereeID := r.URL.Query().Get("referee_id")
+	if refereeID != "" {
+		err := seg.AddAnnotation("refereeID", refereeID)
+		if err != nil {
+			return
+		}
+	}
+
 	if refereeID == "" {
 		logger.Warn.Println("[Handler] Missing referee ID in query params")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
