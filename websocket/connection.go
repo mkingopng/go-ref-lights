@@ -71,20 +71,20 @@ var upgrader = websocket.Upgrader{
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	meetName := r.URL.Query().Get("meetName")
 	if meetName == "" {
-		logger.Error.Println("No meet selected; rejecting WebSocket connection")
-		http.Error(w, "No meet selected", http.StatusBadRequest)
-		return
+		logger.Warn.Println("No meetName provided; proceeding anyway.")
+		meetName = "Anonymous"
 	}
 
 	// 1) Start a short subsegment for the WebSocket upgrade event
 	ctx, seg := xray.BeginSubsegment(r.Context(), "WebSocketUpgrade")
-	err := seg.AddAnnotation("remoteAddr", r.RemoteAddr)
-	if err != nil {
-		return
+
+	// Add some annotations for X-Ray tracing
+	if err := seg.AddAnnotation("remoteAddr", r.RemoteAddr); err != nil {
+		// If adding annotations fails, we can just ignore or handle it as needed
+		logger.Warn.Printf("Failed to annotate remoteAddr: %v", err)
 	}
-	err = seg.AddAnnotation("meetName", meetName)
-	if err != nil {
-		return
+	if err := seg.AddAnnotation("meetName", meetName); err != nil {
+		logger.Warn.Printf("Failed to annotate meetName: %v", err)
 	}
 
 	logger.Info.Printf("[ServeWs] Upgrading to WS: remoteAddr=%v, meetName=%q", r.RemoteAddr, meetName)
@@ -92,9 +92,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error.Printf("[ServeWs] WebSocket upgrade error: %v", err)
 		http.Error(w, "Failed to upgrade WebSocket", http.StatusBadRequest)
-
-		// close the subsegment on error
-		seg.Close(nil)
+		seg.Close(nil) // close the subsegment on error
 		return
 	}
 
