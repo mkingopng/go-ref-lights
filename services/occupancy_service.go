@@ -154,8 +154,11 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
 	// create a new subsegment for this operation
 	ctx := context.Background()
+
 	// fallback context in case upstream doesn’t pass one
 	_, seg := xray.BeginSubsegment(ctx, "UnsetPosition")
+
+	// only annotate if we got a real subsegment.
 	if seg != nil {
 		defer seg.Close(nil)
 
@@ -173,9 +176,11 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 		}
 	}
 
+	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
+	// get the occupancy record for the meet
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		logger.Warn.Printf("[UnsetPosition] No occupancy record for meet=%s", meetName)
