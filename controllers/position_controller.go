@@ -205,18 +205,11 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 
 // ------------------- Real-time occupancy updates -------------------
 
-// BroadcastOccupancy sends a real-time update of occupied referee positions
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	// create a new context and subsegment
-	ctx := context.Background()
-	_, seg := xray.BeginSubsegment(ctx, "BroadcastOccupancy")
-
-	// check if seg is nil; if so, skip annotation calls to avoid a panic
+	_, seg := xray.BeginSegment(context.Background(), "BroadcastOccupancy")
 	if seg != nil {
 		defer seg.Close(nil)
-		if err := seg.AddAnnotation("meet", meetName); err != nil {
-			logger.Warn.Printf("[BroadcastOccupancy] AddAnnotation('meet') error: %v", err)
-		}
+		_ = seg.AddAnnotation("meet", meetName)
 	}
 
 	// get the current occupancy state
@@ -232,11 +225,10 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		"meetName":   meetName,
 	}
 
-	// send the message
 	jsonBytes, _ := json.Marshal(msg)
 	logger.Debug.Printf("[BroadcastOccupancy] Sending message: %s", string(jsonBytes))
 
-	// send the message to all connected clients
+	// send to all connected clients
 	go websocket.SendBroadcastMessage(jsonBytes)
 	logger.Debug.Printf("[BroadcastOccupancy] Finished for meet=%s", meetName)
 }

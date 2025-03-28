@@ -74,8 +74,14 @@ func PerformLogin(c *gin.Context) {
 // If authentication fails, it returns an appropriate error message.
 func LoginHandler(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	// create a subsegment
 	ctx, seg := xray.BeginSubsegment(ctx, "LoginHandler")
-	defer seg.Close(nil) // you can also pass an error if one occurs
+	if seg != nil {
+		defer seg.Close(nil)
+	}
+
+	// attach the updated context back to the request
 	c.Request = c.Request.WithContext(ctx)
 
 	session := sessions.Default(c)
@@ -89,7 +95,6 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// extract username and password from the POST form
 	username := c.PostForm("username")
 	password := c.PostForm("password")
 

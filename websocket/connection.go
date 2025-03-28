@@ -75,16 +75,11 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		meetName = "Anonymous"
 	}
 
-	// 1) Start a short subsegment for the WebSocket upgrade event
+	// 1) Start a subsegment for the WebSocket upgrade event
 	ctx, seg := xray.BeginSubsegment(r.Context(), "WebSocketUpgrade")
-
-	// Add some annotations for X-Ray tracing
-	if err := seg.AddAnnotation("remoteAddr", r.RemoteAddr); err != nil {
-		// If adding annotations fails, we can just ignore or handle it as needed
-		logger.Warn.Printf("Failed to annotate remoteAddr: %v", err)
-	}
-	if err := seg.AddAnnotation("meetName", meetName); err != nil {
-		logger.Warn.Printf("Failed to annotate meetName: %v", err)
+	if seg != nil {
+		_ = seg.AddAnnotation("remoteAddr", r.RemoteAddr)
+		_ = seg.AddAnnotation("meetName", meetName)
 	}
 
 	logger.Info.Printf("[ServeWs] Upgrading to WS: remoteAddr=%v, meetName=%q", r.RemoteAddr, meetName)
@@ -92,12 +87,16 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Error.Printf("[ServeWs] WebSocket upgrade error: %v", err)
 		http.Error(w, "Failed to upgrade WebSocket", http.StatusBadRequest)
-		seg.Close(nil) // close the subsegment on error
+		if seg != nil {
+			seg.Close(nil)
+		}
 		return
 	}
 
-	// 2) End the short subsegment once we have the WebSocket
-	seg.Close(nil)
+	// 2) End the subsegment once we have the WebSocket
+	if seg != nil {
+		seg.Close(nil)
+	}
 
 	// 3) Create a Connection carrying the same context
 	conn := &Connection{
@@ -105,7 +104,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		send:     make(chan []byte, 256),
 		meetName: meetName,
 		judgeID:  "",
-		ctx:      ctx,
+		ctx:      ctx, // We store the context in case readPump/writePump want to do subsegments
 	}
 
 	registerConnection(conn)
@@ -126,30 +125,31 @@ func (c *Connection) readPump() {
 
 	for {
 		// create a subsegment for each read cycle
-		_, subSeg := xray.BeginSubsegment(c.ctx, "WebSocketRead")
+		ctx, subSeg := xray.BeginSubsegment(c.ctx, "WebSocketRead")
 
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
-			err := subSeg.AddAnnotation("readError", err.Error())
-			if err != nil {
-				return
+			// if subSeg isn't nil, annotate and close it
+			if subSeg != nil {
+				_ = subSeg.AddAnnotation("readError", err.Error())
+				subSeg.Close(nil)
 			}
-			subSeg.Close(nil)
+			// break from the loop (closing the connection)
 			break
 		}
 
-		err = subSeg.AddAnnotation("messageType", fmt.Sprintf("%d", messageType))
-		if err != nil {
-			return
+		// if we have a subSeg, do your annotation
+		if subSeg != nil {
+			_ = subSeg.AddAnnotation("messageType", fmt.Sprintf("%d", messageType))
+			subSeg.Close(nil)
 		}
-		subSeg.Close(nil)
 
+		// handle text messages
 		if messageType == websocket.TextMessage {
 			var dm DecisionMessage
 			if jsonErr := json.Unmarshal(message, &dm); jsonErr != nil {
-				// record parse error
 				logger.Warn.Printf("[readPump] JSON parse error: %v", jsonErr)
-				// optionally add an annotation or subsegment
+				// optional: if subSeg != nil { annotate parse error }
 			} else {
 				handleIncoming(c, dm)
 			}

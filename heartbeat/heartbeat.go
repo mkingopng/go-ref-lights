@@ -25,16 +25,18 @@ type Manager struct {
 
 // Handler updates the last seen timestamp of a referee
 func Handler(w http.ResponseWriter, r *http.Request) {
+	// Start a subsegment, but it may return nil if there's no parent segment
 	ctx, seg := xray.BeginSubsegment(r.Context(), "HeartbeatHandler")
-	defer seg.Close(nil)
+	if seg != nil {
+		defer seg.Close(nil)
+	}
+
+	// update request's context in case anything else reads it
 	r = r.WithContext(ctx)
 
 	refereeID := r.URL.Query().Get("referee_id")
-	if refereeID != "" {
-		err := seg.AddAnnotation("refereeID", refereeID)
-		if err != nil {
-			return
-		}
+	if refereeID != "" && seg != nil {
+		_ = seg.AddAnnotation("refereeID", refereeID)
 	}
 
 	if refereeID == "" {

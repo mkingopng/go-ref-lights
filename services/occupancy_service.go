@@ -61,23 +61,16 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 
 // SetPosition seats a user at a given position, allowing them to re-enter the seat if they’re already occupant.
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
-	ctx := context.Background() // fallback context in case upstream doesn’t pass one
-	_, seg := xray.BeginSubsegment(ctx, "SetPosition")
+	_, seg := xray.BeginSegment(context.Background(), "SetPosition") // safely start a root segment
+	if seg != nil {
+		defer seg.Close(nil)
+	}
 
 	// only annotate if we got a real subsegment.
 	if seg != nil {
-		defer seg.Close(nil)
-
-		// ignore errors from AddAnnotation, or handle them
-		if err := seg.AddAnnotation("meet", meetName); err != nil {
-			return err
-		}
-		if err := seg.AddAnnotation("position", position); err != nil {
-			return err
-		}
-		if err := seg.AddAnnotation("user", userEmail); err != nil {
-			return err
-		}
+		_ = seg.AddAnnotation("meet", meetName)
+		_ = seg.AddAnnotation("position", position)
+		_ = seg.AddAnnotation("user", userEmail)
 	}
 
 	occupancyMutex.Lock()
@@ -152,28 +145,16 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
-	// create a new subsegment for this operation
-	ctx := context.Background()
-
-	// fallback context in case upstream doesn’t pass one
-	_, seg := xray.BeginSubsegment(ctx, "UnsetPosition")
+	_, seg := xray.BeginSegment(context.Background(), "UnsetPosition")
+	if seg != nil {
+		defer seg.Close(nil)
+	}
 
 	// only annotate if we got a real subsegment.
 	if seg != nil {
-		defer seg.Close(nil)
-
-		err := seg.AddAnnotation("meet", meetName)
-		if err != nil {
-			return err
-		}
-		err = seg.AddAnnotation("position", position)
-		if err != nil {
-			return err
-		}
-		err = seg.AddAnnotation("user", userEmail)
-		if err != nil {
-			return err
-		}
+		_ = seg.AddAnnotation("meet", meetName)
+		_ = seg.AddAnnotation("position", position)
+		_ = seg.AddAnnotation("user", userEmail)
 	}
 
 	// ignore errors from AddAnnotation, or handle them

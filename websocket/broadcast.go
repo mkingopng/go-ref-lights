@@ -29,33 +29,35 @@ func HandleMessages() {
 	rootCtx := context.Background()
 
 	for {
+		msg := <-broadcast // read incoming message
+
 		// start a short subsegment for each broadcast iteration
 		_, bcSeg := xray.BeginSubsegment(rootCtx, "HandleBroadcast")
+		defer func() {
+			if bcSeg != nil {
+				bcSeg.Close(nil)
+			}
+		}()
 
-		msg := <-broadcast // read incoming message
 		var msgMap map[string]interface{}
 		var meetFilter string
 
 		if err := json.Unmarshal(msg, &msgMap); err == nil {
 			if m, ok := msgMap["meetName"].(string); ok {
 				meetFilter = m
-				err := bcSeg.AddAnnotation("meetFilter", meetFilter)
-				if err != nil {
-					return
+				if bcSeg != nil {
+					_ = bcSeg.AddAnnotation("meetFilter", meetFilter)
 				}
 			}
 		} else {
-			// if JSON parse fails, note it
-			err := bcSeg.AddAnnotation("unmarshalError", err.Error())
-			if err != nil {
-				return
+			if bcSeg != nil {
+				_ = bcSeg.AddAnnotation("unmarshalError", err.Error())
 			}
 		}
 
 		// optionally note msg size
-		err := bcSeg.AddAnnotation("msgLength", len(msg))
-		if err != nil {
-			return
+		if bcSeg != nil {
+			_ = bcSeg.AddAnnotation("msgLength", len(msg))
 		}
 
 		// acquire lock, broadcast to each connection
@@ -69,16 +71,12 @@ func HandleMessages() {
 				// message queued
 			default:
 				logger.Warn.Printf("[HandleMessages] Dropping broadcast msg for %v", c.conn.RemoteAddr())
-				err := bcSeg.AddAnnotation("droppedMsg", c.conn.RemoteAddr().String())
-				if err != nil {
-					return
+				if bcSeg != nil {
+					_ = bcSeg.AddAnnotation("droppedMsg", c.conn.RemoteAddr().String())
 				}
 			}
 		}
 		connectionsMu.RUnlock()
-
-		// end the subsegment
-		bcSeg.Close(nil)
 	}
 }
 
