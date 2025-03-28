@@ -125,7 +125,7 @@ func (c *Connection) readPump() {
 
 	for {
 		// create a subsegment for each read cycle
-		ctx, subSeg := xray.BeginSubsegment(c.ctx, "WebSocketRead")
+		_, subSeg := xray.BeginSubsegment(c.ctx, "WebSocketRead")
 
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
