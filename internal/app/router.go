@@ -91,45 +91,25 @@ func SetupRouter(env string) *gin.Engine {
 			logger.Warn.Println(payload.Message)
 		case "debug":
 			logger.Debug.Println(payload.Message)
-		case "info":
-			fallthrough
 		default:
 			logger.Info.Println(payload.Message)
 		}
 		c.Status(http.StatusOK)
 	})
 
-	// initialise your service layer
+	// create occupancy service and controllers
 	occupancyService := services.NewOccupancyService()
-
-	// build the SudoController
-	sudoController := controllers.NewSudoController(occupancyService)
-	sudoRoutes := router.Group("/sudo")
-	{
-		// must be logged in
-		sudoRoutes.Use(middleware.AuthRequired)
-		// must be superuser
-		sudoRoutes.Use(middleware.SudoRequired())
-		{
-			sudoRoutes.GET("/", sudoController.SudoPanel)
-			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
-			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
-			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
-		}
-	}
-
-	// define other controllers
 	positionController := controllers.NewPositionController(occupancyService)
 	adminController := controllers.NewAdminController(occupancyService, positionController)
-	pc := controllers.NewPositionController(occupancyService)
 
-	// public routes
+	// ------------------ public routes ------------------
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
-	router.GET("/meet", controllers.MeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/index", controllers.Index)
+	router.GET("/left", controllers.Left)
+	router.GET("/center", controllers.Center)
+	router.GET("/right", controllers.Right)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
 		controllers.RefereeHandler(c, occupancyService)
 	})
@@ -140,14 +120,15 @@ func SetupRouter(env string) *gin.Engine {
 	// load templates
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// ensure "meetName" is set (except for a few routes + /static)
+	// ensure "meetName" is set (except for a few routes + /static + /referee-updates)
 	router.Use(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
 			c.Next()
 			return
 		}
-		// add /referee-updates to your exception list:
-		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
+		if c.Request.URL.Path == "/meets" ||
+			c.Request.URL.Path == "/login" ||
+			c.Request.URL.Path == "/referee-updates" {
 			c.Next()
 			return
 		}
@@ -161,49 +142,47 @@ func SetupRouter(env string) *gin.Engine {
 		c.Next()
 	})
 
-	// protected routes
+	// ------------------ Protected routes ------------------
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
 	protected.Use(func(c *gin.Context) {
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
-			c.Redirect(http.StatusFound, "/meets")
+			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 			return
 		}
 		c.Next()
 	})
-	protected.Use(middleware.PositionRequired())
 	{
-		protected.GET("/qrcode", controllers.GetQRCode)
+		protected.GET("/index", controllers.Index)
 		protected.GET("/lights", controllers.Lights)
-		protected.GET("/positions", controllers.ShowPositionsPage)
-		protected.POST("/position/claim", pc.ClaimPosition)
-		protected.GET("/left", controllers.Left)
-		protected.GET("/center", controllers.Center)
-		protected.GET("/right", controllers.Right)
-		protected.GET("/occupancy", pc.GetOccupancyAPI)
-		protected.POST("/position/vacate", pc.VacatePosition)
-		protected.POST("/logout", func(c *gin.Context) {
-			controllers.Logout(c, occupancyService)
-		})
+		protected.GET("/occupancy", positionController.GetOccupancyAPI)
+		protected.POST("/position/vacate", positionController.VacatePosition)
+		protected.GET("/active-users", controllers.ActiveUsersHandler)
+		protected.GET("", adminController.AdminPanel)
+		protected.POST("/force-vacate", adminController.ForceVacate)
+		protected.POST("/reset-instance", adminController.ResetInstance)
 		protected.GET("/logout", func(c *gin.Context) {
 			controllers.Logout(c, occupancyService)
 		})
-		protected.POST("/force-logout", controllers.ForceLogoutHandler)
-		protected.GET("/active-users", controllers.ActiveUsersHandler)
 	}
 
-	// admin routes
-	adminRoutes := router.Group("/admin")
-	adminRoutes.Use(middleware.AdminRequired())
+	// ------------------ Sudo routes ------------------
+	sudoController := controllers.NewSudoController(occupancyService)
+	sudoRoutes := router.Group("/sudo")
 	{
-		adminRoutes.GET("", adminController.AdminPanel)
-		adminRoutes.POST("/force-vacate", adminController.ForceVacate)
-		adminRoutes.POST("/reset-instance", adminController.ResetInstance)
+		sudoRoutes.Use(middleware.AuthRequired)
+		sudoRoutes.Use(middleware.SudoRequired())
+		{
+			sudoRoutes.GET("/", sudoController.SudoPanel)
+			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
+			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
+			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
+		}
 	}
 
-	// webSocket route
+	// WebSocket route
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
@@ -221,6 +200,5 @@ func SetupRouter(env string) *gin.Engine {
 		template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
 
 	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
-
 	return router
 }
