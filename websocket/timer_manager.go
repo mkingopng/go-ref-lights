@@ -191,7 +191,6 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 		return
 	}
 	meetState.PlatformReadyActive = false
-	// optionally reset the time left to 60 if you want
 	meetState.PlatformReadyTimeLeft = 60
 }
 
@@ -203,13 +202,12 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	tm.nextAttemptIDCounter++
 	timerID := tm.nextAttemptIDCounter
 
-	// default the next attempt to 60 seconds (or whatever NextAttemptStartValue is)
 	startVal := 60
 	if tm.NextAttemptStartValue > 0 {
 		startVal = tm.NextAttemptStartValue
 	}
 
-	// create a new NextAttemptTimer
+	// clear previous decisions and notify clients to clear results
 	deadline := time.Now().Add(time.Duration(startVal) * time.Second)
 	newTimer := NextAttemptTimer{
 		ID:       timerID,
@@ -217,6 +215,8 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 		Active:   true,
 		EndTime:  deadline,
 	}
+
+	// add the new timer to the list
 	meetState.NextAttemptTimers = append(meetState.NextAttemptTimers, newTimer)
 	tm.nextAttemptMutex.Unlock()
 
@@ -230,11 +230,15 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 		for range ticker.C {
 			tm.nextAttemptMutex.Lock()
 			idx := findTimerIndex(meetState.NextAttemptTimers, id)
+
+			// check if the timer is still in the list
 			if idx == -1 {
 				// timer not found; must've been removed or ended
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
+
+			// check if the timer is still active
 			if !meetState.NextAttemptTimers[idx].Active {
 				// already inactive
 				tm.nextAttemptMutex.Unlock()
@@ -242,10 +246,12 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 			}
 
 			// recalc time left from EndTime
-			timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
+			timeLeft := int(time.Until(meetState.NextAttemptTimers[idx].EndTime).Seconds())
 			if timeLeft < 0 {
 				timeLeft = 0
 			}
+
+			// update the time left
 			meetState.NextAttemptTimers[idx].TimeLeft = timeLeft
 
 			// broadcast updated timers
@@ -257,6 +263,8 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
+
+			// still active; update the time left
 			tm.nextAttemptMutex.Unlock()
 		}
 	}(timerID)

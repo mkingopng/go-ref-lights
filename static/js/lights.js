@@ -3,7 +3,11 @@
 
 let socket;
 let platformReadyInterval = null;
-let resultsDisplayed = false; // Flag to indicate that displayResults has been processed
+let resultsDisplayed = false; // flag to indicate that displayResults has been processed
+
+const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
+let nextAttemptTimers = {};       // key = timer.ID, value = some DOM or state
+let platformTimerActive = false;  // track if a platform-ready timer is active
 
 // utility function for logging
 function log(message, level = 'debug') {
@@ -33,9 +37,6 @@ function log(message, level = 'debug') {
     }).catch(error => console.error('Failed to send log to server:', JSON.stringify(error)));
 }
 
-let nextAttemptTimers = {};
-const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
-
 window.addEventListener("DOMContentLoaded", function () {
 
     const leftCircle = document.getElementById("leftCircle");
@@ -64,60 +65,94 @@ window.addEventListener("DOMContentLoaded", function () {
         return meetName;
     }
 
-    // Helper function to update the platform ready timer UI
+    // helper function to update the platform ready timer UI
     function updatePlatformReadyTimer(timer) {
-        log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
-        if (timerDisplay) {
-            timerDisplay.innerText = `${timer.TimeLeft}s`;
-        }
-        // Hide the container if the timer ran out
-        if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.add("hidden");
-        } else if (platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.remove("hidden");
-        }
-    }
-
-    // Helper function to update a next attempt timer UI element
-    function updateNextAttemptTimer(timer, container, timersMap) {
-        // If time is up, remove the timer element
-        if (timer.TimeLeft <= 0) {
-            if (timersMap[timer.ID]) {
-                container.removeChild(timersMap[timer.ID]);
-                delete timersMap[timer.ID];
-            }
-        } else {
-            // Create the timer element if it doesn't exist
-            if (!timersMap[timer.ID]) {
-                let newRow = document.createElement("div");
-                newRow.classList.add("timer");
-                container.insertBefore(newRow, container.firstChild);
-                timersMap[timer.ID] = newRow;
-            }
-            // Update the timer element's text
-            timersMap[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+        const timeLeft = timer.TimeLeft ?? 0;
+        const container = document.getElementById("platformReadyTimerContainer");
+        const timerSpan = document.getElementById("timer");
+        if (!container || !timerSpan) return;
+        if (timeLeft > 0 && timer.Active) {
             container.classList.remove("hidden");
+            platformTimerActive = true;
+            timerSpan.textContent = `${timeLeft}s`;
+        } else {
+            container.classList.add("hidden");
+            platformTimerActive = false;
         }
     }
 
-    // Main handler for the "updateNextAttemptTime" action
-    function handleUpdateNextAttemptTime(data) {
-        if (data.timers && Array.isArray(data.timers)) {
-            data.timers.forEach(timer => {
-                if (timer.ID === 1) {
-                    if (resultsDisplayed) {
-                        // When results are displayed, treat timer ID 1 as a next attempt timer
-                        updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
-                    } else {
-                        // Otherwise, update the platform ready timer
-                        updatePlatformReadyTimer(timer);
-                    }
-                } else {
-                    // For other timer IDs, update next attempt timer normally
-                    updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
-                }
-            });
+    // helper function to update a next attempt timer UI element
+    function updateNextAttemptTimer(timer) {
+        const existing = nextAttemptTimers[timer.ID];
+        const timeLeft = timer.TimeLeft ?? 0;
+
+        if (timeLeft <= 0 || !timer.Active) {
+            removeNextAttemptTimer(timer.ID);
+            return;
         }
+
+        if (!existing) {
+            const div = document.createElement("div");
+            div.id = `nextAttemptTimer_${timer.ID}`;
+            div.classList.add("single-attempt-timer");
+            div.textContent = `Next Attempt: ${timeLeft}s`;
+            multiNextAttemptTimers.classList.remove("hidden");
+            multiNextAttemptTimers.appendChild(div);
+            nextAttemptTimers[timer.ID] = div;
+        } else {
+            existing.textContent = `Next Attempt: ${timeLeft}s`;
+        }
+    }
+
+    // main handler for the "updateNextAttemptTime" action
+    function handleUpdateNextAttemptTime(data) {
+        if (!data.timers || !Array.isArray(data.timers)) return;
+        data.timers.forEach((timer) => {
+            if (timer.type === "platformReady") {
+                updatePlatformReadyTimer(timer);
+            } else if (timer.type === "nextAttempt") {
+                updateNextAttemptTimer(timer);
+            } else {
+                console.warn("Unknown timer type:", timer.type, "for timer ID", timer.ID);
+            }
+        });
+    }
+
+    function removeNextAttemptTimer(timerId) {
+        const div = nextAttemptTimers[timerId];
+        if (div && div.parentNode) {
+            div.parentNode.removeChild(div);
+        }
+        delete nextAttemptTimers[timerId];
+
+        if (Object.keys(nextAttemptTimers).length === 0) {
+            multiNextAttemptTimers.classList.add("hidden");
+        }
+    }
+
+    // -------------------------------------------------------------
+    // The main function to parse the entire final result object
+    // and display it. (Already a placeholder, but reference if you
+    // want separate UI updates.)
+    // -------------------------------------------------------------
+    function displayResults(msg) {
+        console.log("Final decisions => Left:", msg.leftDecision,
+            "Center:", msg.centerDecision,
+            "Right:", msg.rightDecision);
+
+        document.getElementById("leftLight").className   = (msg.leftDecision === "white") ? "greenLight" : "redLight";
+        document.getElementById("centerLight").className = (msg.centerDecision === "white") ? "greenLight" : "redLight";
+        document.getElementById("rightLight").className  = (msg.rightDecision === "white") ? "greenLight" : "redLight";
+    }
+
+    function updatePlatformTimer(secondsLeft) {
+        const timerEl = document.getElementById("platformTimer");
+        if (!timerEl) return;
+        timerEl.textContent = `Platform Timer: ${secondsLeft} seconds remaining`;
+    }
+
+    function updateNextAttemptTimers(timers) {
+        console.log("Next Attempt Timers =>", timers);
     }
 
     // constants
@@ -125,25 +160,24 @@ window.addEventListener("DOMContentLoaded", function () {
     if (!meetName) return;
     const judgeId = "lights";
 
-    // Build your WebSocket URL
+    // build your WebSocket URL
     const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
     const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
 
-    // -------------------------------------------------------------
-    // NEW: Use ReconnectingWebSocket instead of native WebSocket
-    // -------------------------------------------------------------
+    // ReconnectingWebSocket settings
     socket = new ReconnectingWebSocket(wsUrl, null, {
         reconnectInterval: 2000,   // 2 seconds
         maxReconnectAttempts: null // infinite
     });
 
-    // Grab common DOM elements
+    // grab common DOM elements
     const timerDisplay = document.getElementById('timer');
     const healthEl = document.getElementById("healthStatus");
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const statusEl = document.getElementById("connectionStatus");
+    const messageEl = document.getElementById("message");
 
-    // socket onopen
+    // WebSocket lifecycle events
     socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).", "info");
         if (statusEl) {
@@ -159,7 +193,6 @@ window.addEventListener("DOMContentLoaded", function () {
         log(`Sent registerRef for lights with meetName=${meetName}`, "info");
     };
 
-    // socket onclose
     socket.onclose = function (event) {
         log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
         if (statusEl) {
@@ -168,37 +201,24 @@ window.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    // socket.onerror
     socket.onerror = function (error) {
         log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
-    // socket.onmessage
+    // main websocket message handler
+
     socket.onmessage = function (event) {
         let data;
         try {
-            const ajv = new Ajv(); // const Ajv = require("ajv")
-            // This is a sample schema. replace with a appropriate schema as per your object's specific data structure.
-            const schema = {
-            	type : "object",
-            	properties : {
-            	    name: {type: "string"}
-            	},
-            	required : ["name"]
-            }
-            const validate = ajv.compile(schema)
-            if(validate(event.data)) {
-                data = JSON.parse(event.data);
-                log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
-            } else {
-                throw new Error('Data does not pass validation');
-            }
+            data = JSON.parse(event.data);
+            log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
         } catch (e) {
             log(`Invalid JSON from server: ${event.data}`, 'error');
             return;
         }
 
         switch (data.action) {
+
             case "refereeHealth": {
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
@@ -207,6 +227,7 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
                 break;
             }
+
             case "healthError":
                 alert(data.message);
                 break;
@@ -220,13 +241,13 @@ window.addEventListener("DOMContentLoaded", function () {
                     platformReadyInterval = null;
                 }
 
-                // Clear any leftover nextAttemptTimers
-                Object.keys(nextAttemptTimers).forEach((id => {
+                // clear any leftover nextAttemptTimers
+                Object.keys(nextAttemptTimers).forEach(id => {
                     if (multiNextAttemptTimers && nextAttemptTimers[id]) {
                         multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
                     }
                     delete nextAttemptTimers[id];
-                }));
+                });
                 if (multiNextAttemptTimers) {
                     multiNextAttemptTimers.classList.add("hidden");
                 }
@@ -234,19 +255,20 @@ window.addEventListener("DOMContentLoaded", function () {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
                 if (timerDisplay) {
-                    timerDisplay.innerText = `${data.timeLeft}s`;
+                    // data.timeLeft might be included
+                    timerDisplay.innerText = (data.timeLeft !== undefined)
+                        ? `${data.timeLeft}s`
+                        : "60s";
                 }
                 break;
 
             case "updatePlatformReadyTime":
                 log(`⌛ Handling updatePlatformReadyTime: ${data.timeLeft}s left`, "debug");
                 if (data.timeLeft <= 0) {
-                    // Hide the timer since it's expired
                     if (platformReadyTimerContainer) {
                         platformReadyTimerContainer.classList.add("hidden");
                     }
                 } else {
-                    // Show the timer container if hidden
                     if (platformReadyTimerContainer) {
                         platformReadyTimerContainer.classList.remove("hidden");
                     }
@@ -282,11 +304,10 @@ window.addEventListener("DOMContentLoaded", function () {
 
                 let whiteCount = 0;
                 let redCount = 0;
-                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(decision => {
-                    if (decision === "white") { whiteCount++; } else { redCount++; }
+                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(dec => {
+                    if (dec === "white") { whiteCount++; } else { redCount++; }
                 });
 
-                const messageEl = document.getElementById("message");
                 if (whiteCount >= 2) {
                     messageEl.innerText = "Good Lift";
                     messageEl.style.color = "green";
@@ -296,20 +317,13 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
                 messageEl.classList.add("flash");
 
-                // Clear after 15 seconds
+                // clear the message text in 15 seconds
                 setTimeout(() => {
                     messageEl.innerText = "";
                     messageEl.classList.remove("flash");
                 }, 15000);
 
                 resultsDisplayed = true;
-                break;
-
-            case "platformReadyExpired":
-                log("⏰ Platform Ready Timer Expired!");
-                if (platformReadyTimerContainer) {
-                    platformReadyTimerContainer.classList.add("hidden");
-                }
                 break;
 
             case "clearResults":
@@ -321,10 +335,9 @@ window.addEventListener("DOMContentLoaded", function () {
                 centerIndicator.style.backgroundColor = "grey";
                 rightIndicator.style.backgroundColor  = "grey";
 
-                const msgEl = document.getElementById("message");
-                if (msgEl) {
-                    msgEl.innerText = "";
-                    msgEl.classList.remove("flash");
+                if (messageEl) {
+                    messageEl.innerText = "";
+                    messageEl.classList.remove("flash");
                 }
                 resultsDisplayed = false;
                 break;

@@ -205,10 +205,7 @@ func LoginHandler(c *gin.Context) {
 		posString := desiredPos.(string)
 		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
 			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
-			c.HTML(http.StatusForbidden, "positions.html", gin.H{
-				"Error":    "Position is already taken or invalid. Please choose another.",
-				"meetName": meetName,
-			})
+			c.String(http.StatusForbidden, "That seat is already taken or invalid. Please try another seat.")
 			return
 		}
 		session.Set("refPosition", posString)
@@ -222,7 +219,7 @@ func LoginHandler(c *gin.Context) {
 		case "right":
 			c.Redirect(http.StatusFound, "/right")
 		default:
-			c.Redirect(http.StatusFound, "/positions")
+			c.Redirect(http.StatusFound, "/index")
 		}
 		return
 	}

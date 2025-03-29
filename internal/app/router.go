@@ -35,8 +35,6 @@ func SetupRouter(env string) *gin.Engine {
 
 	// serve static files
 	router.Static("/static", "./static")
-
-	// serve /favicon.ico directly
 	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
 
 	// reduce logs in non-production
@@ -46,7 +44,7 @@ func SetupRouter(env string) *gin.Engine {
 		logger.Debug.Println("[SetupRouter] Gin logs have been discarded for non-production mode.")
 	}
 
-	// configure session store
+	// configure session store for meet-director login
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
@@ -56,13 +54,13 @@ func SetupRouter(env string) *gin.Engine {
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
-	// set security headers
+	// basic security headers
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("X-Frame-Options", "ALLOW-FROM https://referee-lights.michaelkingston.com.au")
 		c.Next()
 	})
 
-	// disable caching for all responses
+	// disable HTTP caching
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")
@@ -73,7 +71,7 @@ func SetupRouter(env string) *gin.Engine {
 	// health endpoint
 	router.GET("/health", controllers.Health)
 
-	// log endpoint
+	// simple log endpoint
 	router.POST("/log", func(c *gin.Context) {
 		var payload struct {
 			Message string `json:"message"`
@@ -91,63 +89,43 @@ func SetupRouter(env string) *gin.Engine {
 			logger.Warn.Println(payload.Message)
 		case "debug":
 			logger.Debug.Println(payload.Message)
-		case "info":
-			fallthrough
-		default:
+		default: // "info" + any unknown
 			logger.Info.Println(payload.Message)
 		}
 		c.Status(http.StatusOK)
 	})
 
-	// initialise your service layer
+	// create services and controllers
 	occupancyService := services.NewOccupancyService()
-
-	// build the SudoController
-	sudoController := controllers.NewSudoController(occupancyService)
-	sudoRoutes := router.Group("/sudo")
-	{
-		// must be logged in
-		sudoRoutes.Use(middleware.AuthRequired)
-		// must be superuser
-		sudoRoutes.Use(middleware.SudoRequired())
-		{
-			sudoRoutes.GET("/", sudoController.SudoPanel)
-			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
-			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
-			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
-		}
-	}
-
-	// define other controllers
 	positionController := controllers.NewPositionController(occupancyService)
-	adminController := controllers.NewAdminController(occupancyService, positionController)
-	pc := controllers.NewPositionController(occupancyService)
+	meetDirectorController := controllers.NewAdminController(occupancyService, positionController)
 
-	// public routes
+	// ------------------ public routes ------------------
 	router.GET("/", controllers.ShowMeets)
 	router.POST("/set-meet", controllers.SetMeetHandler)
-	router.GET("/meet", controllers.MeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/index", controllers.Index)
-	router.GET("/referee/:meetName/:position", func(c *gin.Context) {
-		controllers.RefereeHandler(c, occupancyService)
-	})
-	router.GET("/heartbeat", func(c *gin.Context) {
-		heartbeat.Handler(c.Writer, c.Request)
-	})
-
-	// load templates
+	router.GET("/left", controllers.Left)
+	router.GET("/center", controllers.Center)
+	router.GET("/right", controllers.Right)
+	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) })
+	router.GET("/heartbeat", func(c *gin.Context) { heartbeat.Handler(c.Writer, c.Request) })
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// ensure "meetName" is set (except for a few routes + /static)
+	// enforce “meetName in session” for any route that the meet director needs
 	router.Use(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
 			c.Next()
 			return
 		}
-		// add /referee-updates to your exception list:
-		if c.Request.URL.Path == "/meets" || c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
+		if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
+			c.Next()
+			return
+		}
+		if strings.HasPrefix(c.Request.URL.Path, "/referee/") ||
+			c.Request.URL.Path == "/left" ||
+			c.Request.URL.Path == "/center" ||
+			c.Request.URL.Path == "/right" {
 			c.Next()
 			return
 		}
@@ -161,49 +139,47 @@ func SetupRouter(env string) *gin.Engine {
 		c.Next()
 	})
 
-	// protected routes
+	// ------------------ protected meet director routes ------------------
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
 	protected.Use(func(c *gin.Context) {
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
-			c.Redirect(http.StatusFound, "/meets")
+			c.Redirect(http.StatusFound, "/")
 			c.Abort()
 			return
 		}
 		c.Next()
 	})
-	protected.Use(middleware.PositionRequired())
 	{
+		protected.GET("/index", controllers.Index)
 		protected.GET("/qrcode", controllers.GetQRCode)
 		protected.GET("/lights", controllers.Lights)
-		protected.GET("/positions", controllers.ShowPositionsPage)
-		protected.POST("/position/claim", pc.ClaimPosition)
-		protected.GET("/left", controllers.Left)
-		protected.GET("/center", controllers.Center)
-		protected.GET("/right", controllers.Right)
-		protected.GET("/occupancy", pc.GetOccupancyAPI)
-		protected.POST("/position/vacate", pc.VacatePosition)
-		protected.POST("/logout", func(c *gin.Context) {
-			controllers.Logout(c, occupancyService)
-		})
-		protected.GET("/logout", func(c *gin.Context) {
-			controllers.Logout(c, occupancyService)
-		})
-		protected.POST("/force-logout", controllers.ForceLogoutHandler)
+		protected.GET("/occupancy", positionController.GetOccupancyAPI)
+		protected.POST("/position/vacate", positionController.VacatePosition)
 		protected.GET("/active-users", controllers.ActiveUsersHandler)
+		protected.GET("/admin-panel", meetDirectorController.AdminPanel)
+		protected.POST("/force-vacate", meetDirectorController.ForceVacate)
+		protected.POST("/reset-instance", meetDirectorController.ResetInstance)
+		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
 	}
 
-	// admin routes
-	adminRoutes := router.Group("/admin")
-	adminRoutes.Use(middleware.AdminRequired())
+	// ------------------ sudo routes ------------------
+	sudoController := controllers.NewSudoController(occupancyService)
+	sudoRoutes := router.Group("/sudo")
 	{
-		adminRoutes.GET("", adminController.AdminPanel)
-		adminRoutes.POST("/force-vacate", adminController.ForceVacate)
-		adminRoutes.POST("/reset-instance", adminController.ResetInstance)
+		sudoRoutes.Use(middleware.AuthRequired)
+		sudoRoutes.Use(middleware.SudoRequired())
+		{
+			sudoRoutes.GET("/", sudoController.SudoPanel)
+			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
+			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
+			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
+		}
 	}
 
-	// webSocket route
+	// WebSocket route
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
 	})
@@ -212,15 +188,10 @@ func SetupRouter(env string) *gin.Engine {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")
-
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
 		log.Fatalf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
 	}
-
-	router.SetHTMLTemplate(template.Must(
-		template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
-
+	router.SetHTMLTemplate(template.Must(template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
 	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
-
 	return router
 }

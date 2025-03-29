@@ -31,7 +31,7 @@ go test -v -tags=unit ./websocket
 run x-ray
 ```bash
 aws xray get-trace-summaries \
-  --start-time "$(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
+  --start-time "$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 

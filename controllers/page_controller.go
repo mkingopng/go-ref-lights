@@ -52,30 +52,6 @@ func Health(c *gin.Context) {
 
 // -------------------- user navigation and logout --------------------
 
-// Home redirects the user to the dashboard and vacates their referee position.
-//func Home(c *gin.Context, occupancyService *services.OccupancyService) {
-//	session := sessions.Default(c)
-//
-//	userEmail, ok1 := session.Get("user").(string)
-//	position, ok2 := session.Get("refPosition").(string)
-//	meetName, ok3 := session.Get("meetName").(string)
-//
-//	if ok1 && ok2 && ok3 {
-//		if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
-//			logger.Error.Printf("[Home] Error vacating position: %v", err)
-//		} else {
-//			logger.Info.Printf("[Home] Position '%s' vacated for user '%s' in meet '%s'", position, userEmail, meetName)
-//			session.Delete("refPosition")
-//			if err := session.Save(); err != nil {
-//				logger.Error.Printf("[Home] Session save error after vacating position: %v", err)
-//			}
-//		}
-//	} else {
-//		logger.Warn.Println("[Home] Missing user, refPosition, or meetName in session.")
-//	}
-//	c.Redirect(http.StatusFound, "/choose-meet")
-//}
-
 // Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
@@ -199,33 +175,6 @@ func Index(c *gin.Context) {
 	}
 
 	c.HTML(http.StatusOK, "index.html", data)
-}
-
-// ShowPositionsPage renders the positions selection page.
-func ShowPositionsPage(c *gin.Context) {
-	session := sessions.Default(c)
-	user := session.Get("user")
-	meetName, ok := session.Get("meetName").(string)
-	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("[ShowPositionsPage] User not logged in or no meet selected; redirecting to /meets")
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
-
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-		"meetName":     meetName,
-		"Positions": map[string]interface{}{
-			"LeftOccupied":   false, // todo: Example data, replace with actual occupancy logic
-			"LeftUser":       "",
-			"centerOccupied": false,
-			"centerUser":     "",
-			"RightOccupied":  false,
-			"RightUser":      "",
-		},
-	}
-	logger.Info.Println("[ShowPositionsPage] Rendering positions page")
-	c.HTML(http.StatusOK, "positions.html", data)
 }
 
 // GetQRCode generates and returns a QR code for the application URL.

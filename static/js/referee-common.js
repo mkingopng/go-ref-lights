@@ -1,7 +1,6 @@
 // static/js/referee-common.js
 "use strict";
 
-// We'll define a global variable 'socket' so other code can reference it.
 let socket;
 
 // utility function for logging
@@ -9,7 +8,7 @@ function log(message, level = 'debug') {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
 
-    // Log to console
+    // log to console
     switch (level) {
         case 'error':
             console.error(logMessage);
@@ -32,13 +31,13 @@ function log(message, level = 'debug') {
     }).catch(error => console.error('Failed to send log to server:', error));
 }
 
-// We assume that each referee page sets 'judgeId' in <script> above this file:
+// We assume each referee page sets 'judgeId' in a <script> above this file:
 //   <script> let judgeId = "center"; </script>
 // Then loads this JS.
 
 document.addEventListener('DOMContentLoaded', function() {
 
-    // helper to get meetName from <div id="meetName" data-meet-name="foo">
+    // helper to get meetName from <div id="meetName" data-meet-name="...">
     function getMeetName() {
         const elem = document.getElementById("meetName");
         let meetName = elem ? elem.dataset.meetName : null;
@@ -74,17 +73,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // references for your DOM elements
-    const healthEl      = document.getElementById("healthStatus");
-    const whiteButton   = document.getElementById('whiteButton');
-    const redButton     = document.getElementById('redButton');
-    const startTimerBtn = document.getElementById('startTimerButton');
+    const healthEl = document.getElementById("healthStatus");
+    const whiteButton = document.getElementById('whiteButton');
+    const redButton = document.getElementById('redButton');
     const platformReadyButton = document.getElementById('platformReadyButton');
 
-    // If you want a visible timer in referee page:
+    // If you want a visible timer on the referee page:
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const timerDisplay = document.getElementById('timer');
 
-    // This might be for occupant display:
+    // Possibly track occupant data:
     const leftUserEl   = document.getElementById("leftUser");
     const centerUserEl = document.getElementById("centerUser");
     const rightUserEl  = document.getElementById("rightUser");
@@ -113,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (data.action) {
 
-            // existing occupant / seat info
+            // 1) Occupancy changes
             case "occupancyChanged":
                 log(`occupancyChanged: L=${data.leftUser} C=${data.centerUser} R=${data.rightUser}`, "debug");
                 if (leftUserEl)   leftUserEl.innerText   = data.leftUser   || "Vacant";
@@ -121,8 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (rightUserEl)  rightUserEl.innerText  = data.rightUser  || "Vacant";
                 break;
 
+            // 2) Health checks
             case "refereeHealth": {
-                // If data.connectedRefIDs includes me, I'm connected
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
                     healthEl.innerText = isConnected ? "Connected" : "Disconnected";
@@ -130,24 +128,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             }
-
             case "healthError":
                 log(`Health error: ${data.message}`, "debug");
                 break;
 
-            // ------------------------------
-            // *** The ones previously "Unhandled" ***
-            // ------------------------------
-
+            // 3) Timers + decisions
             case "startTimer":
                 log("🔵 Received startTimer in referee-common.js; clearing results, show timer if needed", "debug");
                 // If you want to show a timer on the referee page:
-                if (platformReadyTimerContainer) platformReadyTimerContainer.classList.remove("hidden");
-                // Possibly reset some local state
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.remove("hidden");
+                }
                 break;
 
             case "updatePlatformReadyTime":
-                // The server is sending timeLeft
                 log(`⌛ updatePlatformReadyTime: ${data.timeLeft} sec left`, "debug");
                 if (data.timeLeft <= 0) {
                     if (platformReadyTimerContainer) {
@@ -163,24 +157,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
 
-            case "clearResults":
-                log("RefereeCommon: clearing results UI. (If referee page shows lights, do it here)", "debug");
-                // In your referee page, maybe you don't do anything; or you could revert local state.
-
-                // example:
-                // let circleEls = document.querySelectorAll(".circle");
-                // circleEls.forEach(el => el.style.backgroundColor = "black");
-                break;
-
-            case "judgeSubmitted":
-                log(`RefereeCommon: Another judge submitted a decision: judgeId=${data.judgeId}`, "debug");
-                // If you want to show a UI indicator that left/center/right has submitted, handle it here
-                break;
-
             case "displayResults":
                 log(`RefereeCommon: final decisions => L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`, "debug");
-                // If the referee page wants to see the final results, do so:
-                // document.getElementById("someEl").innerText = data.leftDecision + data.centerDecision + data.rightDecision;
+                // If the referee page wants to show final results, handle them:
+                // e.g. document.getElementById("someEl").innerText = `L=${data.leftDecision},C=${data.centerDecision},R=${data.rightDecision}`;
+                break;
+
+            case "clearResults":
+                log("RefereeCommon: clearing results UI. (If referee page shows lights or timer, reset them)", "debug");
+                if (platformReadyTimerContainer) {
+                    platformReadyTimerContainer.classList.add("hidden");
+                }
+                if (timerDisplay) {
+                    timerDisplay.textContent = "";
+                }
+                // Possibly revert local decision indicators
                 break;
 
             case "platformReadyExpired":
@@ -191,11 +182,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
 
             case "resetLights":
-                log("RefereeCommon: resetLights action (usually for lights page). Doing nothing here.", "debug");
+                log("RefereeCommon: resetLights action (usually relevant to the /lights page). Doing nothing here.", "debug");
                 break;
 
             default:
-                log(`Unhandled action: ${data.action}`, "debug");
+                log(`⚠️ Unknown action: ${data.action}`, "debug");
         }
     };
 
@@ -204,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
         log(`WebSocket error (${judgeId}): ${error}`, "error");
     };
 
-    // handle close (the ReconnectingWebSocket will attempt reconnect automatically)
+    // handle close (ReconnectingWebSocket will attempt reconnect automatically)
     socket.onclose = function(event) {
         log(`WebSocket closed (${judgeId}): ${event.code} - ${event.reason}`, "info");
         if (healthEl) {
@@ -245,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
             log(`[RefereeCommon] Judge '${judgeId}' clicked GOOD LIFT (white).`, "info");
         });
     }
+
     const redBtn = document.getElementById('redButton');
     if (redBtn) {
         redBtn.addEventListener('click', function() {
