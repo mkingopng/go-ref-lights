@@ -542,7 +542,7 @@ input[type="submit"]:hover {
     border: 1px solid #666;     /* subtle border */
     border-radius: 5px;
     padding: 10px 20px;
-    font-size: 24px;            /* larger text for readability */
+    font-size: 50px;            /* larger text for readability */
     color: #fff;                /* white text */
     text-align: center;
     width: max-content;         /* shrink to fit the text */
