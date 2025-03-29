@@ -5,6 +5,10 @@ let socket;
 let platformReadyInterval = null;
 let resultsDisplayed = false; // flag to indicate that displayResults has been processed
 
+const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
+let nextAttemptTimers = {};       // key = timer.ID, value = some DOM or state
+let platformTimerActive = false;  // track if a platform-ready timer is active
+
 // utility function for logging
 function log(message, level = 'debug') {
     const timestamp = new Date().toISOString();
@@ -32,9 +36,6 @@ function log(message, level = 'debug') {
         body: JSON.stringify({ message: logMessage, level: level }),
     }).catch(error => console.error('Failed to send log to server:', JSON.stringify(error)));
 }
-
-let nextAttemptTimers = {};
-const multiNextAttemptTimers = document.getElementById("multiNextAttemptTimers");
 
 window.addEventListener("DOMContentLoaded", function () {
 
@@ -64,59 +65,68 @@ window.addEventListener("DOMContentLoaded", function () {
         return meetName;
     }
 
-    // Helper function to update the platform ready timer UI
+    // helper function to update the platform ready timer UI
     function updatePlatformReadyTimer(timer) {
-        log(`Updating Platform Ready Timer: ${timer.TimeLeft}s`, "debug");
-        if (timerDisplay) {
-            timerDisplay.innerText = `${timer.TimeLeft}s`;
-        }
-        // Hide the container if the timer ran out
-        if (timer.TimeLeft <= 0 && platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.add("hidden");
-        } else if (platformReadyTimerContainer) {
-            platformReadyTimerContainer.classList.remove("hidden");
-        }
-    }
-
-    // Helper function to update a next attempt timer UI element
-    function updateNextAttemptTimer(timer, container, timersMap) {
-        // If time is up, remove the timer element
-        if (timer.TimeLeft <= 0) {
-            if (timersMap[timer.ID]) {
-                container.removeChild(timersMap[timer.ID]);
-                delete timersMap[timer.ID];
-            }
-        } else {
-            // Create the timer element if it doesn't exist
-            if (!timersMap[timer.ID]) {
-                let newRow = document.createElement("div");
-                newRow.classList.add("timer");
-                container.insertBefore(newRow, container.firstChild);
-                timersMap[timer.ID] = newRow;
-            }
-            // Update the timer element's text
-            timersMap[timer.ID].textContent = `Next Attempt: ${timer.TimeLeft}s`;
+        const timeLeft = timer.TimeLeft ?? 0;
+        const container = document.getElementById("platformReadyTimerContainer");
+        const timerSpan = document.getElementById("timer");
+        if (!container || !timerSpan) return;
+        if (timeLeft > 0 && timer.Active) {
             container.classList.remove("hidden");
+            platformTimerActive = true;
+            timerSpan.textContent = `${timeLeft}s`;
+        } else {
+            container.classList.add("hidden");
+            platformTimerActive = false;
         }
     }
 
-    // Main handler for the "updateNextAttemptTime" action
+    // helper function to update a next attempt timer UI element
+    function updateNextAttemptTimer(timer) {
+        const existing = nextAttemptTimers[timer.ID];
+        const timeLeft = timer.TimeLeft ?? 0;
+
+        if (timeLeft <= 0 || !timer.Active) {
+            removeNextAttemptTimer(timer.ID);
+            return;
+        }
+
+        if (!existing) {
+            const div = document.createElement("div");
+            div.id = `nextAttemptTimer_${timer.ID}`;
+            div.classList.add("single-attempt-timer");
+            div.textContent = `Timer #${timer.ID}: ${timeLeft}s`;
+            multiNextAttemptTimers.classList.remove("hidden");
+            multiNextAttemptTimers.appendChild(div);
+            nextAttemptTimers[timer.ID] = div;
+        } else {
+            existing.textContent = `Timer #${timer.ID}: ${timeLeft}s`;
+        }
+    }
+
+    // main handler for the "updateNextAttemptTime" action
     function handleUpdateNextAttemptTime(data) {
-        if (data.timers && Array.isArray(data.timers)) {
-            data.timers.forEach(timer => {
-                if (timer.ID === 1) {
-                    // If results are displayed, treat timer ID 1 as a next attempt timer
-                    if (resultsDisplayed) {
-                        updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
-                    } else {
-                        // Otherwise, it's still the platform ready timer
-                        updatePlatformReadyTimer(timer);
-                    }
-                } else {
-                    // For other timer IDs, update next attempt timer normally
-                    updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
-                }
-            });
+        if (!data.timers || !Array.isArray(data.timers)) return;
+        data.timers.forEach((timer) => {
+            if (timer.type === "platformReady") {
+                updatePlatformReadyTimer(timer);
+            } else if (timer.type === "nextAttempt") {
+                updateNextAttemptTimer(timer);
+            } else {
+                console.warn("Unknown timer type:", timer.type, "for timer ID", timer.ID);
+            }
+        });
+    }
+
+    function removeNextAttemptTimer(timerId) {
+        const div = nextAttemptTimers[timerId];
+        if (div && div.parentNode) {
+            div.parentNode.removeChild(div);
+        }
+        delete nextAttemptTimers[timerId];
+
+        if (Object.keys(nextAttemptTimers).length === 0) {
+            multiNextAttemptTimers.classList.add("hidden");
         }
     }
 
@@ -195,12 +205,11 @@ window.addEventListener("DOMContentLoaded", function () {
         log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
-    // MAIN WEBSOCKET MESSAGE HANDLER
+    // main websocket message handler
 
     socket.onmessage = function (event) {
         let data;
         try {
-            // Remove/disable the old AJV snippet; just parse JSON
             data = JSON.parse(event.data);
             log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
         } catch (e) {
@@ -232,7 +241,7 @@ window.addEventListener("DOMContentLoaded", function () {
                     platformReadyInterval = null;
                 }
 
-                // Clear any leftover nextAttemptTimers
+                // clear any leftover nextAttemptTimers
                 Object.keys(nextAttemptTimers).forEach(id => {
                     if (multiNextAttemptTimers && nextAttemptTimers[id]) {
                         multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
@@ -308,7 +317,7 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
                 messageEl.classList.add("flash");
 
-                // Clear the message text in 15 seconds
+                // clear the message text in 15 seconds
                 setTimeout(() => {
                     messageEl.innerText = "";
                     messageEl.classList.remove("flash");

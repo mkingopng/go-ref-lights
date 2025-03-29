@@ -139,7 +139,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (platformReadyTimerContainer) {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
-                // Possibly reset any local state
                 break;
 
             case "updatePlatformReadyTime":
@@ -156,16 +155,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         timerDisplay.textContent = data.timeLeft + "s";
                     }
                 }
-                break;
-
-            case "updateNextAttemptTime":
-                log(`RefereeCommon: ignoring updateNextAttemptTime (judgeId=${judgeId}). Add UI logic if needed.`, "debug");
-                // You can add logic here if referees should also see next attempt timers
-                break;
-
-            case "judgeSubmitted":
-                log(`RefereeCommon: Another judge submitted a decision: judgeId=${data.judgeId}`, "debug");
-                // If you want to show a UI indicator that left/center/right has submitted, handle it here
                 break;
 
             case "displayResults":
