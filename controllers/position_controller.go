@@ -25,86 +25,31 @@ func NewPositionController(service services.OccupancyServiceInterface) *Position
 	return &PositionController{OccupancyService: service}
 }
 
-// ------------------- Position selection -------------------
-
-// ShowPositionsPage renders the referee position selection page
-func (pc *PositionController) ShowPositionsPage(c *gin.Context) {
-	session := sessions.Default(c)
-	user := session.Get("user")
-	meetName, ok := session.Get("meetName").(string)
-	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("[ShowPositionsPage] User not logged in or no meet selected; redirecting to /meets")
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
-
-	// get the current occupancy state
-	occ := pc.OccupancyService.GetOccupancy(meetName)
-	logger.Debug.Printf("[ShowPositionsPage] Retrieved occupancy state: %+v", occ)
-
-	// render the positions page
-	data := gin.H{
-		"Positions": map[string]interface{}{
-			"LeftOccupied":   occ.LeftUser != "",
-			"LeftUser":       occ.LeftUser,
-			"centerOccupied": occ.CenterUser != "",
-			"centerUser":     occ.CenterUser,
-			"RightOccupied":  occ.RightUser != "",
-			"RightUser":      occ.RightUser,
-		},
-		"meetName": meetName,
-	}
-
-	logger.Info.Println("[ShowPositionsPage] Rendering positions page")
-	c.HTML(http.StatusOK, "positions.html", data)
-}
-
 // ------------------- Position assignment -------------------
 
 // ClaimPosition allows a referee to claim a position
 func (pc *PositionController) ClaimPosition(c *gin.Context) {
-
-	// get the user and meet from the session
 	session := sessions.Default(c)
 	user := session.Get("user")
 	meetName, ok := session.Get("meetName").(string)
 
-	// check if user is logged in and a meet is selected
 	if user == nil || !ok || meetName == "" {
 		logger.Warn.Println("[ClaimPosition] User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
-	// get the position from the form
 	position := c.PostForm("position")
 	userEmail := user.(string)
 	logger.Info.Printf("[ClaimPosition] User=%s attempting to claim position=%s in meet=%s", userEmail, position, meetName)
 
-	// set the position
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
 		logger.Error.Printf("[ClaimPosition] Position is taken or invalid: %v", err)
-
-		logger.Debug.Printf("[ClaimPosition] Controller calling GetOccupancy with: %s", meetName)
-
-		occ := pc.OccupancyService.GetOccupancy(meetName)
-		c.HTML(http.StatusForbidden, "positions.html", gin.H{
-			"Error":    "Sorry, that referee position is already occupied. Please choose a different one.",
-			"meetName": meetName,
-			"Positions": map[string]interface{}{
-				"LeftOccupied":   occ.LeftUser != "",
-				"LeftUser":       occ.LeftUser,
-				"centerOccupied": occ.CenterUser != "",
-				"centerUser":     occ.CenterUser,
-				"RightOccupied":  occ.RightUser != "",
-				"RightUser":      occ.RightUser,
-			},
-		})
+		c.String(http.StatusForbidden, "Seat is already taken or invalid. Please try another approach.")
 		return
 	}
 
-	// store referee position in session.
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[ClaimPosition] Error saving session for user=%s: %v", userEmail, err)
@@ -112,9 +57,6 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[ClaimPosition] User=%s successfully claimed position=%s for meet=%s", userEmail, position, meetName)
-
-	// redirect to the correct path
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
@@ -123,10 +65,9 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	case "right":
 		c.Redirect(http.StatusFound, "/right")
 	default:
-		logger.Warn.Printf("[ClaimPosition] Unknown position %s; redirecting to /positions", position)
-		c.Redirect(http.StatusFound, "/positions")
+		logger.Warn.Printf("[ClaimPosition] Unknown position %s; redirecting to /index", position)
+		c.Redirect(http.StatusFound, "/index")
 	}
-	// broadcast occupancy changes asynchronously
 	go pc.BroadcastOccupancy(meetName)
 }
 

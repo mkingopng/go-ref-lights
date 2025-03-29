@@ -3,7 +3,7 @@
 
 let socket;
 let platformReadyInterval = null;
-let resultsDisplayed = false; // Flag to indicate that displayResults has been processed
+let resultsDisplayed = false; // flag to indicate that displayResults has been processed
 
 // utility function for logging
 function log(message, level = 'debug') {
@@ -160,16 +160,14 @@ window.addEventListener("DOMContentLoaded", function () {
         maxReconnectAttempts: null // infinite
     });
 
-    // Grab common DOM elements
+    // grab common DOM elements
     const timerDisplay = document.getElementById('timer');
     const healthEl = document.getElementById("healthStatus");
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const statusEl = document.getElementById("connectionStatus");
     const messageEl = document.getElementById("message");
 
-    // -------------------------------------------------------------
     // WebSocket lifecycle events
-    // -------------------------------------------------------------
     socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).", "info");
         if (statusEl) {
@@ -197,9 +195,8 @@ window.addEventListener("DOMContentLoaded", function () {
         log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
-    // -------------------------------------------------------------
     // MAIN WEBSOCKET MESSAGE HANDLER
-    // -------------------------------------------------------------
+
     socket.onmessage = function (event) {
         let data;
         try {

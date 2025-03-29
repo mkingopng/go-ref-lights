@@ -1,7 +1,6 @@
 // static/js/referee-common.js
 "use strict";
 
-// We'll define a global variable 'socket' so other code can reference it.
 let socket;
 
 // utility function for logging
@@ -9,7 +8,7 @@ function log(message, level = 'debug') {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
 
-    // Log to console
+    // log to console
     switch (level) {
         case 'error':
             console.error(logMessage);

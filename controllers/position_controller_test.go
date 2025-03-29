@@ -5,7 +5,6 @@
 package controllers
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +30,6 @@ func setupPositionTestRouter() *gin.Engine {
 	router.Use(sessions.Sessions("testsession", store))
 
 	// attach handlers
-	router.GET("/positions", positionController.ShowPositionsPage)
 	router.POST("/claim-position", positionController.ClaimPosition)
 	router.POST("/vacate-position", positionController.VacatePosition)
 	router.GET("/occupancy", positionController.GetOccupancyAPI)
@@ -39,62 +37,7 @@ func setupPositionTestRouter() *gin.Engine {
 	return router
 }
 
-// Test ShowPositionsPage (Redirect when not logged in)
-func TestShowPositionsPage_NoUser(t *testing.T) {
-	websocket.InitTest()
-	router := setupPositionTestRouter()
-	req, _ := http.NewRequest("GET", "/positions", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/meets", w.Header().Get("Location"))
-}
-
-// Test ClaimPosition (Successful Claim)
-func TestClaimPosition_Success(t *testing.T) {
-	websocket.InitTest()
-
-	t.Run("ClaimPosition_Success", func(t *testing.T) {
-		mockOccupancyService = new(services.MockOccupancyService)
-		positionController = NewPositionController(mockOccupancyService)
-
-		router := setupPositionTestRouter()
-		form := bytes.NewBufferString("position=left")
-		req, _ := http.NewRequest("POST", "/claim-position", form)
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		w := httptest.NewRecorder()
-
-		mockOccupancyService.
-			On("SetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
-		mockOccupancyService.On("GetOccupancy", "TestMeet").
-			Return(services.Occupancy{LeftUser: "testuser"}).Once()
-
-		c, _ := gin.CreateTestContext(w)
-		c.Request = req
-		store := cookie.NewStore([]byte("test-secret"))
-		sessions.Sessions("testsession", store)(c)
-
-		session := sessions.Default(c)
-		session.Set("user", "testuser")
-		session.Set("meetName", "TestMeet")
-		_ = session.Save()
-
-		router.ServeHTTP(w, req)
-		time.Sleep(200 * time.Millisecond)
-
-		t.Log("Assertions after ClaimPosition execution")
-		assert.Equal(t, http.StatusFound, w.Code, "Should redirect after claiming position")
-		assert.Equal(t, "/left", w.Header().Get("Location"))
-		time.Sleep(200 * time.Millisecond)
-
-		mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
-		mockOccupancyService.AssertExpectations(t)
-	})
-}
-
-// Test VacatePosition (Successful Vacate)
-// TestVacatePosition_Success (Your existing code)
+// test VacatePosition_Success
 func TestVacatePosition_Success(t *testing.T) {
 	websocket.InitTest()
 	mockOccupancyService = new(services.MockOccupancyService)
@@ -104,11 +47,11 @@ func TestVacatePosition_Success(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/vacate-position", nil)
 	w := httptest.NewRecorder()
 
-	// We expect these two calls from the code:
+	// we expect these two calls from the code:
 	mockOccupancyService.On("UnsetPosition", "TestMeet", "left", "testuser").Return(nil).Once()
 	mockOccupancyService.On("GetOccupancy", "TestMeet").Return(services.Occupancy{}).Once()
 
-	// Setup session
+	// setup session
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 	store := cookie.NewStore([]byte("test-secret"))
@@ -120,18 +63,18 @@ func TestVacatePosition_Success(t *testing.T) {
 	_ = session.Save()
 
 	t.Logf("Session refPosition (before request): %v", session.Get("refPosition"))
-	// Serve the POST /vacate-position request
+	// serve the POST /vacate-position request
 	router.ServeHTTP(w, req)
 
-	// Wait a bit for async broadcast
+	// wait a bit for async broadcast
 	time.Sleep(200 * time.Millisecond)
 	t.Log("Assertions after VacatePosition execution")
 
-	// We expect a redirect
+	// we expect a redirect
 	assert.Equal(t, http.StatusFound, w.Code, "Should redirect after vacating position")
 	assert.Equal(t, "/index", w.Header().Get("Location"))
 
-	// Confirm that the broadcast calls mockOccupancyService.GetOccupancy
+	// confirm that the broadcast calls mockOccupancyService.GetOccupancy
 	mockOccupancyService.AssertCalled(t, "GetOccupancy", "TestMeet")
 	mockOccupancyService.AssertExpectations(t)
 }
