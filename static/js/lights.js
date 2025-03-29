@@ -95,12 +95,12 @@ window.addEventListener("DOMContentLoaded", function () {
             const div = document.createElement("div");
             div.id = `nextAttemptTimer_${timer.ID}`;
             div.classList.add("single-attempt-timer");
-            div.textContent = `Timer #${timer.ID}: ${timeLeft}s`;
+            div.textContent = `Next Attempt: ${timeLeft}s`;
             multiNextAttemptTimers.classList.remove("hidden");
             multiNextAttemptTimers.appendChild(div);
             nextAttemptTimers[timer.ID] = div;
         } else {
-            existing.textContent = `Timer #${timer.ID}: ${timeLeft}s`;
+            existing.textContent = `Next Attempt: ${timeLeft}s`;
         }
     }
 
