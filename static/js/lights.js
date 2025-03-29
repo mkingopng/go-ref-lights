@@ -105,11 +105,11 @@ window.addEventListener("DOMContentLoaded", function () {
         if (data.timers && Array.isArray(data.timers)) {
             data.timers.forEach(timer => {
                 if (timer.ID === 1) {
+                    // If results are displayed, treat timer ID 1 as a next attempt timer
                     if (resultsDisplayed) {
-                        // When results are displayed, treat timer ID 1 as a next attempt timer
                         updateNextAttemptTimer(timer, multiNextAttemptTimers, nextAttemptTimers);
                     } else {
-                        // Otherwise, update the platform ready timer
+                        // Otherwise, it's still the platform ready timer
                         updatePlatformReadyTimer(timer);
                     }
                 } else {
@@ -120,18 +120,41 @@ window.addEventListener("DOMContentLoaded", function () {
         }
     }
 
+    // -------------------------------------------------------------
+    // The main function to parse the entire final result object
+    // and display it. (Already a placeholder, but reference if you
+    // want separate UI updates.)
+    // -------------------------------------------------------------
+    function displayResults(msg) {
+        console.log("Final decisions => Left:", msg.leftDecision,
+            "Center:", msg.centerDecision,
+            "Right:", msg.rightDecision);
+
+        document.getElementById("leftLight").className   = (msg.leftDecision === "white") ? "greenLight" : "redLight";
+        document.getElementById("centerLight").className = (msg.centerDecision === "white") ? "greenLight" : "redLight";
+        document.getElementById("rightLight").className  = (msg.rightDecision === "white") ? "greenLight" : "redLight";
+    }
+
+    function updatePlatformTimer(secondsLeft) {
+        const timerEl = document.getElementById("platformTimer");
+        if (!timerEl) return;
+        timerEl.textContent = `Platform Timer: ${secondsLeft} seconds remaining`;
+    }
+
+    function updateNextAttemptTimers(timers) {
+        console.log("Next Attempt Timers =>", timers);
+    }
+
     // constants
     const meetName = getMeetName();
     if (!meetName) return;
     const judgeId = "lights";
 
-    // Build your WebSocket URL
+    // build your WebSocket URL
     const scheme = (window.location.protocol === "https:") ? "wss" : "ws";
     const wsUrl = `${scheme}://${window.location.host}/referee-updates?meetName=${meetName}`;
 
-    // -------------------------------------------------------------
-    // NEW: Use ReconnectingWebSocket instead of native WebSocket
-    // -------------------------------------------------------------
+    // ReconnectingWebSocket settings
     socket = new ReconnectingWebSocket(wsUrl, null, {
         reconnectInterval: 2000,   // 2 seconds
         maxReconnectAttempts: null // infinite
@@ -142,8 +165,11 @@ window.addEventListener("DOMContentLoaded", function () {
     const healthEl = document.getElementById("healthStatus");
     const platformReadyTimerContainer = document.getElementById('platformReadyTimerContainer');
     const statusEl = document.getElementById("connectionStatus");
+    const messageEl = document.getElementById("message");
 
-    // socket onopen
+    // -------------------------------------------------------------
+    // WebSocket lifecycle events
+    // -------------------------------------------------------------
     socket.onopen = function () {
         log("✅ WebSocket connection established (Lights).", "info");
         if (statusEl) {
@@ -159,7 +185,6 @@ window.addEventListener("DOMContentLoaded", function () {
         log(`Sent registerRef for lights with meetName=${meetName}`, "info");
     };
 
-    // socket onclose
     socket.onclose = function (event) {
         log(`⚠️ WebSocket connection closed (Lights): ${event.code} - ${event.reason}`, "warn");
         if (statusEl) {
@@ -168,37 +193,26 @@ window.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    // socket.onerror
     socket.onerror = function (error) {
         log(`⚠️ WebSocket error: ${error}`, "error");
     };
 
-    // socket.onmessage
+    // -------------------------------------------------------------
+    // MAIN WEBSOCKET MESSAGE HANDLER
+    // -------------------------------------------------------------
     socket.onmessage = function (event) {
         let data;
         try {
-            const ajv = new Ajv(); // const Ajv = require("ajv")
-            // This is a sample schema. replace with a appropriate schema as per your object's specific data structure.
-            const schema = {
-            	type : "object",
-            	properties : {
-            	    name: {type: "string"}
-            	},
-            	required : ["name"]
-            }
-            const validate = ajv.compile(schema)
-            if(validate(event.data)) {
-                data = JSON.parse(event.data);
-                log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
-            } else {
-                throw new Error('Data does not pass validation');
-            }
+            // Remove/disable the old AJV snippet; just parse JSON
+            data = JSON.parse(event.data);
+            log(`📩 WebSocket message received: ${JSON.stringify(data)}`, 'debug');
         } catch (e) {
             log(`Invalid JSON from server: ${event.data}`, 'error');
             return;
         }
 
         switch (data.action) {
+
             case "refereeHealth": {
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
@@ -207,6 +221,7 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
                 break;
             }
+
             case "healthError":
                 alert(data.message);
                 break;
@@ -221,12 +236,12 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
 
                 // Clear any leftover nextAttemptTimers
-                Object.keys(nextAttemptTimers).forEach((id => {
+                Object.keys(nextAttemptTimers).forEach(id => {
                     if (multiNextAttemptTimers && nextAttemptTimers[id]) {
                         multiNextAttemptTimers.removeChild(nextAttemptTimers[id]);
                     }
                     delete nextAttemptTimers[id];
-                }));
+                });
                 if (multiNextAttemptTimers) {
                     multiNextAttemptTimers.classList.add("hidden");
                 }
@@ -234,19 +249,20 @@ window.addEventListener("DOMContentLoaded", function () {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
                 if (timerDisplay) {
-                    timerDisplay.innerText = `${data.timeLeft}s`;
+                    // data.timeLeft might be included
+                    timerDisplay.innerText = (data.timeLeft !== undefined)
+                        ? `${data.timeLeft}s`
+                        : "60s";
                 }
                 break;
 
             case "updatePlatformReadyTime":
                 log(`⌛ Handling updatePlatformReadyTime: ${data.timeLeft}s left`, "debug");
                 if (data.timeLeft <= 0) {
-                    // Hide the timer since it's expired
                     if (platformReadyTimerContainer) {
                         platformReadyTimerContainer.classList.add("hidden");
                     }
                 } else {
-                    // Show the timer container if hidden
                     if (platformReadyTimerContainer) {
                         platformReadyTimerContainer.classList.remove("hidden");
                     }
@@ -282,11 +298,10 @@ window.addEventListener("DOMContentLoaded", function () {
 
                 let whiteCount = 0;
                 let redCount = 0;
-                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(decision => {
-                    if (decision === "white") { whiteCount++; } else { redCount++; }
+                [data.leftDecision, data.centerDecision, data.rightDecision].forEach(dec => {
+                    if (dec === "white") { whiteCount++; } else { redCount++; }
                 });
 
-                const messageEl = document.getElementById("message");
                 if (whiteCount >= 2) {
                     messageEl.innerText = "Good Lift";
                     messageEl.style.color = "green";
@@ -296,20 +311,13 @@ window.addEventListener("DOMContentLoaded", function () {
                 }
                 messageEl.classList.add("flash");
 
-                // Clear after 15 seconds
+                // Clear the message text in 15 seconds
                 setTimeout(() => {
                     messageEl.innerText = "";
                     messageEl.classList.remove("flash");
                 }, 15000);
 
                 resultsDisplayed = true;
-                break;
-
-            case "platformReadyExpired":
-                log("⏰ Platform Ready Timer Expired!");
-                if (platformReadyTimerContainer) {
-                    platformReadyTimerContainer.classList.add("hidden");
-                }
                 break;
 
             case "clearResults":
@@ -321,10 +329,9 @@ window.addEventListener("DOMContentLoaded", function () {
                 centerIndicator.style.backgroundColor = "grey";
                 rightIndicator.style.backgroundColor  = "grey";
 
-                const msgEl = document.getElementById("message");
-                if (msgEl) {
-                    msgEl.innerText = "";
-                    msgEl.classList.remove("flash");
+                if (messageEl) {
+                    messageEl.innerText = "";
+                    messageEl.classList.remove("flash");
                 }
                 resultsDisplayed = false;
                 break;
