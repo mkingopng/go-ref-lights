@@ -586,17 +586,6 @@ Below is a concise list of scenarios you can methodically run through in the rem
   changes as you test from the phone.
 ---------------------------
 
-
-## 3. Comments & documentation
-
-**A. Overall docstrings are quite thorough**
-You have a docstring at the top of almost every file and function. That’s good. Just be sure to keep them in sync with any changes so they don’t become stale.
-
-**B. Repeated docstrings**
-Some docstrings repeat the same disclaimers or are near-duplicates. For example, in `TimerManager` code you do a good job explaining the same pattern (context, cancel, etc.) in multiple places, but it can be shortened or consolidated.
-
----
-
 ## 4. General housekeeping
 
 **A. Possibly unify your environment checks**
@@ -616,5 +605,7 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 ### Summary of key “next steps”
 1. remove x-ray or fix it
 2. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
-
-Those changes will help keep the codebase lighter, reduce confusion, and address the known bugs around seat vacancy and referee logout. Once you’ve cleaned up these pieces, it will be easier to add new features and keep the project maintainable.
+3. super user code
+4. testing
+5. CDK code improvements
+an

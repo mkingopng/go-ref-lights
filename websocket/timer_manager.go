@@ -1,4 +1,9 @@
-// Package websocket manages timers for platform readiness and next attempts.
+// Package websocket
+/*
+TimerManager coordinates concurrency for the platform readiness timer and next attempt timers.
+Each function starts or stops a single timer, broadcasting countdown updates via WebSocket.
+Concurrency details (like context cancellation and a per-second ticker) are handled internally.
+*/
 // File: websocket/timer_manager.go
 package websocket
 
@@ -39,7 +44,13 @@ func init() {
 
 // --------------------- timer action handler ---------------------
 
-// HandleTimerAction processes different timer actions like "startTimer", "resetTimer", etc.
+// HandleTimerAction
+/*
+HandleTimerAction processes a specified timer action (e.g., "startTimer", "resetTimer",
+or "startNextAttemptTimer") for the given meet. Depending on the action, this may reset
+existing timers, clear judge decisions, or begin a fresh countdown. Broadcasts status
+updates to connected clients as needed.
+*/
 func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 	logger.Info.Printf("[HandleTimerAction] Received '%s' for meet='%s'", action, meetName)
 
@@ -89,7 +100,12 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 
 // -------------------- platform ready timer management --------------------
 
-// startPlatformReadyTimer starts a 60-second platform readiness timer
+// startPlatformReadyTimer
+/*
+Begins a 60-second countdown for the platform readiness phase,
+cancelling any existing platform-ready timer. The function broadcasts remaining
+time to connected clients until time runs out or the timer is reset/cancelled.
+*/
 func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	logger.Info.Printf("[startPlatformReadyTimer] Called for meet='%s'", meetState.MeetName)
 
@@ -178,7 +194,11 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	}(ctx, localTimerID)
 }
 
-// resetPlatformReadyTimer stops the platform ready timer.
+// resetPlatformReadyTimer
+/*
+stops any ongoing platform readiness timer immediately and prevents further
+time updates from being broadcast.
+*/
 func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 	tm.platformReadyMutex.Lock()
 	defer tm.platformReadyMutex.Unlock()
@@ -193,7 +213,12 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 
 // -------------------- next attempt timer management --------------------
 
-// startNextAttemptTimer starts a timer for the next attempt.
+// startNextAttemptTimer
+/*
+Creates a timer for the next attempt (default 60 seconds). It regularly
+updates connected clients on the countdown, then marks the timer as inactive
+once time expires or is reset.
+*/
 func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 	tm.nextAttemptMutex.Lock()
 	tm.nextAttemptIDCounter++
@@ -289,7 +314,12 @@ func findTimerIndex(timers []NextAttemptTimer, id int) int {
 	return -1
 }
 
-// broadcastAllNextAttemptTimers sends a message with the current next-attempt timers
+// broadcastAllNextAttemptTimers
+/*
+packages the current list of next-attempt timers for a given meet into JSON
+and sends it to all connected clients, ensuring the UI reflects accurate
+countdown states.
+*/
 func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 	var typedTimers []map[string]interface{}
 

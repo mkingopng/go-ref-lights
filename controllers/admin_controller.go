@@ -89,10 +89,12 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 
 // ---------------- referee position management ----------------
 
-// ForceVacate allows an admin to forcibly vacate a referee from their assigned position.
-// Requires:
-// - `meetName` and `position` from the POST request body.
-// - The user to have admin privileges.
+// ForceVacate
+/*
+Forcibly unassigns a referee from the specified position in a meet.
+Requires admin privileges. It removes the occupant from ActiveUsers, calls
+UnsetPosition, and redirects back to the admin panel.
+*/
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -163,8 +165,13 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 
 // ---------------- meet management ----------------
 
-// ResetInstance performs a full reset of the meet instance.
-// This clears active users and resets all referee positions.
+// ResetInstance
+/*
+Performs a full reset of the specified meet, clearing all active users and
+resetting referee positions. Requires admin privileges. It then broadcasts
+updated occupancy data to connected clients and redirects back to the admin
+panel
+*/
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -202,10 +209,12 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 // ---------------- user management ----------------
 
-// ForceLogout forcibly logs out a user (admin action).
-// requires:
-// - `username` from the POST request body.
-// - the user to have admin privileges.
+// ForceLogout
+/*
+Forcibly logs out a specified user by removing them from ActiveUsers.
+This action requires admin privileges. Returns a JSON status message upon
+success.
+*/
 func (ac *AdminController) ForceLogout(c *gin.Context) {
 	session := sessions.Default(c)
 
