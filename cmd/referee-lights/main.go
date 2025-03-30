@@ -115,18 +115,22 @@ func SetupRouter(env string) *gin.Engine {
 	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 
-	// enforce “meetName in session” for any route that the meet director needs
 	router.Use(func(c *gin.Context) {
+		// skip for static
 		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
 			c.Next()
 			return
 		}
 
-		if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
+		// skip for /login, /logout, /referee-updates
+		if c.Request.URL.Path == "/login" ||
+			c.Request.URL.Path == "/logout" ||
+			c.Request.URL.Path == "/referee-updates" {
 			c.Next()
 			return
 		}
 
+		// otherwise enforce meetName in session
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
 			c.Redirect(http.StatusFound, "/")

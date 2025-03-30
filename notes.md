@@ -593,33 +593,7 @@ general housekeeping.
 
 ---
 
-## 1. Redundant code & sprawl
-
-**D. Global occupancy map vs. occupancy map on the `OccupancyService`**
-In `occupancy_service.go` you have:
-```go
-var occupancyMap = make(map[string]*Occupancy)
-var occupancyMutex sync.Mutex
-```
-…and *also* a struct field:
-```go
-type OccupancyService struct {
-    mu        sync.Mutex
-    occupancy map[string]*Occupancy
-}
-```
-But all of the code actually uses the package-level `occupancyMap` and `occupancyMutex`, and the struct’s own `occupancy` field never gets touched. This is definitely redundant or confusing. Pick one approach (global vs. instance-based) and remove whichever is unused.
-
----
-
 ## 2. Errors & known issues
-
-**A. “Vacate” button bug**
-You noted the bug where pressing the vacate button yields a 404 or the user isn’t redirected properly. Indeed, in `VacatePosition` (in `position_controller.go`), the final line is:
-```go
-c.Redirect(http.StatusFound, "/index")
-```
-But you said you want it to log the referee out and go to `/logout`. You can easily fix that by changing that final redirect (or by funneling everything through the same logout logic).
 
 **B. Possibly stale or dead code**
 Look for commented-out sections like the “CleanupRoutine” in `main.go`. If you truly don’t need them, removing them keeps the codebase lean.
@@ -665,3 +639,5 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 6. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
 
 Those changes will help keep the codebase lighter, reduce confusion, and address the known bugs around seat vacancy and referee logout. Once you’ve cleaned up these pieces, it will be easier to add new features and keep the project maintainable.
+
+# remove x-ray or fix it
