@@ -17,7 +17,10 @@ import (
 
 // Global mutex + map remain the same
 var occupancyMutex sync.Mutex
+
 var occupancyMap = make(map[string]*Occupancy)
+
+var GlobalMeetCredentials *models.MeetCreds
 
 // Occupancy holds occupant data for each position plus a timestamp.
 type Occupancy struct {
@@ -263,7 +266,7 @@ func LoadBasicMeets() (*models.BasicMeets, error) {
 	return &basic, nil
 }
 
-// LoadMeetCredentials Loads the meet credentials (admins, superuser, etc.) from config/meet_creds.json
+// LoadMeetCredentials Loads the meet credentials from config/meet_creds.json
 func LoadMeetCredentials() (*models.MeetCreds, error) {
 	path := "config/meet_creds.json"
 	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
@@ -275,4 +278,12 @@ func LoadMeetCredentials() (*models.MeetCreds, error) {
 		return nil, err
 	}
 	return &creds, nil
+}
+
+func SetGlobalMeetCredentials(c *models.MeetCreds) {
+	GlobalMeetCredentials = c
+}
+
+func GetGlobalMeetCredentials() *models.MeetCreds {
+	return GlobalMeetCredentials
 }

@@ -314,6 +314,7 @@ func main() {
 	if err != nil {
 		logger.Error.Printf("[main] Error loading credentials: %v", err)
 	} else {
+		services.SetGlobalMeetCredentials(creds)
 		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
 	}
 

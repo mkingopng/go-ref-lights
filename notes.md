@@ -595,18 +595,6 @@ general housekeeping.
 
 ## 1. Redundant code & sprawl
 
-**A. Multiple ways to show referee pages**
-You currently have dedicated endpoints for `/left`, `/center`, and `/right` plus the more general `GET /referee/:meetName/:position`. They overlap in what they do (assign or display the referee position). You could simplify by having only `GET /referee/:meetName/:position` do the seat-claiming and rendering, and remove (or redirect from) `/left`, `/center`, `/right`. Right now, each approach has similar logic:
-- `Left(c *gin.Context)`, `Center(...)`, `Right(...)`
-- `RefereeHandler(c, occupancyService)`
-
-**B. Two separate “meets” loaders**
-There are two almost-identical sets of JSON-loading code:
-1. `LoadMeets()` in **page_controller.go** (reads `config/meets.json`)
-2. `LoadMeetCreds()` in **auth_controller.go** (reads `config/meet_creds.json`)
-
-Both return a `MeetCreds` struct. Consider merging these into one function that reads a single config file or that reads two sections from disk in one place. Right now it’s easy to forget which function is used where, and the code for parsing the JSON is nearly the same.
-
 **C. “Vacate position” vs. “Logout” flows**
 The code for vacating a seat (in `position_controller.go`) and the code for logging out (in `auth_controller.go`) is extremely similar in terms of unsetting occupancy. You might unify them by:
 - Having “VacatePosition” simply call the same internal helper used by “Logout.”

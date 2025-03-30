@@ -90,9 +90,9 @@ func MeetHandler(c *gin.Context) {
 	meetName := storedMeet.(string)
 
 	// load meet credentials using the injectable function.
-	creds, err := services.LoadMeetCredentials()
-	if err != nil {
-		logger.Error.Printf("Failed to load meets: %v", err)
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Error.Printf("Failed to load meets: %v", creds)
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error loading meets."})
 		return
 	}
@@ -216,13 +216,12 @@ func PerformLogin(c *gin.Context) {
 
 	// try to load logo from meet config
 	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
-		if creds, err := services.LoadMeetCredentials(); err == nil {
-			for _, meet := range creds.Meets {
-				if meet.Name == meetNameStr {
-					logo = meet.Logo
-					break
-				}
-			}
+		creds := services.GetGlobalMeetCredentials()
+		if creds == nil {
+			// handle the error or fallback
+			logger.Error.Println("Global credentials not set")
+			c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+			return
 		}
 	}
 	c.HTML(http.StatusOK, "login.html", gin.H{
@@ -270,14 +269,11 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// load meet credentials
-	creds, err := services.LoadMeetCredentials()
-
-	if err != nil {
-		logger.Error.Printf("[LoginHandler] Failed to load meet credentials: %v", err)
-		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
-			"MeetName": meetName,
-			"Error":    "Internal error, please try again later.",
-		})
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		// handle the error or fallback
+		logger.Error.Println("Global credentials not set")
+		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 		return
 	}
 
@@ -392,8 +388,10 @@ func LoginHandler(c *gin.Context) {
 
 // helper function to retrieve logo for meet
 func getLogoForMeet(meetName string) string {
-	creds, err := services.LoadMeetCredentials()
-	if err != nil {
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Error.Println("[getLogoForMeet] Global credentials not set")
+		// must return a string here
 		return ""
 	}
 	for _, meet := range creds.Meets {

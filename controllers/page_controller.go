@@ -23,9 +23,6 @@ var anonOccupantCounter int
 
 var anonCounterMu sync.Mutex
 
-// loadMeetsFunc allows dependency injection for testing.
-//var loadMeetsFunc = LoadMeets
-
 var (
 	// ApplicationURL is the base URL of the application
 	ApplicationURL string
@@ -151,9 +148,9 @@ func Index(c *gin.Context) {
 	}
 
 	// normal meet logic:
-	creds, err := services.LoadMeetCredentials()
-	if err != nil {
-		logger.Error.Printf("[Index] Failed to load meet creds: %v", err)
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Error.Printf("[Index] Failed to load meet creds: %v", creds)
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 		return
 	}
@@ -226,10 +223,13 @@ func Lights(c *gin.Context) {
 	}
 	logger.Info.Println("[Lights] Rendering lights page")
 
-	creds, err := services.LoadMeetCredentials()
-	if err != nil {
-		logger.Error.Printf("[Lights] Failed to load meet creds: %v", err)
-		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Warn.Println("[LoginHandler] No global credentials available")
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again later.",
+		})
 		return
 	}
 
