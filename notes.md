@@ -595,13 +595,6 @@ general housekeeping.
 
 ## 1. Redundant code & sprawl
 
-**C. “Vacate position” vs. “Logout” flows**
-The code for vacating a seat (in `position_controller.go`) and the code for logging out (in `auth_controller.go`) is extremely similar in terms of unsetting occupancy. You might unify them by:
-- Having “VacatePosition” simply call the same internal helper used by “Logout.”
-- Or when a referee clicks “Vacate,” redirect them to some “/logout?reason=vacateRef” route that does all the session cleanup in one place.
-
-Right now, “VacatePosition” just unsets the seat and redirects to `/index`, whereas “Logout` does more (it also clears the session and redirects to `/choose-meet`), which can cause confusion for referees. You’ve mentioned wanting to fix that bug so “vacate” effectively logs them out properly.
-
 **D. Global occupancy map vs. occupancy map on the `OccupancyService`**
 In `occupancy_service.go` you have:
 ```go

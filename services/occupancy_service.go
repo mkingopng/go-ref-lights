@@ -39,16 +39,11 @@ type OccupancyServiceInterface interface {
 }
 
 // OccupancyService is a concrete implementation of OccupancyServiceInterface.
-type OccupancyService struct {
-	mu        sync.Mutex //nolint:unused
-	occupancy map[string]*Occupancy
-}
+type OccupancyService struct{}
 
 // NewOccupancyService returns a pointer to a new OccupancyService.
 func NewOccupancyService() *OccupancyService {
-	return &OccupancyService{
-		occupancy: make(map[string]*Occupancy),
-	}
+	return &OccupancyService{}
 }
 
 // GetOccupancy retrieves the occupancy state for a given meetName,
