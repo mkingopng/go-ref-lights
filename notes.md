@@ -586,22 +586,6 @@ Below is a concise list of scenarios you can methodically run through in the rem
   changes as you test from the phone.
 ---------------------------
 
-Here are some observations and suggested clean-up areas after reviewing all
-the files you provided. I’ve grouped them into the main categories you
-asked about—redundant code/sprawl, errors/bugs, comments/documentation, and
-general housekeeping.
-
----
-
-## 2. Errors & known issues
-
-**B. Possibly stale or dead code**
-Look for commented-out sections like the “CleanupRoutine” in `main.go`. If you truly don’t need them, removing them keeps the codebase lean.
-
-**C. Overwriting user session**
-In a few places, you re-set `session.Set("user", occupant)` or reassign `session.Set("meetName", X)`. That’s expected, but be sure you handle corner cases (e.g., if a user tries to “claim position” for the wrong meet). Usually it’s safe, but watch out for states where the user might have `meetName` in session from earlier, then hits some route that sets a new meet. Just an overall caution to keep an eye on possible session mismatches.
-
----
 
 ## 3. Comments & documentation
 
@@ -630,14 +614,7 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 ---
 
 ### Summary of key “next steps”
-
-1. **Unify or remove** the dedicated `/left`, `/center`, `/right` routes in favor of the general `RefereeHandler`.
-2. **Consolidate** the “vacate seat” logic and “logout” logic so that referees don’t get stuck or 404’d.
-3. **Eliminate duplication** in the occupancy code: either remove the `OccupancyService.occupancy` field or remove the global `occupancyMap`.
-4. **Consider merging** the `LoadMeets()` and `LoadMeetCreds()` flows so you don’t have parallel sets of near-identical JSON logic.
-5. **Remove or fix** any commented-out or obviously unused routines (like the old `CleanupRoutine`).
-6. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
+1. remove x-ray or fix it
+2. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
 
 Those changes will help keep the codebase lighter, reduce confusion, and address the known bugs around seat vacancy and referee logout. Once you’ve cleaned up these pieces, it will be easier to add new features and keep the project maintainable.
-
-# remove x-ray or fix it

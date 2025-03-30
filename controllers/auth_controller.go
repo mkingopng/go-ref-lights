@@ -193,23 +193,38 @@ func checkPasswordHash(password, hash string) bool {
 func PerformLogin(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// 1. Optionally store meetName + position from query string
 	meetNameParam := c.Query("meetName")
 	posParam := c.Query("position")
+
+	// check if there's already a different meetName in the session
+	if existingMeet, ok := session.Get("meetName").(string); ok && existingMeet != "" && meetNameParam != "" {
+		if meetNameParam != existingMeet {
+			// we decide to ABORT if there's a conflict
+			logger.Warn.Printf("[PerformLogin] Session meetName=%s, but user tried to pass meetName=%s. Conflict => aborting.",
+				existingMeet, meetNameParam)
+			c.String(http.StatusConflict, "Conflicting meet name in session vs. query params.")
+			return
+		}
+	}
+
+	// if there's no conflict, update the session
 	if meetNameParam != "" {
 		session.Set("meetName", meetNameParam)
 	}
+
+	// if there's no conflict, update the session
 	if posParam != "" {
 		session.Set("desiredPosition", posParam)
 	}
+
+	// save the session
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[PerformLogin] Failed to save session: %v", err)
 	}
 
-	// 2. Look up the meetName & find the appropriate logo
+	// then find the meetName + logo (if any), and render the login form
 	rawMeetName := session.Get("meetName")
 	var meetName, logo string
-
 	if meetNameStr, ok := rawMeetName.(string); ok && meetNameStr != "" {
 		meetName = meetNameStr
 		creds := services.GetGlobalMeetCredentials()
@@ -218,6 +233,7 @@ func PerformLogin(c *gin.Context) {
 			c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 			return
 		}
+
 		// find the matching meet
 		for _, m := range creds.Meets {
 			if m.Name == meetNameStr {
@@ -227,9 +243,9 @@ func PerformLogin(c *gin.Context) {
 		}
 	}
 
-	// 3. Finally, render "login.html" with both
+	//
 	c.HTML(http.StatusOK, "login.html", gin.H{
-		"MeetName": meetName, // might be empty if not in session
+		"MeetName": meetName,
 		"Logo":     logo,
 	})
 }

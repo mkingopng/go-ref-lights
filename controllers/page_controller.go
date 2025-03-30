@@ -264,47 +264,61 @@ func Lights(c *gin.Context) {
 
 // RefereeHandler renders the referee view based on the position parameter.
 func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
-	meetName := c.Param("meetName")
+	meetNameParam := c.Param("meetName")
 	position := c.Param("position")
 
-	// get or create a unique occupant for this session
+	// retrieve session data
 	session := sessions.Default(c)
+	occupant, occupantExists := session.Get("user").(string)
+	storedMeet, storedMeetExists := session.Get("meetName").(string)
 
-	// check if we already have "user" in session
-	occupant, ok := session.Get("user").(string)
+	// if the session already has a meetName but it differs from the route param, handle it
+	if storedMeetExists && storedMeet != "" && storedMeet != meetNameParam {
+		logger.Warn.Printf("[RefereeHandler] Session meetName=%s but request meetName=%s. Aborting seat claim.",
+			storedMeet, meetNameParam)
 
-	if !ok || occupant == "" {
-		// if no user is in session, generate a name, but store it as "user"
+		c.String(http.StatusConflict,
+			"You already have meet=%s in session, but tried to claim a seat in meet=%s. Please re-select a meet.",
+			storedMeet, meetNameParam)
+		return
+	}
+
+	// if occupant doesn’t exist, create a new occupant name
+	if !occupantExists || occupant == "" {
 		occupant = getNextAnonymousName()
 	}
 
-	// attempt to claim seat under occupant's name
-	if err := occupancyService.SetPosition(meetName, position, occupant); err != nil {
-		logger.Warn.Printf("[RefereeHandler] Attempt to claim seat=%s for occupant=%s failed: %v",
-			position, occupant, err)
+	// if the session had no meet set, or it was empty, store the new one
+	if !storedMeetExists || storedMeet == "" {
+		session.Set("meetName", meetNameParam)
+	}
+
+	// attempt to claim the seat
+	if err := occupancyService.SetPosition(meetNameParam, position, occupant); err != nil {
+		logger.Warn.Printf("[RefereeHandler] Attempt to claim seat=%s for occupant=%s in meet=%s failed: %v",
+			position, occupant, meetNameParam, err)
 		c.String(http.StatusConflict, "This referee seat (%s) is already taken.", position)
 		return
 	}
 
-	// update the session so that VacatePosition will find "user" + "refPosition"
+	// store occupant + position in session
 	session.Set("user", occupant)
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("[RefereeHandler] Failed to save session for occupant=%s: %v", occupant, err)
+		logger.Error.Printf("[RefereeHandler] Failed to save session occupant=%s: %v", occupant, err)
 	}
 
-	// log success
+	// 7) Render the correct referee view
 	logger.Info.Printf("[RefereeHandler] meetName=%s, position=%s claimed successfully by occupant=%s",
-		meetName, position, occupant)
+		meetNameParam, position, occupant)
 
-	// render the appropriate referee view
 	switch position {
 	case "left", "Left":
-		renderLeft(c, meetName)
+		renderLeft(c, meetNameParam)
 	case "center", "Center":
-		renderCenter(c, meetName)
+		renderCenter(c, meetNameParam)
 	case "right", "Right":
-		renderRight(c, meetName)
+		renderRight(c, meetNameParam)
 	default:
 		c.String(http.StatusBadRequest, "Unknown position: %s", position)
 	}
