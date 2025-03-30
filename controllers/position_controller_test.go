@@ -92,7 +92,7 @@ func TestVacatePosition(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/vacate", nil)
 		w := performRequest(router, req)
 		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/index", w.Result().Header.Get("Location"))
+		assert.Equal(t, "/logout?reason=vacate", w.Result().Header.Get("Location"))
 	})
 }
 
