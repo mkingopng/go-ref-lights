@@ -3,11 +3,9 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
+	"github.com/aws/aws-xray-sdk-go/xray"
+	"go-ref-lights/services"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 
 	"github.com/gin-contrib/sessions"
@@ -25,13 +23,7 @@ var ActiveUsers = make(map[string]bool)
 // ActiveUsersMu controls concurrency for ActiveUsers.
 var ActiveUsersMu sync.RWMutex
 
-// loadMeetCredsFunc allows dependency injection for testing.
-var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
-
 // ----------------------- authentication utilities -----------------------
-
-// In auth_controller.go (or in a _test.go file in the same package)
-// Provide a helper so your test can lock/unlock or set users as needed:
 
 // lockActiveUsers locks the ActiveUsers map for testing.
 //
@@ -98,9 +90,9 @@ func MeetHandler(c *gin.Context) {
 	meetName := storedMeet.(string)
 
 	// load meet credentials using the injectable function.
-	creds, err := loadMeetCredsFunc()
-	if err != nil {
-		logger.Error.Printf("Failed to load meets: %v", err)
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Error.Printf("Failed to load meets: %v", creds)
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error loading meets."})
 		return
 	}
@@ -129,46 +121,9 @@ func MeetHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// ----------------------- credentials management ---------------------------
-
-// LoadMeetCreds loads meet credentials from a JSON file
-func LoadMeetCreds() (*models.MeetCreds, error) {
-	credPath := "config/meet_creds.json" // #nosec G101
-	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
-		credPath = env
-	}
-
-	// read the JSON file
-	data, err := os.ReadFile(credPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read meet credentials file: %w", err)
-	}
-
-	// unmarshal JSON into MeetCreds struct
-	var creds models.MeetCreds
-	if err := json.Unmarshal(data, &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
-	}
-
-	// validate admin credentials for each meet.
-	for _, meet := range creds.Meets {
-		if meet.Admin.Username == "" {
-			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
-		}
-		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
-			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
-		}
-		// replaced the direct fmt.Printf with a logger call
-		logger.Debug.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)",
-			meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
-	}
-	return &creds, nil
-}
-
 // ----------------------- admin actions -----------------------------------
 
 // ForceLogoutHandler forcibly logs out a user (admin action).
-// Requires: `username` from the POST request body.
 func ForceLogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
@@ -223,4 +178,246 @@ func ActiveUsersHandler(c *gin.Context) {
 	ActiveUsersMu.RUnlock()
 
 	c.JSON(http.StatusOK, gin.H{"users": userList})
+}
+
+var occupancyService services.OccupancyServiceInterface
+
+// ------------------ authentication utilities ------------------
+
+// checkPasswordHash verifies if the provided plain-text password matches the stored hashed password.
+func checkPasswordHash(password, hash string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+}
+
+// PerformLogin captures meetName & position from query params for the login page
+func PerformLogin(c *gin.Context) {
+	session := sessions.Default(c)
+
+	meetNameParam := c.Query("meetName")
+	posParam := c.Query("position")
+
+	// check if there's already a different meetName in the session
+	if existingMeet, ok := session.Get("meetName").(string); ok && existingMeet != "" && meetNameParam != "" {
+		if meetNameParam != existingMeet {
+			// we decide to ABORT if there's a conflict
+			logger.Warn.Printf("[PerformLogin] Session meetName=%s, but user tried to pass meetName=%s. Conflict => aborting.",
+				existingMeet, meetNameParam)
+			c.String(http.StatusConflict, "Conflicting meet name in session vs. query params.")
+			return
+		}
+	}
+
+	// if there's no conflict, update the session
+	if meetNameParam != "" {
+		session.Set("meetName", meetNameParam)
+	}
+
+	// if there's no conflict, update the session
+	if posParam != "" {
+		session.Set("desiredPosition", posParam)
+	}
+
+	// save the session
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[PerformLogin] Failed to save session: %v", err)
+	}
+
+	// then find the meetName + logo (if any), and render the login form
+	rawMeetName := session.Get("meetName")
+	var meetName, logo string
+	if meetNameStr, ok := rawMeetName.(string); ok && meetNameStr != "" {
+		meetName = meetNameStr
+		creds := services.GetGlobalMeetCredentials()
+		if creds == nil {
+			logger.Error.Println("[PerformLogin] Global credentials not set")
+			c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+			return
+		}
+
+		// find the matching meet
+		for _, m := range creds.Meets {
+			if m.Name == meetNameStr {
+				logo = m.Logo
+				break
+			}
+		}
+	}
+
+	//
+	c.HTML(http.StatusOK, "login.html", gin.H{
+		"MeetName": meetName,
+		"Logo":     logo,
+	})
+}
+
+// ------------------ login handling ------------------
+
+// LoginHandler authenticates the user, prevents duplicate logins, and manages session storage.
+func LoginHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// create a subsegment
+	ctx, seg := xray.BeginSubsegment(ctx, "LoginHandler")
+	if seg != nil {
+		defer seg.Close(nil)
+	}
+
+	// attach the updated context back to the request
+	c.Request = c.Request.WithContext(ctx)
+
+	session := sessions.Default(c)
+
+	// retrieve meet name from session
+	meetNameRaw := session.Get("meetName")
+	meetName, ok := meetNameRaw.(string)
+	if !ok || meetName == "" {
+		logger.Warn.Println("[LoginHandler] No meet selected, redirecting to /choose-meet")
+		c.Redirect(http.StatusFound, "/choose-meet")
+		return
+	}
+
+	username := c.PostForm("username")
+	password := c.PostForm("password")
+
+	if username == "" || password == "" {
+		logger.Warn.Println("[LoginHandler] Missing username or password")
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Please fill in all fields.",
+		})
+		return
+	}
+
+	// load meet credentials
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		// handle the error or fallback
+		logger.Error.Println("Global credentials not set")
+		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
+		return
+	}
+
+	// check for superuser login
+	if creds.Superuser != nil &&
+		creds.Superuser.Username == username &&
+		checkPasswordHash(password, creds.Superuser.Password) {
+		session.Set("sudo", true)
+		session.Set("isAdmin", true)
+		session.Set("user", username)
+		_ = session.Save()
+		logger.Info.Printf("[LoginHandler] Superuser %s authenticated", username)
+		c.Redirect(http.StatusFound, "/sudo")
+		return
+	}
+
+	// validate the provided credentials against the selected meet
+	var isAdmin bool
+	var authenticated bool
+	for _, m := range creds.Meets {
+		if m.Name != meetName {
+			continue
+		}
+
+		// primary admin
+		if m.Admin.Username == username && checkPasswordHash(password, m.Admin.Password) {
+			isAdmin = m.Admin.IsAdmin
+			authenticated = true
+			break
+		}
+
+		// secondary admins
+		for _, sa := range m.SecondaryAdmins {
+			if sa.Username == username && checkPasswordHash(password, sa.Password) {
+				isAdmin = sa.IsAdmin
+				authenticated = true
+				break
+			}
+		}
+
+		break // stop after checking this meet
+	}
+
+	if !authenticated {
+		logger.Warn.Printf("[LoginHandler] Invalid login attempt for user=%s at meet=%s", username, meetName)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Invalid username or password.",
+		})
+		return
+	}
+
+	// prevent duplicate logins
+	ActiveUsersMu.Lock()
+	if ActiveUsers[username] {
+		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
+		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Invalid username or password.",
+			"Logo":     getLogoForMeet(meetName), // helper function
+		})
+		ActiveUsersMu.Unlock()
+		return
+	}
+	ActiveUsers[username] = true
+	ActiveUsersMu.Unlock()
+
+	session.Set("user", username)
+	session.Set("isAdmin", isAdmin)
+	logger.Debug.Printf("[LoginHandler] Setting isAdmin=%v for user=%s", isAdmin, username)
+
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[LoginHandler] Failed to save session: %v", err)
+		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
+			"MeetName": meetName,
+			"Error":    "Internal error, please try again.",
+		})
+		return
+	}
+
+	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
+
+	// auto-claim desired position
+	desiredPos := session.Get("desiredPosition")
+	if desiredPos != nil {
+		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", desiredPos, username)
+		posString := desiredPos.(string)
+		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
+			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
+			c.String(http.StatusForbidden, "That seat is already taken or invalid. Please try another seat.")
+			return
+		}
+		session.Set("refPosition", posString)
+		_ = session.Save()
+
+		switch posString {
+		case "left":
+			c.Redirect(http.StatusFound, "/left")
+		case "center":
+			c.Redirect(http.StatusFound, "/center")
+		case "right":
+			c.Redirect(http.StatusFound, "/right")
+		default:
+			c.Redirect(http.StatusFound, "/index")
+		}
+		return
+	}
+
+	// default redirect on success
+	c.Redirect(http.StatusFound, "/index")
+}
+
+// helper function to retrieve logo for meet
+func getLogoForMeet(meetName string) string {
+	creds := services.GetGlobalMeetCredentials()
+	if creds == nil {
+		logger.Error.Println("[getLogoForMeet] Global credentials not set")
+		// must return a string here
+		return ""
+	}
+	for _, meet := range creds.Meets {
+		if meet.Name == meetName {
+			return meet.Logo
+		}
+	}
+	return ""
 }

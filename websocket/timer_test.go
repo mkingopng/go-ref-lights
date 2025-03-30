@@ -2,7 +2,6 @@
 // +build unit
 
 // websocket/timer_test.go
-//
 package websocket
 
 import (

@@ -3,6 +3,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-contrib/sessions"
@@ -10,16 +11,21 @@ import (
 
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
+	"go-ref-lights/websocket"
 )
+
+type PositionControllerInterface interface {
+	BroadcastOccupancy(meetName string)
+}
 
 // AdminController provides admin operations for managing meets, referees, and users.
 type AdminController struct {
 	OccupancyService   services.OccupancyServiceInterface
-	PositionController *PositionController
+	PositionController PositionControllerInterface
 }
 
 // NewAdminController initializes a new instance of AdminController.
-func NewAdminController(service services.OccupancyServiceInterface, posController *PositionController) *AdminController {
+func NewAdminController(service services.OccupancyServiceInterface, posController PositionControllerInterface) *AdminController {
 	return &AdminController{
 		OccupancyService:   service,
 		PositionController: posController,
@@ -52,14 +58,14 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
-	// 1) load meets
-	creds, err := loadMeetCredsFunc()
+	// load meets
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load meets")
 		return
 	}
 
-	// 2) find the correct logo
+	// find the correct logo
 	var logo string
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
@@ -83,10 +89,12 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 
 // ---------------- referee position management ----------------
 
-// ForceVacate allows an admin to forcibly vacate a referee from their assigned position.
-// Requires:
-// - `meetName` and `position` from the POST request body.
-// - The user to have admin privileges.
+// ForceVacate
+/*
+Forcibly unassigns a referee from the specified position in a meet.
+Requires admin privileges. It removes the occupant from ActiveUsers, calls
+UnsetPosition, and redirects back to the admin panel.
+*/
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -157,8 +165,13 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 
 // ---------------- meet management ----------------
 
-// ResetInstance performs a full reset of the meet instance.
-// This clears active users and resets all referee positions.
+// ResetInstance
+/*
+Performs a full reset of the specified meet, clearing all active users and
+resetting referee positions. Requires admin privileges. It then broadcasts
+updated occupancy data to connected clients and redirects back to the admin
+panel
+*/
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -196,10 +209,12 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 // ---------------- user management ----------------
 
-// ForceLogout forcibly logs out a user (admin action).
-// requires:
-// - `username` from the POST request body.
-// - the user to have admin privileges.
+// ForceLogout
+/*
+Forcibly logs out a specified user by removing them from ActiveUsers.
+This action requires admin privileges. Returns a JSON status message upon
+success.
+*/
 func (ac *AdminController) ForceLogout(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -226,4 +241,148 @@ func (ac *AdminController) ForceLogout(c *gin.Context) {
 	delete(ActiveUsers, username)
 
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
+}
+
+// SudoController handles global "superuser" actions across meets.
+type SudoController struct {
+	OccupancyService services.OccupancyServiceInterface
+}
+
+// NewSudoController constructs the controller, injecting needed services.
+func NewSudoController(svc services.OccupancyServiceInterface) *SudoController {
+	return &SudoController{
+		OccupancyService: svc,
+	}
+}
+
+// SudoPanel is an example method in SudoController
+// data should be a slice of map, or a custom struct slice
+// that your template can iterate over
+func (sc *SudoController) SudoPanel(c *gin.Context) {
+	// user := sessions.Default(c).Get("user") // your superuser's name if needed
+	meetsData, _ := services.LoadMeetCredentials()
+	var allOccupancies []map[string]interface{}
+	for _, meet := range meetsData.Meets {
+		occ := sc.OccupancyService.GetOccupancy(meet.Name)
+		allOccupancies = append(allOccupancies, map[string]interface{}{
+			"meetName":   meet.Name,
+			"leftUser":   occ.LeftUser,
+			"centerUser": occ.CenterUser,
+			"rightUser":  occ.RightUser,
+		})
+	}
+
+	c.HTML(http.StatusOK, "sudo.html", gin.H{
+		"meetsOccupancy": allOccupancies,
+	})
+}
+
+// ForceVacateRefForAnyMeet forcibly vacates a referee from some meet
+func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
+	meetName := c.PostForm("meetName")
+	position := c.PostForm("position")
+
+	// do minimal validation
+	if meetName == "" || position == "" {
+		c.String(http.StatusBadRequest, "Missing meetName or position")
+		return
+	}
+
+	occ := sc.OccupancyService.GetOccupancy(meetName)
+	var occupant string
+	switch position {
+	case "left":
+		occupant = occ.LeftUser
+	case "center":
+		occupant = occ.CenterUser
+	case "right":
+		occupant = occ.RightUser
+	default:
+		c.String(http.StatusBadRequest, "Invalid position")
+		return
+	}
+
+	if occupant == "" {
+		c.String(http.StatusBadRequest, "Position is already vacant")
+		return
+	}
+
+	// remove occupant from occupancy
+	if err := sc.OccupancyService.UnsetPosition(meetName, position, occupant); err != nil {
+		c.String(http.StatusInternalServerError, "Error vacating position: "+err.Error())
+		return
+	}
+
+	// optionally remove occupant from ActiveUsers
+	ActiveUsersMu.Lock()
+	delete(ActiveUsers, occupant)
+	ActiveUsersMu.Unlock()
+
+	// broadcast update
+	logger.Info.Printf("[ForceVacateRefForAnyMeet] Superuser forcibly removed %s from meet=%s pos=%s",
+		occupant, meetName, position)
+	go sc.broadcastOccupancy(meetName)
+
+	// redirect or return success
+	c.Redirect(http.StatusFound, "/sudo")
+}
+
+// ForceLogoutMeetDirector forcibly logs out a meet director
+func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
+	username := c.PostForm("username")
+	if username == "" {
+		c.String(http.StatusBadRequest, "username is required")
+		return
+	}
+
+	// remove them from ActiveUsers
+	ActiveUsersMu.Lock()
+	if _, exists := ActiveUsers[username]; !exists {
+		ActiveUsersMu.Unlock()
+		c.String(http.StatusNotFound, "No such user is logged in")
+		return
+	}
+
+	delete(ActiveUsers, username)
+	ActiveUsersMu.Unlock()
+
+	logger.Info.Printf("[ForceLogoutMeetDirector] Superuser forcibly logged out user=%s", username)
+	c.Redirect(http.StatusFound, "/sudo")
+}
+
+// RestartAndClearMeet forcibly resets an unhealthy meet instance
+func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
+	meetName := c.PostForm("meetName")
+	if meetName == "" {
+		c.String(http.StatusBadRequest, "meetName is required")
+		return
+	}
+
+	// clear the meet state from the unified state
+	websocket.ClearMeetState(meetName)
+
+	// reset occupancy
+	sc.OccupancyService.ResetOccupancyForMeet(meetName)
+
+	logger.Info.Printf("[RestartAndClearMeet] Superuser forcibly reset meet: %s", meetName)
+	c.Redirect(http.StatusFound, "/sudo")
+}
+
+// broadcastOccupancy is just a re-use of your existing logic from PositionController
+func (sc *SudoController) broadcastOccupancy(meetName string) {
+	occ := sc.OccupancyService.GetOccupancy(meetName)
+	msg := map[string]interface{}{
+		"action":     "occupancyChanged",
+		"leftUser":   occ.LeftUser,
+		"centerUser": occ.CenterUser,
+		"rightUser":  occ.RightUser,
+		"meetName":   meetName,
+	}
+	websocket.SendBroadcastMessage(mustMarshal(msg))
+}
+
+// mustMarshal is a tiny helper
+func mustMarshal(v interface{}) []byte {
+	bytes, _ := json.Marshal(v)
+	return bytes
 }

@@ -2,7 +2,6 @@
 // +build unit
 
 // file: websocket/timer_manager_test.go
-//
 package websocket
 
 import (
@@ -178,4 +177,39 @@ func TestTimerManager_HandleTimerAction_InvalidAction(t *testing.T) {
 	tm.HandleTimerAction("invalidAction", "TestMeet")
 	assert.Equal(t, 1, len(meetState.JudgeDecisions), "Invalid action should not modify JudgeDecisions")
 	mockProvider.AssertExpectations(t)
+}
+
+func TestFindTimerIndex(t *testing.T) {
+	timers := []NextAttemptTimer{
+		{ID: 1, TimeLeft: 30, Active: true},
+		{ID: 2, TimeLeft: 20, Active: true},
+	}
+	index := findTimerIndex(timers, 2)
+	assert.Equal(t, 1, index)
+
+	index = findTimerIndex(timers, 3)
+	assert.Equal(t, -1, index)
+}
+
+// TestBroadcastAllNextAttemptTimers tests the broadcastAllNextAttemptTimers function.
+func TestBroadcastAllNextAttemptTimers(t *testing.T) {
+	// override broadcastToMeet to capture output
+	var captured []byte
+	originalFunc := broadcastToMeet
+	defer func() { broadcastToMeet = originalFunc }()
+
+	broadcastToMeet = func(meetName string, msg []byte) {
+		captured = msg
+	}
+
+	timers := []NextAttemptTimer{
+		{ID: 1, TimeLeft: 30, Active: true},
+	}
+	broadcastAllNextAttemptTimers(timers, "TestMeet")
+
+	var result map[string]interface{}
+	err := json.Unmarshal(captured, &result)
+	assert.NoError(t, err)
+	assert.Equal(t, "updateNextAttemptTime", result["action"])
+	assert.Equal(t, "TestMeet", result["meetName"])
 }

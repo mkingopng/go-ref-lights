@@ -8,13 +8,12 @@ import (
 	"time"
 )
 
+// Global loggers
 var (
-	// Global loggers
 	Info  *log.Logger
 	Warn  *log.Logger
 	Error *log.Logger
 	Debug *log.Logger
-
 	// logFile is the file handle for our logs, so we can close it later.
 	logFile *os.File
 )
@@ -26,7 +25,7 @@ var (
 func InitLogger() error {
 	env := os.Getenv("ENV")
 
-	// 1) If test mode, skip file logging
+	// If test mode, skip file logging
 	if env == "test" {
 		Info = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 		Warn = log.New(os.Stdout, "WARN: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -35,7 +34,7 @@ func InitLogger() error {
 		return nil
 	}
 
-	// 2) Otherwise, create the logs directory and open a file
+	// Otherwise, create the logs directory and open a file
 	// #nosec G301
 	if err := os.MkdirAll("logs", 0o755); err != nil {
 		return err
@@ -51,7 +50,7 @@ func InitLogger() error {
 
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
 
-	// 3) Create each logger that writes to multiWriter
+	// Create each logger that writes to multiWriter
 	Info = log.New(multiWriter, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Warn = log.New(multiWriter, "WARN: ", log.Ldate|log.Ltime|log.Lshortfile)
 	Error = log.New(multiWriter, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
@@ -60,8 +59,7 @@ func InitLogger() error {
 	return nil
 }
 
-// CloseLogger closes the open log file, if any. Call this during graceful shutdown if you want to ensure
-// logs are fully flushed.
+// CloseLogger closes the open log file, if any
 func CloseLogger() error {
 	if logFile != nil {
 		err := logFile.Close()

@@ -54,7 +54,6 @@ var (
 	writeWait  = 4 * time.Hour       // Max time to complete a write
 	pongWait   = 4 * time.Hour       // Max time between pongs from the client
 	pingPeriod = (pongWait * 9) / 10 // When to send ping (90% of pongWait)
-	//maxMessageSize = 2048                // Maximum inbound message size in bytes
 )
 
 // Upgrader config: allow any origin for now
@@ -75,7 +74,7 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		meetName = "Anonymous"
 	}
 
-	// 1) Start a subsegment for the WebSocket upgrade event
+	// Start a subsegment for the WebSocket upgrade event
 	ctx, seg := xray.BeginSubsegment(r.Context(), "WebSocketUpgrade")
 	if seg != nil {
 		_ = seg.AddAnnotation("remoteAddr", r.RemoteAddr)
@@ -93,18 +92,18 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2) End the subsegment once we have the WebSocket
+	// end the subsegment once we have the WebSocket
 	if seg != nil {
 		seg.Close(nil)
 	}
 
-	// 3) Create a Connection carrying the same context
+	// create a Connection carrying the same context
 	conn := &Connection{
 		conn:     wsConn,
 		send:     make(chan []byte, 256),
 		meetName: meetName,
 		judgeID:  "",
-		ctx:      ctx, // We store the context in case readPump/writePump want to do subsegments
+		ctx:      ctx, // store the context in case readPump/writePump want to do subsegments
 	}
 
 	registerConnection(conn)
@@ -149,7 +148,7 @@ func (c *Connection) readPump() {
 			var dm DecisionMessage
 			if jsonErr := json.Unmarshal(message, &dm); jsonErr != nil {
 				logger.Warn.Printf("[readPump] JSON parse error: %v", jsonErr)
-				// optional: if subSeg != nil { annotate parse error }
+				// if subSeg != nil { annotate parse error }
 			} else {
 				handleIncoming(c, dm)
 			}

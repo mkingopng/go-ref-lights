@@ -203,3 +203,136 @@ func TestAuthMiddleware_Logout(t *testing.T) {
 	assert.Equal(t, http.StatusFound, protResp.Code, "Session was not cleared after logout")
 	assert.Equal(t, "/choose-meet", protResp.Header().Get("Location"))
 }
+
+// setupAdminTestRouter sets up a test router with a protected route
+func setupAdminTestRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+
+	// set up session middleware
+	store := cookie.NewStore([]byte("test-secret"))
+	router.Use(sessions.Sessions("testsession", store))
+
+	// use the middleware
+	router.Use(AdminRequired())
+
+	// sample route that requires admin
+	router.GET("/admin-only", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome, admin!"})
+	})
+
+	return router
+}
+
+// TestAdminRequired_Success ensures an admin can access the protected route
+func TestAdminRequired_Success(t *testing.T) {
+	router := setupAdminTestRouter()
+
+	req, _ := http.NewRequest("GET", "/admin-only", nil)
+	w := httptest.NewRecorder()
+
+	// create test context
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	// setup session and set admin flag
+	store := cookie.NewStore([]byte("test-secret"))
+	sessionMiddleware := sessions.Sessions("testsession", store)
+	sessionMiddleware(c)
+
+	session := sessions.Default(c)
+	session.Set("isAdmin", true) // admin user
+	session.Save()
+
+	// attach session middleware
+	router.Use(sessionMiddleware)
+
+	// perform request
+	router.ServeHTTP(w, req)
+
+	// validate response
+	assert.Equal(t, http.StatusOK, w.Code, "Admin should be allowed")
+	assert.Contains(t, w.Body.String(), "Welcome, admin!")
+}
+
+// TestAdminRequired_Unauthorized ensures non-admin users are blocked
+func TestAdminRequired_Unauthorized(t *testing.T) {
+	router := setupAdminTestRouter()
+
+	req, _ := http.NewRequest("GET", "/admin-only", nil)
+	w := httptest.NewRecorder()
+
+	// create test context
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	// setup session but don't set admin flag
+	store := cookie.NewStore([]byte("test-secret"))
+	sessionMiddleware := sessions.Sessions("testsession", store)
+	sessionMiddleware(c)
+
+	session := sessions.Default(c)
+	session.Set("isAdmin", false) // ❌ Not an admin
+	session.Save()
+
+	// attach session middleware
+	router.Use(sessionMiddleware)
+
+	// perform request
+	router.ServeHTTP(w, req)
+
+	// validate response
+	assert.Equal(t, http.StatusUnauthorized, w.Code, "Non-admin should be blocked")
+	assert.Contains(t, w.Body.String(), "Unauthorized")
+}
+
+// TestAdminRequired_MissingSession ensures missing session results in unauthorised access
+func TestAdminRequired_MissingSession(t *testing.T) {
+	router := setupAdminTestRouter()
+
+	req, _ := http.NewRequest("GET", "/admin-only", nil)
+	w := httptest.NewRecorder()
+
+	// perform request **without** setting up a session
+	router.ServeHTTP(w, req)
+
+	// validate response
+	assert.Equal(t, http.StatusUnauthorized, w.Code, "Missing session should block access")
+	assert.Contains(t, w.Body.String(), "Unauthorized")
+}
+
+var roleRouter *gin.Engine
+var roleStore sessions.Store // define a global session store
+
+// setupRoleTestRouter initializes a test router ONCE with a shared session store
+func setupRoleTestRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.Default()
+
+	// use a single shared session store for all tests
+	if roleStore == nil {
+		roleStore = cookie.NewStore([]byte("super-secret-key"))
+	}
+	router.Use(sessions.Sessions("testsession", roleStore))
+
+	// test login route to set session
+	router.GET("/login-test", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set("user", "testuser")
+
+		// force session save
+		if err := session.Save(); err != nil {
+			c.String(http.StatusInternalServerError, "Failed to save session")
+			return
+		}
+		c.String(http.StatusOK, "Session set")
+	})
+
+	// protected referee routes
+	router.GET("/left", func(c *gin.Context) { c.String(http.StatusOK, "Left Judge") })
+	router.GET("/center", func(c *gin.Context) { c.String(http.StatusOK, "Center Judge") })
+	router.GET("/right", func(c *gin.Context) { c.String(http.StatusOK, "Right Judge") })
+	router.GET("/other", func(c *gin.Context) { c.String(http.StatusOK, "No role required") })
+
+	return router
+}

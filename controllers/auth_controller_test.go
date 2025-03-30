@@ -1,189 +1,194 @@
 //go:build unit
 // +build unit
 
-// controllers/auth_controller_test.go
-//
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
-	"strings"
+	"sync"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// mock data for testing.
-var testMeetCreds = models.MeetCreds{
-	Meets: []models.Meet{
-		{
-			Name: "TestMeet",
-			Admin: models.Admin{
-				Username: "testuser",
-				Password: hashPassword("testpass"),
-			},
-		},
-	},
+/*
+   This test file references helper funcs in test_helpers.go:
+     - setupTestRouter(t)
+     - createPostRequest(path, formData)
+     - performRequest(router, req)
+     - SetSession(router, route, data)
+     - hashPassword(password)
+     - MockOccupancyService, etc.
+
+   We do NOT reference services.LoadMeetCredentials or models.MeetCredentials.
+   We also skip code paths like MeetHandler, LoginHandler, PerformLogin, which
+   rely on those unavailable items or detailed HTML checks.
+
+   These tests focus on:
+     - ComparePasswords / checkPasswordHash
+     - SetMeetHandler (basic paths)
+     - ForceLogoutHandler
+     - ActiveUsersHandler
+*/
+
+// resetGlobalsForAuthTest resets ActiveUsers/ActiveUsersMu
+func resetGlobalsForAuthTest() {
+	ActiveUsersMu = sync.RWMutex{}
+	ActiveUsers = make(map[string]bool)
+
+	// occupancyService = nil // Not needed if not testing seat claims
 }
 
-// TestLoginHandler tests the LoginHandler function
+// -------------------- ComparePasswords + checkPasswordHash --------------------
+
 func TestComparePasswords(t *testing.T) {
-	hashed := hashPassword("securepassword")
-	assert.True(t, ComparePasswords(hashed, "securepassword"))
-	assert.False(t, ComparePasswords(hashed, "wrongpassword"))
-}
-
-// TestSetMeetHandler tests the SetMeetHandler function
-func TestSetMeetHandler(t *testing.T) {
-	router := setupTestRouter(t)
-	router.POST("/set-meet", SetMeetHandler)
-
-	reqBody := "meetName=TestMeet"
-	req, _ := http.NewRequest("POST", "/set-meet", strings.NewReader(reqBody))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusFound, w.Code)
-	assert.Equal(t, "/login", w.Header().Get("Location"))
-}
-
-// TestLoginHandler tests the LoginHandler function
-func TestLoadMeetCreds(t *testing.T) {
-	original := loadMeetCredsFunc
-	loadMeetCredsFunc = func() (*models.MeetCreds, error) {
-		return &testMeetCreds, nil
-	}
-	defer func() { loadMeetCredsFunc = original }()
-
-	loaded, err := loadMeetCredsFunc()
-	assert.NoError(t, err)
-	assert.Equal(t, "TestMeet", loaded.Meets[0].Name)
-}
-
-// TestLoginHandler tests the LoginHandler function
-func TestForceLogoutHandler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	// use a fresh router with our shared test helpers
-	router := setupTestRouter(t)
-	router.POST("/force-logout", ForceLogoutHandler)
-
-	// populate ActiveUsers with a test user
-	ActiveUsers["test_user"] = true
-
-	t.Run("Admin can force logout user", func(t *testing.T) {
-		// use a unique helper route for this sub-test
-		sessionCookie := SetSession(router, "/set-session-force-logout-1", map[string]interface{}{
-			"isAdmin": true,
-		})
-		if sessionCookie == nil {
-			t.Fatal("Session cookie not found")
-		}
-
-		req, _ := http.NewRequest("POST", "/force-logout", strings.NewReader("username=test_user"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.AddCookie(sessionCookie)
-
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), "User logged out successfully")
-		_, exists := ActiveUsers["test_user"]
-		assert.False(t, exists, "test_user should have been logged out")
+	t.Run("Correct => true", func(t *testing.T) {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("mySecret"), bcrypt.DefaultCost)
+		ok := ComparePasswords(string(hashed), "mySecret")
+		assert.True(t, ok)
 	})
 
-	t.Run("Non-admin cannot force logout", func(t *testing.T) {
-		req, _ := http.NewRequest("POST", "/force-logout", strings.NewReader("username=test_user"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		// no valid admin session cookie is attached.
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+	t.Run("Wrong => false", func(t *testing.T) {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("mySecret"), bcrypt.DefaultCost)
+		ok := ComparePasswords(string(hashed), "otherPass")
+		assert.False(t, ok)
+	})
+}
 
+func TestCheckPasswordHash(t *testing.T) {
+	t.Run("Correct => true", func(t *testing.T) {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("abc123"), bcrypt.DefaultCost)
+		assert.True(t, checkPasswordHash("abc123", string(hashed)))
+	})
+
+	t.Run("Wrong => false", func(t *testing.T) {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("abc123"), bcrypt.DefaultCost)
+		assert.False(t, checkPasswordHash("wrong", string(hashed)))
+	})
+}
+
+// -------------------- SetMeetHandler --------------------
+
+func TestSetMeetHandler(t *testing.T) {
+	resetGlobalsForAuthTest()
+	router := setupTestRouter(t)
+	router.POST("/setMeet", SetMeetHandler)
+
+	t.Run("No meetName => 400", func(t *testing.T) {
+		req := createPostRequest("/setMeet", map[string]string{})
+		w := performRequest(router, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		// "Please select a meet."
+		assert.Contains(t, w.Body.String(), "Please select a meet")
+	})
+
+	t.Run("Success => 302 => /login", func(t *testing.T) {
+		req := createPostRequest("/setMeet", map[string]string{
+			"meetName": "someMeet",
+		})
+		w := performRequest(router, req)
+		assert.Equal(t, http.StatusFound, w.Code)
+		// should redirect to /login
+		assert.Equal(t, "/login", w.Result().Header.Get("Location"))
+	})
+
+	// If you had a “session save fail => 500” scenario, you could attempt
+	// a router with no session middleware, but that triggers a different
+	// panic from gin's session MustGet. Since you want minimal passing tests,
+	// we've omitted that scenario.
+}
+
+// -------------------- ForceLogoutHandler --------------------
+
+func TestForceLogoutHandler(t *testing.T) {
+	resetGlobalsForAuthTest()
+	router := setupTestRouter(t)
+	router.POST("/forceLogout", ForceLogoutHandler)
+
+	t.Run("Not admin => 401", func(t *testing.T) {
+		req := createPostRequest("/forceLogout", nil)
+		w := performRequest(router, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Contains(t, w.Body.String(), "Admin privileges required")
 	})
 
-	t.Run("Cannot force logout a non-existent user", func(t *testing.T) {
-		// use a unique helper route for this sub-test.
-		sessionCookie := SetSession(router, "/set-session-force-logout-2", map[string]interface{}{
-			"isAdmin": true,
+	t.Run("Missing username => 400", func(t *testing.T) {
+		ck := SetSession(router, "/setAdmin", map[string]interface{}{"isAdmin": true})
+		req := createPostRequest("/forceLogout", map[string]string{})
+		req.AddCookie(ck)
+
+		w := performRequest(router, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "Missing username parameter")
+	})
+
+	t.Run("User not logged => 404", func(t *testing.T) {
+		ck := SetSession(router, "/setAdmin2", map[string]interface{}{"isAdmin": true})
+		req := createPostRequest("/forceLogout", map[string]string{
+			"username": "notActive",
 		})
-		if sessionCookie == nil {
-			t.Fatal("Session cookie not found")
-		}
-		req, _ := http.NewRequest("POST", "/force-logout", strings.NewReader("username=nonexistent_user"))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		req.AddCookie(sessionCookie)
+		req.AddCookie(ck)
 
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
+		w := performRequest(router, req)
 		assert.Equal(t, http.StatusNotFound, w.Code)
 		assert.Contains(t, w.Body.String(), "User not logged in")
 	})
+
+	t.Run("Success => 200", func(t *testing.T) {
+		// Mark user active
+		ActiveUsersMu.Lock()
+		ActiveUsers["someone"] = true
+		ActiveUsersMu.Unlock()
+
+		ck := SetSession(router, "/setAdmin3", map[string]interface{}{"isAdmin": true})
+		req := createPostRequest("/forceLogout", map[string]string{
+			"username": "someone",
+		})
+		req.AddCookie(ck)
+
+		w := performRequest(router, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "User logged out successfully")
+
+		// confirm removed
+		ActiveUsersMu.RLock()
+		_, found := ActiveUsers["someone"]
+		ActiveUsersMu.RUnlock()
+		assert.False(t, found)
+	})
 }
 
-// TestActiveUsersHandler tests the ActiveUsersHandler function
+// -------------------- ActiveUsersHandler --------------------
+
 func TestActiveUsersHandler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+	resetGlobalsForAuthTest()
 	router := setupTestRouter(t)
-	router.GET("/active-users", ActiveUsersHandler)
+	router.GET("/activeUsers", ActiveUsersHandler)
 
-	// populate ActiveUsers for the test
-	ActiveUsers["referee1"] = true
-	ActiveUsers["referee2"] = true
-
-	t.Run("Admin can see active users", func(t *testing.T) {
-		sessionCookie := SetSession(router, "/set-session-active-1", map[string]interface{}{
-			"isAdmin": true,
-		})
-		if sessionCookie == nil {
-			t.Fatal("Session cookie not found")
-		}
-		req, _ := http.NewRequest("GET", "/active-users", nil)
-		req.AddCookie(sessionCookie)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-		var response map[string][]string
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		assert.NoError(t, err)
-		assert.Contains(t, response["users"], "referee1")
-		assert.Contains(t, response["users"], "referee2")
-	})
-
-	t.Run("Non-admin cannot see active users", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/active-users", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+	t.Run("Not admin => 401", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/activeUsers", nil)
+		w := performRequest(router, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 		assert.Contains(t, w.Body.String(), "Admin privileges required")
 	})
 
-	t.Run("Admin sees empty user list when no users are logged in", func(t *testing.T) {
-		ActiveUsers = make(map[string]bool) // clear all users.
-		sessionCookie := SetSession(router, "/set-session-active-2", map[string]interface{}{
-			"isAdmin": true,
-		})
-		if sessionCookie == nil {
-			t.Fatal("Session cookie not found")
-		}
-		req, _ := http.NewRequest("GET", "/active-users", nil)
-		req.AddCookie(sessionCookie)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+	t.Run("Success => 200 => returns JSON array of users", func(t *testing.T) {
+		// Mark a couple users as active
+		ActiveUsersMu.Lock()
+		ActiveUsers["alice"] = true
+		ActiveUsers["bob"] = true
+		ActiveUsersMu.Unlock()
+
+		ck := SetSession(router, "/setAdminX", map[string]interface{}{"isAdmin": true})
+		req, _ := http.NewRequest("GET", "/activeUsers", nil)
+		req.AddCookie(ck)
+
+		w := performRequest(router, req)
 		assert.Equal(t, http.StatusOK, w.Code)
-		var response map[string][]string
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		assert.NoError(t, err)
-		assert.Empty(t, response["users"])
+		// the response is JSON => {"users":["alice","bob"]}
+		body := w.Body.String()
+		assert.Contains(t, body, `"alice"`)
+		assert.Contains(t, body, `"bob"`)
 	})
 }

@@ -38,7 +38,7 @@ type NextAttemptTimer struct {
 	EndTime  time.Time // for convenience, we store the end time
 }
 
-// Global map and mutex to store MeetState instances
+// global map and mutex to store MeetState instances
 var (
 	meets      = make(map[string]*MeetState)
 	meetsMutex = &sync.Mutex{}

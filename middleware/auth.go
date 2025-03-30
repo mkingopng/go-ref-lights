@@ -34,3 +34,42 @@ func AuthRequired(c *gin.Context) {
 	logger.Debug.Println("[AuthRequired] User is present in session - proceeding with request")
 	c.Next()
 }
+
+// AdminRequired is a middleware that restricts access to admin-only routes.
+func AdminRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		isAdmin, ok := session.Get("isAdmin").(bool)
+
+		logger.Debug.Printf("[AdminRequired] isAdmin=%v, ok=%v", isAdmin, ok)
+
+		// block request if the user is not an admin
+		if !ok || !isAdmin {
+			logger.Warn.Println("[AdminRequired] Unauthorized attempt blocked")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort() // prevents further execution
+			return
+		}
+
+		logger.Debug.Println("[AdminRequired] Authorized, continuing request")
+		c.Next()
+	}
+}
+
+// SudoRequired ensures the user has superuser (sudo) privileges.
+func SudoRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		isSudo, ok := session.Get("sudo").(bool)
+
+		if !ok || !isSudo {
+			logger.Warn.Println("SudoRequired: user is not superuser; blocking access")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Superuser privileges required"})
+			c.Abort()
+			return
+		}
+
+		// pass through if superuser
+		c.Next()
+	}
+}

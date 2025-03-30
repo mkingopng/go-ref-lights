@@ -75,73 +75,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 
 // VacatePosition allows a referee to vacate their assigned position
 func (pc *PositionController) VacatePosition(c *gin.Context) {
-	// create a new context and subsegment
-	ctx := c.Request.Context()
-	ctx, seg := xray.BeginSubsegment(ctx, "VacatePosition")
-
-	// check if seg is nil; if so, skip annotation calls to avoid a panic
-	if seg != nil {
-		defer seg.Close(nil)
-	}
-	// put the updated context back in the request
-	c.Request = c.Request.WithContext(ctx)
-
-	// get the user and meet from the session
-	session := sessions.Default(c)
-	userEmail, ok := session.Get("user").(string)
-	position, ok2 := session.Get("refPosition").(string)
-	meetName, _ := session.Get("meetName").(string)
-
-	// only do AddAnnotation calls if seg != nil, so we don’t crash on nil subsegment
-	if seg != nil {
-		if err := seg.AddAnnotation("user", userEmail); err != nil {
-			logger.Warn.Printf("[VacatePosition] AddAnnotation('user') failed: %v", err)
-		}
-		if err := seg.AddAnnotation("position", position); err != nil {
-			logger.Warn.Printf("[VacatePosition] AddAnnotation('position') failed: %v", err)
-		}
-		if err := seg.AddAnnotation("meet", meetName); err != nil {
-			logger.Warn.Printf("[VacatePosition] AddAnnotation('meet') failed: %v", err)
-		}
-	}
-
-	// check if user is logged in and has a position to vacate
-	if !ok || !ok2 || userEmail == "" || meetName == "" {
-		logger.Warn.Println("[VacatePosition] User not logged in or no meet selected; redirecting to /index")
-		c.Redirect(http.StatusFound, "/index")
-		return
-	}
-
-	// check if user is in a seat
-	position, ok3 := session.Get("refPosition").(string)
-	if !ok3 || position == "" {
-		logger.Warn.Printf("[VacatePosition] user=%s not in any seat for meet=%s; can't vacate", userEmail, meetName)
-		c.Redirect(http.StatusFound, "/index")
-		return
-	}
-
-	// unset the position
-	if err := pc.OccupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
-		logger.Error.Printf("[VacatePosition] Error unsetting position for user=%s: %v", userEmail, err)
-		c.Redirect(http.StatusFound, "/index")
-		return
-	}
-
-	// remove refPosition from session
-	session.Delete("refPosition")
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("[VacatePosition] Error saving session for user=%s: %v", userEmail, err)
-		c.Redirect(http.StatusFound, "/index")
-		return
-	}
-
-	logger.Info.Printf("[VacatePosition] user=%s vacated seat=%s for meet=%s", userEmail, position, meetName)
-
-	// broadcast the new occupancy, which calls GetOccupancy internally
-	go pc.BroadcastOccupancy(meetName)
-
-	// redirect as normal
-	c.Redirect(http.StatusFound, "/index")
+	c.Redirect(http.StatusFound, "/logout?reason=vacate")
 }
 
 // ------------------- Real-time occupancy updates -------------------

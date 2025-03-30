@@ -28,12 +28,24 @@ run unit tests in a specific directory
 go test -v -tags=unit ./websocket
 ```
 
+```bash
+go test -v -tags=unit ./controllers
+```
+
 run x-ray
 ```bash
 aws xray get-trace-summaries \
   --start-time "$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
+
+----------
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
 
 ------------------------
 # test coverage
@@ -91,7 +103,7 @@ k6 run --out json=test/k6/results.json tests/k6/script.js
 
 ---------------------------------------
 
-# Best Practices for Maintaining Unit Tests**
+# Best Practices for Maintaining Unit Tests
 Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
 
@@ -138,6 +150,8 @@ Write tests in a **clear, structured way**:
 - **Start with testing critical business logic**.
 - **Cover edge cases (invalid input, errors, permissions, etc.).**
 - **Focus on high-risk areas first**.
+
+-----------------
 
 # tasks
 1. Integration tests
@@ -579,3 +593,28 @@ Below is a concise list of scenarios you can methodically run through in the rem
 - Keep your Admin session open in a separate tab to see real-time occupant
   changes as you test from the phone.
 ---------------------------
+
+## 4. General housekeeping
+
+**A. Possibly unify your environment checks**
+You have checks for `env == "production"`, `env == "test"`, etc., scattered in a few places. Usually that’s fine, but if you see repeated code for “set gin mode to release if production, else test,” you can put that in a single function.
+
+**B. Timestamps and logs**
+You’re storing a `LastUpdated time.Time` in each `Occupancy`, but not always using it. If you truly need it for debugging or for cleaning up old meets, that’s fine—but if it’s never read, you might remove it.
+
+**C. Sudo/superuser code**
+You do have basic routes for `SudoController`, “force vacate any meet,” “force logout meet director,” etc. That’s helpful, but if you’re going to rely on this path in production, it’s worth adding better error handling (for example, verifying that the meet exists before you reset it). Right now, some of that code does minimal checks—maybe that’s enough, maybe not.
+
+**D. Testing**
+You’ve mentioned you want a more comprehensive test suite. Right now, the code has good structure for testing (especially with all those injected functions like `loadMeetCredsFunc`), but it’s easy to forget that you can remove some of the dead or placeholder code once you finalize the approach.
+
+---
+
+### Summary of key “next steps”
+1. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
+2. super user code & functionality
+3. testing suite
+4. CDK code improvements
+5. remove x-ray or fix it
+6. fix all remaining warnings, TODO and FIX_ME
+7. format logout page
