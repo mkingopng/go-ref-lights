@@ -23,13 +23,7 @@ var ActiveUsers = make(map[string]bool)
 // ActiveUsersMu controls concurrency for ActiveUsers.
 var ActiveUsersMu sync.RWMutex
 
-// loadMeetCredsFunc allows dependency injection for testing.
-//var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
-
 // ----------------------- authentication utilities -----------------------
-
-// In auth_controller.go (or in a _test.go file in the same package)
-// Provide a helper so your test can lock/unlock or set users as needed:
 
 // lockActiveUsers locks the ActiveUsers map for testing.
 //
@@ -127,46 +121,9 @@ func MeetHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", data)
 }
 
-// ----------------------- credentials management ---------------------------
-
-// LoadMeetCreds loads meet credentials from a JSON file
-//func LoadMeetCreds() (*models.MeetCreds, error) {
-//	credPath := "config/meet_creds.json" // #nosec G101
-//	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
-//		credPath = env
-//	}
-//
-//	// read the JSON file
-//	data, err := os.ReadFile(credPath)
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to read meet credentials file: %w", err)
-//	}
-//
-//	// unmarshal JSON into MeetCreds struct
-//	var creds models.MeetCreds
-//	if err := json.Unmarshal(data, &creds); err != nil {
-//		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
-//	}
-//
-//	// validate admin credentials for each meet.
-//	for _, meet := range creds.Meets {
-//		if meet.Admin.Username == "" {
-//			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
-//		}
-//		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
-//			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
-//		}
-//		// replaced the direct fmt.Printf with a logger call
-//		logger.Debug.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)",
-//			meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
-//	}
-//	return &creds, nil
-//}
-
 // ----------------------- admin actions -----------------------------------
 
 // ForceLogoutHandler forcibly logs out a user (admin action).
-// Requires: `username` from the POST request body.
 func ForceLogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	isAdmin := session.Get("isAdmin")
@@ -233,7 +190,6 @@ func checkPasswordHash(password, hash string) bool {
 }
 
 // PerformLogin captures meetName & position from query params for the login page
-// Called when user first arrives at /login?meetName=foo&position=left, for example
 func PerformLogin(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -278,10 +234,6 @@ func PerformLogin(c *gin.Context) {
 // ------------------ login handling ------------------
 
 // LoginHandler authenticates the user, prevents duplicate logins, and manages session storage.
-// If successful, it redirects:
-// - Admin users → `/admin`
-// - Regular users → `/index`
-// If authentication fails, it returns an appropriate error message.
 func LoginHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 

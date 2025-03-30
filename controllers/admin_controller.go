@@ -14,14 +14,18 @@ import (
 	"go-ref-lights/websocket"
 )
 
+type PositionControllerInterface interface {
+	BroadcastOccupancy(meetName string)
+}
+
 // AdminController provides admin operations for managing meets, referees, and users.
 type AdminController struct {
 	OccupancyService   services.OccupancyServiceInterface
-	PositionController *PositionController
+	PositionController PositionControllerInterface
 }
 
 // NewAdminController initializes a new instance of AdminController.
-func NewAdminController(service services.OccupancyServiceInterface, posController *PositionController) *AdminController {
+func NewAdminController(service services.OccupancyServiceInterface, posController PositionControllerInterface) *AdminController {
 	return &AdminController{
 		OccupancyService:   service,
 		PositionController: posController,
@@ -345,10 +349,10 @@ func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
 		return
 	}
 
-	// Clear the meet state from the unified state
+	// clear the meet state from the unified state
 	websocket.ClearMeetState(meetName)
 
-	// 2Reset occupancy
+	// reset occupancy
 	sc.OccupancyService.ResetOccupancyForMeet(meetName)
 
 	logger.Info.Printf("[RestartAndClearMeet] Superuser forcibly reset meet: %s", meetName)

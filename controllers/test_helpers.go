@@ -16,8 +16,52 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/mock"
+	"go-ref-lights/services"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// -------------------- mock service for testing --------------------
+
+// MockOccupancyService is a mock implementation of the OccupancyServiceInterface.
+type MockOccupancyService struct {
+	mock.Mock
+}
+
+// ---------------------- mock method implementations ----------------------
+
+// UnsetPosition removes the position assignment for a given referee.
+func (m *MockOccupancyService) UnsetPosition(meetName, position, user string) error {
+	args := m.Called(meetName, position, user)
+	return args.Error(0)
+}
+
+// GetOccupancy retrieves the current occupancy status for a given meet.
+func (m *MockOccupancyService) GetOccupancy(meetName string) services.Occupancy {
+	args := m.Called(meetName)
+	return args.Get(0).(services.Occupancy)
+}
+
+// ResetOccupancyForMeet clears all referee positions for a specific meet.
+func (m *MockOccupancyService) ResetOccupancyForMeet(meetName string) {
+	m.Called(meetName)
+}
+
+// SetPosition assigns a referee to a specific position in a meet.
+func (m *MockOccupancyService) SetPosition(meetName, position, user string) error {
+	args := m.Called(meetName, position, user)
+	return args.Error(0)
+}
+
+type MockPositionController struct {
+	mock.Mock
+}
+
+func (mp *MockPositionController) BroadcastOccupancy(meetName string) {
+	mp.Called(meetName)
+}
+
+// -------------------------
 
 // setupTestRouter creates a new Gin engine with session middleware and fake HTML templates
 func setupTestRouter(t *testing.T) *gin.Engine {
@@ -26,7 +70,7 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 
 	// set up sessions with cookie store
 	store := cookie.NewStore([]byte("test-secret"))
-	router.Use(sessions.Sessions("testsession", store))
+	router.Use(sessions.Sessions("mySession", store))
 
 	// create minimal templates to avoid panics during testing
 	tmpDir := t.TempDir()
@@ -48,6 +92,7 @@ func createDummyTemplates(dir string) error {
 		"left.html":        `<html><body>Left ref view for {{.meetName}}</body></html>`,
 		"center.html":      `<html><body>Center ref view for {{.meetName}}</body></html>`,
 		"right.html":       `<html><body>Right ref view for {{.meetName}}</body></html>`,
+		"admin.html":       `<html><body>Admin panel for {{.meetName}}</body></html>`,
 	}
 
 	for name, content := range templates {
@@ -62,7 +107,7 @@ func createDummyTemplates(dir string) error {
 // SetSession sets the given key/value pairs in the session using a helper route
 // and returns the session cookie that can be attached to subsequent test requests
 func SetSession(router *gin.Engine, route string, data map[string]interface{}) *http.Cookie {
-	// Create a helper route for setting session values.
+	// create a helper route for setting session values.
 	router.GET(route, func(c *gin.Context) {
 		session := sessions.Default(c)
 		for key, value := range data {
@@ -80,15 +125,18 @@ func SetSession(router *gin.Engine, route string, data map[string]interface{}) *
 	if err != nil || parsedURL.Host != "" {
 		return nil
 	}
+
+	// create a request to the helper route
 	req, _ := http.NewRequest("GET", parsedURL.Path, nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	// extract and return the session cookie
 	for _, cookie := range w.Result().Cookies() {
-		if cookie.Name == "testsession" {
+		if cookie.Name == "mySession" {
 			return cookie
 		}
+		return cookie
 	}
 	return nil
 }

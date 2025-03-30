@@ -28,6 +28,10 @@ run unit tests in a specific directory
 go test -v -tags=unit ./websocket
 ```
 
+```bash
+go test -v -tags=unit ./controllers
+```
+
 run x-ray
 ```bash
 aws xray get-trace-summaries \
@@ -91,7 +95,7 @@ k6 run --out json=test/k6/results.json tests/k6/script.js
 
 ---------------------------------------
 
-# Best Practices for Maintaining Unit Tests**
+# Best Practices for Maintaining Unit Tests
 Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
 
@@ -138,6 +142,8 @@ Write tests in a **clear, structured way**:
 - **Start with testing critical business logic**.
 - **Cover edge cases (invalid input, errors, permissions, etc.).**
 - **Focus on high-risk areas first**.
+
+-----------------
 
 # tasks
 1. Integration tests
