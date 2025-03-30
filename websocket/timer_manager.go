@@ -10,9 +10,6 @@ import (
 	"time"
 )
 
-// platformReadyTimer is declared here but not used directly. (We rely on context/cancel.)
-var platformReadyTimer *time.Timer //nolint:unused
-
 // default instance of TimerManager.
 var defaultTimerManager *TimerManager
 

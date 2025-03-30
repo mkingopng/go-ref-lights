@@ -54,7 +54,6 @@ var (
 	writeWait  = 4 * time.Hour       // Max time to complete a write
 	pongWait   = 4 * time.Hour       // Max time between pongs from the client
 	pingPeriod = (pongWait * 9) / 10 // When to send ping (90% of pongWait)
-	//maxMessageSize = 2048                // Maximum inbound message size in bytes
 )
 
 // Upgrader config: allow any origin for now

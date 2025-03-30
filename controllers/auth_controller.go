@@ -193,39 +193,43 @@ func checkPasswordHash(password, hash string) bool {
 func PerformLogin(c *gin.Context) {
 	session := sessions.Default(c)
 
-	// grab from the query string
+	// 1. Optionally store meetName + position from query string
 	meetNameParam := c.Query("meetName")
 	posParam := c.Query("position")
-
-	// if present, store them in session
 	if meetNameParam != "" {
 		session.Set("meetName", meetNameParam)
 	}
 	if posParam != "" {
 		session.Set("desiredPosition", posParam)
 	}
-
-	// persist session changes
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[PerformLogin] Failed to save session: %v", err)
 	}
 
-	// finally, render the login form
-	meetName := session.Get("meetName")
-	logo := "" // default empty
+	// 2. Look up the meetName & find the appropriate logo
+	rawMeetName := session.Get("meetName")
+	var meetName, logo string
 
-	// try to load logo from meet config
-	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
+	if meetNameStr, ok := rawMeetName.(string); ok && meetNameStr != "" {
+		meetName = meetNameStr
 		creds := services.GetGlobalMeetCredentials()
 		if creds == nil {
-			// handle the error or fallback
-			logger.Error.Println("Global credentials not set")
+			logger.Error.Println("[PerformLogin] Global credentials not set")
 			c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 			return
 		}
+		// find the matching meet
+		for _, m := range creds.Meets {
+			if m.Name == meetNameStr {
+				logo = m.Logo
+				break
+			}
+		}
 	}
+
+	// 3. Finally, render "login.html" with both
 	c.HTML(http.StatusOK, "login.html", gin.H{
-		"MeetName": meetName,
+		"MeetName": meetName, // might be empty if not in session
 		"Logo":     logo,
 	})
 }

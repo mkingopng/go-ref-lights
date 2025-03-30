@@ -60,38 +60,36 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	// get the context
 	ctx := c.Request.Context()
 
-	// check if X-Ray parent segment is present
+	// optional instrumentation
 	parent := xray.GetSegment(ctx)
 	var seg *xray.Segment
-
 	if parent != nil {
 		// start subsegment
 		ctx, seg = xray.BeginSubsegment(ctx, "Logout")
 		defer seg.Close(nil)
-
-		// attach the new context back to the request
+		// attach the new context back
 		c.Request = c.Request.WithContext(ctx)
 	}
 
-	// grab session data
+	// session data
 	session := sessions.Default(c)
 	userEmail, _ := session.Get("user").(string)
 	position, _ := session.Get("refPosition").(string)
 	meetName, _ := session.Get("meetName").(string)
 	isAdmin, _ := session.Get("isAdmin").(bool)
 
-	// only add annotations if seg != nil
+	// annotate if we have a segment
 	if seg != nil {
 		_ = seg.AddAnnotation("user", userEmail)
 		_ = seg.AddAnnotation("position", position)
 		_ = seg.AddAnnotation("meet", meetName)
 	}
 
-	// if the user email is empty, there's no seat or active user to remove
 	if userEmail == "" {
-		logger.Warn.Println("[Logout] No userEmail in session, skipping logout steps.")
+		// no user => no occupant removal
+		logger.Warn.Println("[Logout] No userEmail in session, skipping occupant removal.")
 	} else if isAdmin {
-		// admin logic
+		// Admin logic
 		logger.Info.Printf("[Logout] Admin (%s) logging out of meet: %s", userEmail, meetName)
 		if meetName != "" {
 			occupancyService.ResetOccupancyForMeet(meetName)
@@ -101,7 +99,7 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		ActiveUsersMu.Unlock()
 		logger.Info.Printf("[Logout] Admin user %s removed from active users list", userEmail)
 	} else {
-		// referee logic
+		// Referee logic
 		logger.Info.Printf("[Logout] Referee user=%s is logging out for meet=%s", userEmail, meetName)
 		if position != "" && meetName != "" {
 			if err := occupancyService.UnsetPosition(meetName, position, userEmail); err != nil {
@@ -116,15 +114,22 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 		logger.Info.Printf("[Logout] User %s removed from active users list", userEmail)
 	}
 
-	// unconditional session clear + redirect
+	// clear session
 	session.Clear()
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[Logout] Error saving session after clearing: %v", err)
 	}
 
-	// redirect to /choose-meet
-	logger.Info.Println("[Logout] Session cleared. Redirecting to /choose-meet.")
-	c.Redirect(http.StatusFound, "/choose-meet")
+	// final redirect
+	if isAdmin {
+		// meet director => redirect to /login
+		logger.Info.Println("[Logout] Admin user. Redirecting to /login")
+		c.Redirect(http.StatusFound, "/login")
+	} else {
+		// referee => redirect to /logged-out (or your new page)
+		logger.Info.Println("[Logout] Referee user. Redirecting to /logged-out")
+		c.Redirect(http.StatusFound, "/logged-out")
+	}
 }
 
 // -------------------- page rendering --------------------

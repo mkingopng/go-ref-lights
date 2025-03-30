@@ -56,15 +56,12 @@ func TestLogout(t *testing.T) {
 		w := performRequest(router, req)
 		// with no session user, it warns and redirects to /choose-meet
 		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/choose-meet", w.Result().Header.Get("Location"))
+		assert.Equal(t, "/logged-out", w.Result().Header.Get("Location"))
 		// no occupancy calls expected
 		mockOcc.AssertExpectations(t)
 	})
 
 	t.Run("Admin => calls ResetOccupancyForMeet, removes user from ActiveUsers", func(t *testing.T) {
-		// Mark a user in session as "admin"
-		// Also store meetName => "someMeet"
-		// Then verify it calls mockOcc.ResetOccupancyForMeet
 
 		mockOcc.On("ResetOccupancyForMeet", "someMeet").Return().Once()
 
@@ -83,7 +80,7 @@ func TestLogout(t *testing.T) {
 		w := performRequest(router, req)
 
 		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/choose-meet", w.Result().Header.Get("Location"))
+		assert.Equal(t, "/login", w.Result().Header.Get("Location"))
 
 		// check user is removed
 		ActiveUsersMu.RLock()
@@ -118,7 +115,7 @@ func TestLogout(t *testing.T) {
 		req.AddCookie(ck)
 		w := performRequest(router2, req)
 		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/choose-meet", w.Result().Header.Get("Location"))
+		assert.Equal(t, "/logged-out", w.Result().Header.Get("Location"))
 
 		// user removed
 		ActiveUsersMu.RLock()
