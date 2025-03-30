@@ -216,66 +216,6 @@ func SetConfig(appURL, wsURL string) {
 	logger.Info.Printf("[SetConfig] Global config updated: ApplicationURL=%s, WebsocketURL=%s", appURL, wsURL)
 }
 
-// -------------------- referee view rendering --------------------
-
-// Left renders the left referee view
-func Left(c *gin.Context) {
-	session := sessions.Default(c)
-	meetName, ok := session.Get("meetName").(string)
-	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("[Left handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
-	if !ok || meetName == "" {
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
-	logger.Info.Println("[Left] Rendering left referee view")
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-		"meetName":     meetName,
-	}
-	c.HTML(http.StatusOK, "left.html", data)
-}
-
-// Center renders the center referee view
-func Center(c *gin.Context) {
-	session := sessions.Default(c)
-	meetName, ok := session.Get("meetName").(string)
-	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("[Center handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
-	if !ok || meetName == "" {
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
-	logger.Info.Println("[Center] Rendering center referee view")
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-		"meetName":     meetName,
-	}
-	c.HTML(http.StatusOK, "center.html", data)
-}
-
-// Right renders the right referee view
-func Right(c *gin.Context) {
-	session := sessions.Default(c)
-	meetName, ok := session.Get("meetName").(string)
-	refPosition := session.Get("refPosition")
-	logger.Debug.Printf("[Right handler] Session meetName='%s', refPosition='%v'", meetName, refPosition)
-
-	if !ok || meetName == "" {
-		c.Redirect(http.StatusFound, "/meets")
-		return
-	}
-
-	logger.Info.Println("[Right] Rendering right referee view")
-
-	data := gin.H{
-		"WebsocketURL": WebsocketURL,
-		"meetName":     meetName,
-	}
-
-	c.HTML(http.StatusOK, "right.html", data)
-}
-
 // Lights renders the light control panel
 func Lights(c *gin.Context) {
 	session := sessions.Default(c)
@@ -391,29 +331,6 @@ func renderLeft(c *gin.Context, meetName string) {
 	}
 	c.HTML(http.StatusOK, "left.html", data)
 }
-
-// ------------- meet configuration management -------------
-
-// LoadMeets loads the meet configuration from `./config/meets.json`.
-//func LoadMeets() (*models.MeetCreds, error) {
-//	meetsPath := "config/meets.json" // #nosec G101
-//	if env := os.Getenv("MEETS_PATH"); env != "" {
-//		meetsPath = env
-//	}
-//	// read the config file
-//	data, err := os.ReadFile(meetsPath)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	var meets models.MeetCreds
-//	if err := json.Unmarshal(data, &meets); err != nil {
-//		return nil, err
-//	}
-//
-//	logger.Info.Printf("[LoadMeets] Successfully loaded %d meets", len(meets.Meets))
-//	return &meets, nil
-//}
 
 // -------------- meet selection handling --------------
 

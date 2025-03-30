@@ -586,7 +586,10 @@ Below is a concise list of scenarios you can methodically run through in the rem
   changes as you test from the phone.
 ---------------------------
 
-Here are some observations and suggested cleanup areas after reviewing all the files you provided. I’ve grouped them into the main categories you asked about—redundant code/sprawl, errors/bugs, comments/documentation, and general housekeeping.
+Here are some observations and suggested clean-up areas after reviewing all
+the files you provided. I’ve grouped them into the main categories you
+asked about—redundant code/sprawl, errors/bugs, comments/documentation, and
+general housekeeping.
 
 ---
 

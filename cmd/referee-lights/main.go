@@ -111,9 +111,6 @@ func SetupRouter(env string) *gin.Engine {
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/left", controllers.Left)
-	router.GET("/center", controllers.Center)
-	router.GET("/right", controllers.Right)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) })
 	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
@@ -124,14 +121,8 @@ func SetupRouter(env string) *gin.Engine {
 			c.Next()
 			return
 		}
+
 		if c.Request.URL.Path == "/login" || c.Request.URL.Path == "/referee-updates" {
-			c.Next()
-			return
-		}
-		if strings.HasPrefix(c.Request.URL.Path, "/referee/") ||
-			c.Request.URL.Path == "/left" ||
-			c.Request.URL.Path == "/center" ||
-			c.Request.URL.Path == "/right" {
 			c.Next()
 			return
 		}
@@ -278,21 +269,6 @@ func (h *Manager) CleanupInactiveSessions(timeout time.Duration) {
 		}
 	}()
 }
-
-// CleanupRoutine removes referees that have been inactive
-//func CleanupRoutine() {
-//	ticker := time.NewTicker(10 * time.Second) // adjust interval as needed
-//	for range ticker.C {
-//		sessionLock.Lock()
-//		for id, lastSeen := range refereeSessions {
-//			if time.Since(lastSeen) > 1800*time.Second { // configurable timeout, 30 minutes
-//				logger.Info.Printf("[CleanupRoutine] Removing inactive referee=%s (30 minutes)", id)
-//				delete(refereeSessions, id)
-//			}
-//		}
-//		sessionLock.Unlock()
-//	}
-//}
 
 func main() {
 	// load env variables
