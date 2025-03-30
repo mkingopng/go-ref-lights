@@ -39,3 +39,14 @@ type MeetCreds struct {
 	Meets     []Meet     `json:"meets"`     // list of meets
 	Superuser *Superuser `json:"superuser"` // use a pointer so it can be nil if not provided
 }
+
+// BasicMeet is the stripped-down version for 'choose meet' data (no admin creds).
+type BasicMeet struct {
+	Name string `json:"name"`
+	Date string `json:"date"`
+}
+
+// BasicMeets holds a slice of BasicMeet entries
+type BasicMeets struct {
+	Meets []BasicMeet `json:"meets"`
+}

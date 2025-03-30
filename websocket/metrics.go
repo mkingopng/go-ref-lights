@@ -11,10 +11,10 @@ import (
 	"go-ref-lights/logger"
 )
 
-// Namespace for all RefVision metrics
+// namespace for all RefVision metrics
 var metricsNamespace = "RefVision"
 
-// Reuse a single CloudWatch client for all metrics calls
+// reuse a single CloudWatch client for all metrics calls
 var cwClient = cloudwatch.New(session.Must(session.NewSession()))
 
 // PublishRefereeConnections pushes current WebSocket connection count

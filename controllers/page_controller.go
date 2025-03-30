@@ -3,10 +3,8 @@
 package controllers
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 
 	"github.com/aws/aws-xray-sdk-go/xray"
@@ -22,7 +20,11 @@ import (
 // -------------------- global configuration --------------------
 
 var anonOccupantCounter int
+
 var anonCounterMu sync.Mutex
+
+// loadMeetsFunc allows dependency injection for testing.
+//var loadMeetsFunc = LoadMeets
 
 var (
 	// ApplicationURL is the base URL of the application
@@ -149,7 +151,7 @@ func Index(c *gin.Context) {
 	}
 
 	// normal meet logic:
-	creds, err := loadMeetCredsFunc()
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		logger.Error.Printf("[Index] Failed to load meet creds: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
@@ -284,7 +286,7 @@ func Lights(c *gin.Context) {
 	}
 	logger.Info.Println("[Lights] Rendering lights page")
 
-	creds, err := loadMeetCredsFunc()
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		logger.Error.Printf("[Lights] Failed to load meet creds: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
@@ -390,43 +392,35 @@ func renderLeft(c *gin.Context, meetName string) {
 	c.HTML(http.StatusOK, "left.html", data)
 }
 
-// --------------- global variables ---------------
-
-// loadMeetsFunc allows dependency injection for testing.
-var loadMeetsFunc = LoadMeets
-
 // ------------- meet configuration management -------------
 
 // LoadMeets loads the meet configuration from `./config/meets.json`.
-// this function retrieves the available meets and their details from the JSON file.
-func LoadMeets() (*models.MeetCreds, error) {
-	meetsPath := "config/meets.json" // #nosec G101
-	if env := os.Getenv("MEETS_PATH"); env != "" {
-		meetsPath = env
-	}
-	// read the config file
-	data, err := os.ReadFile(meetsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var meets models.MeetCreds
-	if err := json.Unmarshal(data, &meets); err != nil {
-		return nil, err
-	}
-
-	logger.Info.Printf("[LoadMeets] Successfully loaded %d meets", len(meets.Meets))
-	return &meets, nil
-}
+//func LoadMeets() (*models.MeetCreds, error) {
+//	meetsPath := "config/meets.json" // #nosec G101
+//	if env := os.Getenv("MEETS_PATH"); env != "" {
+//		meetsPath = env
+//	}
+//	// read the config file
+//	data, err := os.ReadFile(meetsPath)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	var meets models.MeetCreds
+//	if err := json.Unmarshal(data, &meets); err != nil {
+//		return nil, err
+//	}
+//
+//	logger.Info.Printf("[LoadMeets] Successfully loaded %d meets", len(meets.Meets))
+//	return &meets, nil
+//}
 
 // -------------- meet selection handling --------------
 
 // ShowMeets renders the meet selection page.
-// it fetches the list of available meets and passes them to the template.
-// if loading fails, it returns an HTTP 500 response.
 func ShowMeets(c *gin.Context) {
 	// retrieve meet data using a mockable function for easier testing
-	meetsData, err := loadMeetsFunc()
+	meetsData, err := services.LoadBasicMeets()
 	if err != nil {
 		logger.Error.Printf("[ShowMeets] Failed to load meets: %v", err)
 		c.String(http.StatusInternalServerError, "Failed to load meets")
@@ -434,6 +428,20 @@ func ShowMeets(c *gin.Context) {
 	}
 
 	// render the meet selection page with available meets
+	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+		"availableMeets": meetsData.Meets,
+	})
+}
+
+func ChooseMeetHandler(c *gin.Context) {
+	// This is purely a handler for GET /choose-meet
+	// It loads basic meets from disk, then renders the template
+	meetsData, err := services.LoadBasicMeets()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Failed to load meets")
+		return
+	}
+
 	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
 		"availableMeets": meetsData.Meets,
 	})

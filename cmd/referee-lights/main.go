@@ -107,7 +107,7 @@ func SetupRouter(env string) *gin.Engine {
 	meetDirectorController := controllers.NewAdminController(occupancyService, positionController)
 
 	// ------------------ public routes ------------------
-	router.GET("/", controllers.ShowMeets)
+	router.GET("/", controllers.ChooseMeetHandler)
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
@@ -334,7 +334,7 @@ func main() {
 	controllers.SetConfig(applicationURL, websocketURL)
 
 	// load credentials
-	creds, err := controllers.LoadMeetCreds()
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		logger.Error.Printf("[main] Error loading credentials: %v", err)
 	} else {

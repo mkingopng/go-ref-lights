@@ -3,8 +3,12 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/aws/aws-xray-sdk-go/xray"
+	"go-ref-lights/models"
+	"os"
 	"sync"
 	"time"
 
@@ -230,4 +234,45 @@ func (s *OccupancyService) TouchActivity(meetName string) {
 		occ.LastUpdated = time.Now()
 		logger.Debug.Printf("[TouchActivity] Updated LastUpdated for meet=%s to %v", meetName, occ.LastUpdated)
 	}
+}
+
+// LoadJSONFile Generic helper that reads a file and unmarshals JSON into 'target'
+func LoadJSONFile(path string, target interface{}) error {
+	// #nosec G304
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, target); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+	return nil
+}
+
+// LoadBasicMeets Loads the basic meets info from config/meets.json
+func LoadBasicMeets() (*models.BasicMeets, error) {
+	path := "config/meets.json" // #nosec G304
+	if env := os.Getenv("MEETS_PATH"); env != "" {
+		path = env
+	}
+
+	var basic models.BasicMeets
+	if err := LoadJSONFile(path, &basic); err != nil {
+		return nil, err
+	}
+	return &basic, nil
+}
+
+// LoadMeetCredentials Loads the meet credentials (admins, superuser, etc.) from config/meet_creds.json
+func LoadMeetCredentials() (*models.MeetCreds, error) {
+	path := "config/meet_creds.json"
+	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
+		path = env
+	}
+
+	var creds models.MeetCreds
+	if err := LoadJSONFile(path, &creds); err != nil {
+		return nil, err
+	}
+	return &creds, nil
 }

@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         switch (data.action) {
 
-            // 1) Occupancy changes
+            // Occupancy changes
             case "occupancyChanged":
                 log(`occupancyChanged: L=${data.leftUser} C=${data.centerUser} R=${data.rightUser}`, "debug");
                 if (leftUserEl)   leftUserEl.innerText   = data.leftUser   || "Vacant";
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (rightUserEl)  rightUserEl.innerText  = data.rightUser  || "Vacant";
                 break;
 
-            // 2) Health checks
+            // health checks
             case "refereeHealth": {
                 const isConnected = data.connectedRefIDs.includes(judgeId);
                 if (healthEl) {
@@ -128,19 +128,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             }
+
+            // health error
             case "healthError":
                 log(`Health error: ${data.message}`, "debug");
                 break;
 
-            // 3) Timers + decisions
+            // timers + decisions
             case "startTimer":
                 log("🔵 Received startTimer in referee-common.js; clearing results, show timer if needed", "debug");
-                // If you want to show a timer on the referee page:
+                // if you want to show a timer on the referee page:
                 if (platformReadyTimerContainer) {
                     platformReadyTimerContainer.classList.remove("hidden");
                 }
                 break;
 
+            // decision submitted
             case "updatePlatformReadyTime":
                 log(`⌛ updatePlatformReadyTime: ${data.timeLeft} sec left`, "debug");
                 if (data.timeLeft <= 0) {
@@ -157,12 +160,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
 
+            // display results
             case "displayResults":
                 log(`RefereeCommon: final decisions => L=${data.leftDecision}, C=${data.centerDecision}, R=${data.rightDecision}`, "debug");
                 // If the referee page wants to show final results, handle them:
                 // e.g. document.getElementById("someEl").innerText = `L=${data.leftDecision},C=${data.centerDecision},R=${data.rightDecision}`;
                 break;
 
+            // clear results
             case "clearResults":
                 log("RefereeCommon: clearing results UI. (If referee page shows lights or timer, reset them)", "debug");
                 if (platformReadyTimerContainer) {
@@ -171,9 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (timerDisplay) {
                     timerDisplay.textContent = "";
                 }
-                // Possibly revert local decision indicators
+                // possibly revert local decision indicators
                 break;
 
+            // platform ready timer expired
             case "platformReadyExpired":
                 log("RefereeCommon: Platform Ready Timer Expired", "debug");
                 if (platformReadyTimerContainer) {
@@ -181,6 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
 
+            // restart lights
             case "resetLights":
                 log("RefereeCommon: resetLights action (usually relevant to the /lights page). Doing nothing here.", "debug");
                 break;
@@ -237,6 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Red button
     const redBtn = document.getElementById('redButton');
     if (redBtn) {
         redBtn.addEventListener('click', function() {

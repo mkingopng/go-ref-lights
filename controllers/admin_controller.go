@@ -54,14 +54,14 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
-	// 1) load meets
-	creds, err := loadMeetCredsFunc()
+	// load meets
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load meets")
 		return
 	}
 
-	// 2) find the correct logo
+	// find the correct logo
 	var logo string
 	for _, m := range creds.Meets {
 		if m.Name == meetName {
@@ -247,7 +247,7 @@ func NewSudoController(svc services.OccupancyServiceInterface) *SudoController {
 // that your template can iterate over
 func (sc *SudoController) SudoPanel(c *gin.Context) {
 	// user := sessions.Default(c).Get("user") // your superuser's name if needed
-	meetsData, _ := loadMeetCredsFunc()
+	meetsData, _ := services.LoadMeetCredentials()
 	var allOccupancies []map[string]interface{}
 	for _, meet := range meetsData.Meets {
 		occ := sc.OccupancyService.GetOccupancy(meet.Name)
@@ -315,8 +315,6 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 }
 
 // ForceLogoutMeetDirector forcibly logs out a meet director
-// In your app, the meet director is the user who did "admin" login for a meet.
-// So you can do a quick check in ActiveUsers, or you can define a more direct approach.
 func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 	username := c.PostForm("username")
 	if username == "" {
@@ -347,20 +345,11 @@ func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
 		return
 	}
 
-	// 1) Clear the meet state from the unified state
+	// Clear the meet state from the unified state
 	websocket.ClearMeetState(meetName)
 
-	// 2) Reset occupancy
+	// 2Reset occupancy
 	sc.OccupancyService.ResetOccupancyForMeet(meetName)
-
-	// 3) Optionally remove all users from ActiveUsers who are in that meet
-	//    This is optional. If your logic needs to track which user belongs to which meet,
-	//    you might do that in a specialized structure. For a minimal approach:
-	//      (You might not actually track each user’s meet, so do what fits your design)
-	//
-	//    for userName := range ActiveUsers {
-	//      // if userName is a ref or admin of meetName => forcibly remove
-	//    }
 
 	logger.Info.Printf("[RestartAndClearMeet] Superuser forcibly reset meet: %s", meetName)
 	c.Redirect(http.StatusFound, "/sudo")

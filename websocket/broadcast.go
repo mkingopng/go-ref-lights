@@ -28,13 +28,13 @@ func HandleMessages() {
 	rootCtx := context.Background()
 
 	for {
-		// Read incoming message from the broadcast channel
+		// read incoming message from the broadcast channel
 		msg := <-broadcast
 
-		// Create a subsegment for this broadcast iteration
+		// create a subsegment for this broadcast iteration
 		_, bcSeg := xray.BeginSubsegment(rootCtx, "HandleBroadcast")
 
-		// OPTIONAL: parse and annotate
+		// parse and annotate
 		var msgMap map[string]interface{}
 		var meetFilter string
 
@@ -51,12 +51,12 @@ func HandleMessages() {
 			}
 		}
 
-		// Optionally note msg size
+		// optionally note msg size
 		if bcSeg != nil {
 			_ = bcSeg.AddAnnotation("msgLength", len(msg))
 		}
 
-		// Acquire lock, broadcast to each connection
+		// acquire lock, broadcast to each connection
 		connectionsMu.RLock()
 		for c := range connections {
 			if meetFilter != "" && c.meetName != meetFilter {
@@ -74,7 +74,7 @@ func HandleMessages() {
 		}
 		connectionsMu.RUnlock()
 
-		// **Close** subsegment explicitly (no defer!)
+		// close subsegment explicitly
 		if bcSeg != nil {
 			bcSeg.Close(nil)
 		}

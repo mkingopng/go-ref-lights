@@ -3,13 +3,9 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"go-ref-lights/services"
 	"net/http"
-	"os"
-	"strings"
 	"sync"
 
 	"github.com/gin-contrib/sessions"
@@ -28,7 +24,7 @@ var ActiveUsers = make(map[string]bool)
 var ActiveUsersMu sync.RWMutex
 
 // loadMeetCredsFunc allows dependency injection for testing.
-var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
+//var loadMeetCredsFunc = LoadMeetCreds // assign to a variable for easier testing
 
 // ----------------------- authentication utilities -----------------------
 
@@ -100,7 +96,7 @@ func MeetHandler(c *gin.Context) {
 	meetName := storedMeet.(string)
 
 	// load meet credentials using the injectable function.
-	creds, err := loadMeetCredsFunc()
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		logger.Error.Printf("Failed to load meets: %v", err)
 		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error loading meets."})
@@ -134,38 +130,38 @@ func MeetHandler(c *gin.Context) {
 // ----------------------- credentials management ---------------------------
 
 // LoadMeetCreds loads meet credentials from a JSON file
-func LoadMeetCreds() (*models.MeetCreds, error) {
-	credPath := "config/meet_creds.json" // #nosec G101
-	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
-		credPath = env
-	}
-
-	// read the JSON file
-	data, err := os.ReadFile(credPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read meet credentials file: %w", err)
-	}
-
-	// unmarshal JSON into MeetCreds struct
-	var creds models.MeetCreds
-	if err := json.Unmarshal(data, &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
-	}
-
-	// validate admin credentials for each meet.
-	for _, meet := range creds.Meets {
-		if meet.Admin.Username == "" {
-			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
-		}
-		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
-			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
-		}
-		// replaced the direct fmt.Printf with a logger call
-		logger.Debug.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)",
-			meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
-	}
-	return &creds, nil
-}
+//func LoadMeetCreds() (*models.MeetCreds, error) {
+//	credPath := "config/meet_creds.json" // #nosec G101
+//	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
+//		credPath = env
+//	}
+//
+//	// read the JSON file
+//	data, err := os.ReadFile(credPath)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to read meet credentials file: %w", err)
+//	}
+//
+//	// unmarshal JSON into MeetCreds struct
+//	var creds models.MeetCreds
+//	if err := json.Unmarshal(data, &creds); err != nil {
+//		return nil, fmt.Errorf("failed to parse meet_creds.json: %w", err)
+//	}
+//
+//	// validate admin credentials for each meet.
+//	for _, meet := range creds.Meets {
+//		if meet.Admin.Username == "" {
+//			return nil, fmt.Errorf("error: Meet '%s' is missing an admin username", meet.Name)
+//		}
+//		if meet.Admin.Password == "" || !strings.HasPrefix(meet.Admin.Password, "$2b$12$") {
+//			return nil, fmt.Errorf("error: Meet '%s' is missing a valid hashed password", meet.Name)
+//		}
+//		// replaced the direct fmt.Printf with a logger call
+//		logger.Debug.Printf("Loaded Meet: %s (Admin: %s, IsAdmin: %t)",
+//			meet.Name, meet.Admin.Username, meet.Admin.IsAdmin)
+//	}
+//	return &creds, nil
+//}
 
 // ----------------------- admin actions -----------------------------------
 
@@ -264,7 +260,7 @@ func PerformLogin(c *gin.Context) {
 
 	// try to load logo from meet config
 	if meetNameStr, ok := meetName.(string); ok && meetNameStr != "" {
-		if creds, err := loadMeetCredsFunc(); err == nil {
+		if creds, err := services.LoadMeetCredentials(); err == nil {
 			for _, meet := range creds.Meets {
 				if meet.Name == meetNameStr {
 					logo = meet.Logo
@@ -322,7 +318,7 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// load meet credentials
-	creds, err := loadMeetCredsFunc()
+	creds, err := services.LoadMeetCredentials()
 
 	if err != nil {
 		logger.Error.Printf("[LoginHandler] Failed to load meet credentials: %v", err)
@@ -412,7 +408,7 @@ func LoginHandler(c *gin.Context) {
 
 	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
 
-	// ------------------ auto-claim desired position ------------------
+	// auto-claim desired position
 	desiredPos := session.Get("desiredPosition")
 	if desiredPos != nil {
 		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", desiredPos, username)
@@ -438,13 +434,13 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// ------------------ default redirect on success ------------------
+	// default redirect on success
 	c.Redirect(http.StatusFound, "/index")
 }
 
 // helper function to retrieve logo for meet
 func getLogoForMeet(meetName string) string {
-	creds, err := loadMeetCredsFunc()
+	creds, err := services.LoadMeetCredentials()
 	if err != nil {
 		return ""
 	}

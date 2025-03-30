@@ -579,3 +579,99 @@ Below is a concise list of scenarios you can methodically run through in the rem
 - Keep your Admin session open in a separate tab to see real-time occupant
   changes as you test from the phone.
 ---------------------------
+
+Here are some observations and suggested cleanup areas after reviewing all the files you provided. I’ve grouped them into the main categories you asked about—redundant code/sprawl, errors/bugs, comments/documentation, and general housekeeping.
+
+---
+
+## 1. Redundant code & sprawl
+
+**A. Multiple ways to show referee pages**
+You currently have dedicated endpoints for `/left`, `/center`, and `/right` plus the more general `GET /referee/:meetName/:position`. They overlap in what they do (assign or display the referee position). You could simplify by having only `GET /referee/:meetName/:position` do the seat-claiming and rendering, and remove (or redirect from) `/left`, `/center`, `/right`. Right now, each approach has similar logic:
+- `Left(c *gin.Context)`, `Center(...)`, `Right(...)`
+- `RefereeHandler(c, occupancyService)`
+
+**B. Two separate “meets” loaders**
+There are two almost-identical sets of JSON-loading code:
+1. `LoadMeets()` in **page_controller.go** (reads `config/meets.json`)
+2. `LoadMeetCreds()` in **auth_controller.go** (reads `config/meet_creds.json`)
+
+Both return a `MeetCreds` struct. Consider merging these into one function that reads a single config file or that reads two sections from disk in one place. Right now it’s easy to forget which function is used where, and the code for parsing the JSON is nearly the same.
+
+**C. “Vacate position” vs. “Logout” flows**
+The code for vacating a seat (in `position_controller.go`) and the code for logging out (in `auth_controller.go`) is extremely similar in terms of unsetting occupancy. You might unify them by:
+- Having “VacatePosition” simply call the same internal helper used by “Logout.”
+- Or when a referee clicks “Vacate,” redirect them to some “/logout?reason=vacateRef” route that does all the session cleanup in one place.
+
+Right now, “VacatePosition” just unsets the seat and redirects to `/index`, whereas “Logout` does more (it also clears the session and redirects to `/choose-meet`), which can cause confusion for referees. You’ve mentioned wanting to fix that bug so “vacate” effectively logs them out properly.
+
+**D. Global occupancy map vs. occupancy map on the `OccupancyService`**
+In `occupancy_service.go` you have:
+```go
+var occupancyMap = make(map[string]*Occupancy)
+var occupancyMutex sync.Mutex
+```
+…and *also* a struct field:
+```go
+type OccupancyService struct {
+    mu        sync.Mutex
+    occupancy map[string]*Occupancy
+}
+```
+But all of the code actually uses the package-level `occupancyMap` and `occupancyMutex`, and the struct’s own `occupancy` field never gets touched. This is definitely redundant or confusing. Pick one approach (global vs. instance-based) and remove whichever is unused.
+
+---
+
+## 2. Errors & known issues
+
+**A. “Vacate” button bug**
+You noted the bug where pressing the vacate button yields a 404 or the user isn’t redirected properly. Indeed, in `VacatePosition` (in `position_controller.go`), the final line is:
+```go
+c.Redirect(http.StatusFound, "/index")
+```
+But you said you want it to log the referee out and go to `/logout`. You can easily fix that by changing that final redirect (or by funneling everything through the same logout logic).
+
+**B. Possibly stale or dead code**
+Look for commented-out sections like the “CleanupRoutine” in `main.go`. If you truly don’t need them, removing them keeps the codebase lean.
+
+**C. Overwriting user session**
+In a few places, you re-set `session.Set("user", occupant)` or reassign `session.Set("meetName", X)`. That’s expected, but be sure you handle corner cases (e.g., if a user tries to “claim position” for the wrong meet). Usually it’s safe, but watch out for states where the user might have `meetName` in session from earlier, then hits some route that sets a new meet. Just an overall caution to keep an eye on possible session mismatches.
+
+---
+
+## 3. Comments & documentation
+
+**A. Overall docstrings are quite thorough**
+You have a docstring at the top of almost every file and function. That’s good. Just be sure to keep them in sync with any changes so they don’t become stale.
+
+**B. Repeated docstrings**
+Some docstrings repeat the same disclaimers or are near-duplicates. For example, in `TimerManager` code you do a good job explaining the same pattern (context, cancel, etc.) in multiple places, but it can be shortened or consolidated.
+
+---
+
+## 4. General housekeeping
+
+**A. Possibly unify your environment checks**
+You have checks for `env == "production"`, `env == "test"`, etc., scattered in a few places. Usually that’s fine, but if you see repeated code for “set gin mode to release if production, else test,” you can put that in a single function.
+
+**B. Timestamps and logs**
+You’re storing a `LastUpdated time.Time` in each `Occupancy`, but not always using it. If you truly need it for debugging or for cleaning up old meets, that’s fine—but if it’s never read, you might remove it.
+
+**C. Sudo/superuser code**
+You do have basic routes for `SudoController`, “force vacate any meet,” “force logout meet director,” etc. That’s helpful, but if you’re going to rely on this path in production, it’s worth adding better error handling (for example, verifying that the meet exists before you reset it). Right now, some of that code does minimal checks—maybe that’s enough, maybe not.
+
+**D. Testing**
+You’ve mentioned you want a more comprehensive test suite. Right now, the code has good structure for testing (especially with all those injected functions like `loadMeetCredsFunc`), but it’s easy to forget that you can remove some of the dead or placeholder code once you finalize the approach.
+
+---
+
+### Summary of key “next steps”
+
+1. **Unify or remove** the dedicated `/left`, `/center`, `/right` routes in favor of the general `RefereeHandler`.
+2. **Consolidate** the “vacate seat” logic and “logout” logic so that referees don’t get stuck or 404’d.
+3. **Eliminate duplication** in the occupancy code: either remove the `OccupancyService.occupancy` field or remove the global `occupancyMap`.
+4. **Consider merging** the `LoadMeets()` and `LoadMeetCreds()` flows so you don’t have parallel sets of near-identical JSON logic.
+5. **Remove or fix** any commented-out or obviously unused routines (like the old `CleanupRoutine`).
+6. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
+
+Those changes will help keep the codebase lighter, reduce confusion, and address the known bugs around seat vacancy and referee logout. Once you’ve cleaned up these pieces, it will be easier to add new features and keep the project maintainable.

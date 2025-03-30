@@ -13,10 +13,10 @@ import (
 // platformReadyTimer is declared here but not used directly. (We rely on context/cancel.)
 var platformReadyTimer *time.Timer //nolint:unused
 
-// Default instance of TimerManager.
+// default instance of TimerManager.
 var defaultTimerManager *TimerManager
 
-// Overridable function for broadcasting next attempt timers (used in tests).
+// overridable function for broadcasting next attempt timers (used in tests).
 var broadcastAllNextAttemptTimersFunc = broadcastAllNextAttemptTimers
 
 // TimerManager manages platform readiness and next attempt timers.
