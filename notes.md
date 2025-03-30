@@ -39,6 +39,14 @@ aws xray get-trace-summaries \
   --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
+----------
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
+
+http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
+
 ------------------------
 # test coverage
 
@@ -603,9 +611,10 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 ---
 
 ### Summary of key “next steps”
-1. remove x-ray or fix it
-2. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
-3. super user code
-4. testing
-5. CDK code improvements
-an
+1. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
+2. super user code & functionality
+3. testing suite
+4. CDK code improvements
+5. remove x-ray or fix it
+6. fix all remaining warnings, TODO and FIX_ME
+7. format logout page
