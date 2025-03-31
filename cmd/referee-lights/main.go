@@ -56,7 +56,8 @@ func SetupRouter(env string) *gin.Engine {
 		Path:     "/",
 		MaxAge:   86400, // 1 day
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   true,                  // correct for real HTTPS
+		SameSite: http.SameSiteNoneMode, // <-- Add this
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
