@@ -8,6 +8,7 @@ or run from docker:
 docker run -e ENV=development -p 8080:8080 referee-lights
 ```
 -------------------------------
+
 run all tests
 ```bash
 go test -v ./...
