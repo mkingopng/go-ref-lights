@@ -187,45 +187,6 @@ Write tests in a **clear, structured way**:
 8. reset meet state
 9. sudo page
 
----
-
-# Improvements and bugs
-1. When a referee is in position, if they look at another page or app on
-   their phone, it can cause the health check to fail. Ideally, the
-   healthy connection should be maintained regardless of what the user does
-   on their phone, as long as the browser window is open. However, if, for
-   whatever reason, the connection becomes unhealthy, the user should be
-   able to refresh the page and rejoin the meet without any issues. This is
-   not always happening as it should. In many cases, when I hit refresh, I get
-   a 404 error. Refer to the screenshots attached
-2. There are many mechanisms for the referee to vacate their position,
-   or log out however only the admin panel is working correctly. The other
-   mechanisms don't work correctly.
-   - On the referee screen, there is a button called vacate position. see
-     attached image. When this button is pressed it should vacate the position
-     and take the user back to /index. However, it does not do this. The
-     user gets a 404 error. Refer to the screenshots attached. This is not
-     the correct behaviour. We need to correct this. What should happen is a
-     redirect to /index.
-   - The referee screen has a button called logout. When this button is
-     pressed, the user should be logged out and taken back to the login
-     page. This doesn't happen. The user gets a 404 error. Refer to the
-     screenshot. we need to fix this. What should happen is the user is
-     logged out from that when the button is pressed, the referee is taken
-     back to /index where they can take on a new position.
-   - the referee page has a button called Home. we should remove this button
-     as it is not needed.
-   - When the referee logs out the meet persists
-   - When the admin logs out the meet resets
-3. There needs to be a super-user or sudo role who can log into
-   any meet and take control as a fall-back position. This is not yet built in
-   to the functionality. Not sure how to implement this yet.
-4. Need to implement dynamic logo. Most meets currently use the APL logo,
-   however more and more meets will use specific logos. In anticipation of
-   this i have included logo in the meet.go data structure but it is not
-   used anywhere yet. Need to implement this.
-5. Review the CDK code and optimise. Consider how to scale to zero
-
 -------
 
 # CDK upgrades
