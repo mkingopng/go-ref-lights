@@ -32,7 +32,7 @@
     <td>{{ .occupancy.LeftUser }}</td>
     <td>
       {{ if .occupancy.LeftUser }}
-      <form action="/admin/force-vacate" method="POST">
+      <form action="/force-vacate" method="POST">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
         <input type="hidden" name="position" value="left">
         <button type="submit">Vacate</button>
@@ -47,7 +47,7 @@
     <td>{{ .occupancy.CenterUser }}</td>
     <td>
       {{ if .occupancy.CenterUser }}
-      <form action="/admin/force-vacate" method="POST">
+      <form action="/force-vacate" method="POST">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
         <input type="hidden" name="position" value="center">
         <button type="submit">Vacate</button>
