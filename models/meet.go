@@ -19,6 +19,7 @@ type Superuser struct {
 	Password string `json:"password"`
 	IsAdmin  bool   `json:"isadmin"`
 	Sudo     bool   `json:"sudo"`
+	Logo     string `json:"logo,omitempty"`
 }
 
 // ------------------------ meet model -----------------------

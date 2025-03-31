@@ -32,13 +32,14 @@
           "isadmin": true
         }
         ],
-      "logo": "APL_logo_white.png"
+      "logo": "/static/images/APL_logo_white.png"
     }
   ],
   "superuser": {
     "username": "sudo",
     "password": "Pzuf9x",
     "isadmin": true,
-    "sudo": true
+    "sudo": true,
+    "logo": "/static/images/sudo_logo.png"
   }
 }
