@@ -1,10 +1,5 @@
 run app locally
 ```bash
-go run ./cmd/referee-lights
-```
-
-or
-```bash
 go run cmd/referee-lights/main.go
 ```
 
@@ -13,6 +8,7 @@ or run from docker:
 docker run -e ENV=development -p 8080:8080 referee-lights
 ```
 
+-------------------------------
 run all tests
 ```bash
 go test -v ./...
@@ -32,20 +28,15 @@ go test -v -tags=unit ./websocket
 go test -v -tags=unit ./controllers
 ```
 
-run x-ray
-```bash
-aws xray get-trace-summaries \
-  --start-time "$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
-  --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-```
-
 ----------
 
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
-
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
-
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
+
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/right
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/center
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/left
 
 ------------------------
 # test coverage
@@ -102,7 +93,6 @@ k6 run --out json=test/k6/results.json tests/k6/script.js
 ```
 
 ---------------------------------------
-
 # Best Practices for Maintaining Unit Tests
 Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
@@ -152,7 +142,6 @@ Write tests in a **clear, structured way**:
 - **Focus on high-risk areas first**.
 
 -----------------
-
 # tasks
 1. Integration tests
     - Login + Session Management → Ensure login persists a session.
@@ -573,9 +562,10 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 
 ### Summary of key “next steps”
 1. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
-2. super user code & functionality
+2. sudo code & functionality
 3. testing suite
 4. CDK code improvements
-5. remove x-ray or fix it
-6. fix all remaining warnings, TODO and FIX_ME
-7. format logout page
+5. fix all remaining warnings, TODO and FIX_ME
+6. format logout page
+7. general formatting issues
+8. fix samsumg issues

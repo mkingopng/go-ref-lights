@@ -86,7 +86,7 @@ func setupTestRouter(t *testing.T) *gin.Engine {
 // createDummyTemplates writes a set of minimal HTML templates to the provided directory
 func createDummyTemplates(dir string) error {
 	templates := map[string]string{
-		"choose_meet.html": `<html><body>{{.}}</body></html>`,
+		"choose-meet.html": `<html><body>{{.}}</body></html>`,
 		"login.html":       `<html><body>{{.}}</body></html>`,
 		"index.html":       `<html><body>{{.}}</body></html>`,
 		"left.html":        `<html><body>Left ref view for {{.meetName}}</body></html>`,

@@ -3,9 +3,7 @@
 package controllers
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
@@ -33,16 +31,19 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 	user := session.Get("user")
 	meetName, ok := session.Get("meetName").(string)
 
+	// check if the user is logged in and a meet is selected
 	if user == nil || !ok || meetName == "" {
 		logger.Warn.Println("[ClaimPosition] User not logged in or no meet selected; redirecting to /login")
 		c.Redirect(http.StatusFound, "/login")
 		return
 	}
 
+	// check if the user is already assigned a position
 	position := c.PostForm("position")
 	userEmail := user.(string)
 	logger.Info.Printf("[ClaimPosition] User=%s attempting to claim position=%s in meet=%s", userEmail, position, meetName)
 
+	// check if the position is already taken
 	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
 	if err != nil {
 		logger.Error.Printf("[ClaimPosition] Position is taken or invalid: %v", err)
@@ -50,6 +51,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		return
 	}
 
+	// update the session with the claimed position
 	session.Set("refPosition", position)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[ClaimPosition] Error saving session for user=%s: %v", userEmail, err)
@@ -57,6 +59,7 @@ func (pc *PositionController) ClaimPosition(c *gin.Context) {
 		return
 	}
 
+	// redirect to the claimed position
 	switch position {
 	case "left":
 		c.Redirect(http.StatusFound, "/left")
@@ -81,12 +84,6 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 // ------------------- Real-time occupancy updates -------------------
 
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	_, seg := xray.BeginSegment(context.Background(), "BroadcastOccupancy")
-	if seg != nil {
-		defer seg.Close(nil)
-		_ = seg.AddAnnotation("meet", meetName)
-	}
-
 	// get the current occupancy state
 	occ := pc.OccupancyService.GetOccupancy(meetName)
 	logger.Debug.Printf("[BroadcastOccupancy] Fetched occupancy: %+v", occ)
@@ -100,6 +97,7 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 		"meetName":   meetName,
 	}
 
+	// marshal the message to JSON
 	jsonBytes, _ := json.Marshal(msg)
 	logger.Debug.Printf("[BroadcastOccupancy] Sending message: %s", string(jsonBytes))
 

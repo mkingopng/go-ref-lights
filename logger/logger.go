@@ -10,12 +10,11 @@ import (
 
 // Global loggers
 var (
-	Info  *log.Logger
-	Warn  *log.Logger
-	Error *log.Logger
-	Debug *log.Logger
-	// logFile is the file handle for our logs, so we can close it later.
-	logFile *os.File
+	Info    *log.Logger
+	Warn    *log.Logger
+	Error   *log.Logger
+	Debug   *log.Logger
+	logFile *os.File // logFile is the file handle for our logs, so we can close it later.
 )
 
 // InitLogger creates or re-initializes the loggers.

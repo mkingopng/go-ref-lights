@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/skip2/go-qrcode"
@@ -57,19 +56,6 @@ func Health(c *gin.Context) {
 // Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
-	// get the context
-	ctx := c.Request.Context()
-
-	// optional instrumentation
-	parent := xray.GetSegment(ctx)
-	var seg *xray.Segment
-	if parent != nil {
-		// start subsegment
-		ctx, seg = xray.BeginSubsegment(ctx, "Logout")
-		defer seg.Close(nil)
-		// attach the new context back
-		c.Request = c.Request.WithContext(ctx)
-	}
 
 	// session data
 	session := sessions.Default(c)
@@ -77,13 +63,6 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 	position, _ := session.Get("refPosition").(string)
 	meetName, _ := session.Get("meetName").(string)
 	isAdmin, _ := session.Get("isAdmin").(bool)
-
-	// annotate if we have a segment
-	if seg != nil {
-		_ = seg.AddAnnotation("user", userEmail)
-		_ = seg.AddAnnotation("position", position)
-		_ = seg.AddAnnotation("meet", meetName)
-	}
 
 	if userEmail == "" {
 		// no user => no occupant removal
@@ -364,21 +343,21 @@ func ShowMeets(c *gin.Context) {
 	}
 
 	// render the meet selection page with available meets
-	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+	c.HTML(http.StatusOK, "choose-meet.html", gin.H{
 		"availableMeets": meetsData.Meets,
 	})
 }
 
 func ChooseMeetHandler(c *gin.Context) {
-	// This is purely a handler for GET /choose-meet
-	// It loads basic meets from disk, then renders the template
+	// This is a handler for GET /choose-meet. It loads basic meets from disk,
+	// then renders the template
 	meetsData, err := services.LoadBasicMeets()
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to load meets")
 		return
 	}
 
-	c.HTML(http.StatusOK, "choose_meet.html", gin.H{
+	c.HTML(http.StatusOK, "choose-meet.html", gin.H{
 		"availableMeets": meetsData.Meets,
 	})
 }

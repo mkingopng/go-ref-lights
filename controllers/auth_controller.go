@@ -3,7 +3,6 @@
 package controllers
 
 import (
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"go-ref-lights/services"
 	"net/http"
 	"sync"
@@ -63,14 +62,14 @@ func ComparePasswords(hashedPassword, plainPassword string) bool {
 func SetMeetHandler(c *gin.Context) {
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
-		c.HTML(http.StatusBadRequest, "choose_meet.html", gin.H{"Error": "Please select a meet."})
+		c.HTML(http.StatusBadRequest, "choose-meet.html", gin.H{"Error": "Please select a meet."})
 		return
 	}
 	session := sessions.Default(c)
 	session.Set("meetName", meetName)
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("Failed to save meet session: %v", err)
-		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error, please try again."})
+		c.HTML(http.StatusInternalServerError, "choose-meet.html", gin.H{"Error": "Internal error, please try again."})
 		return
 	}
 	logger.Info.Printf("Meet %s selected, redirecting to meet page.", meetName)
@@ -84,7 +83,7 @@ func MeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	storedMeet := session.Get("meetName")
 	if storedMeet == nil {
-		c.HTML(http.StatusBadRequest, "choose_meet.html", gin.H{"Error": "No meet selected."})
+		c.HTML(http.StatusBadRequest, "choose-meet.html", gin.H{"Error": "No meet selected."})
 		return
 	}
 	meetName := storedMeet.(string)
@@ -93,7 +92,7 @@ func MeetHandler(c *gin.Context) {
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
 		logger.Error.Printf("Failed to load meets: %v", creds)
-		c.HTML(http.StatusInternalServerError, "choose_meet.html", gin.H{"Error": "Internal error loading meets."})
+		c.HTML(http.StatusInternalServerError, "choose-meet.html", gin.H{"Error": "Internal error loading meets."})
 		return
 	}
 
@@ -107,7 +106,7 @@ func MeetHandler(c *gin.Context) {
 		}
 	}
 	if currentMeet == nil {
-		c.HTML(http.StatusNotFound, "choose_meet.html", gin.H{"Error": "Meet not found."})
+		c.HTML(http.StatusNotFound, "choose-meet.html", gin.H{"Error": "Meet not found."})
 		return
 	}
 
@@ -254,17 +253,6 @@ func PerformLogin(c *gin.Context) {
 
 // LoginHandler authenticates the user, prevents duplicate logins, and manages session storage.
 func LoginHandler(c *gin.Context) {
-	ctx := c.Request.Context()
-
-	// create a subsegment
-	ctx, seg := xray.BeginSubsegment(ctx, "LoginHandler")
-	if seg != nil {
-		defer seg.Close(nil)
-	}
-
-	// attach the updated context back to the request
-	c.Request = c.Request.WithContext(ctx)
-
 	session := sessions.Default(c)
 
 	// retrieve meet name from session

@@ -22,8 +22,13 @@ func TestTimerManager_HandleTimerAction_StartTimer(t *testing.T) {
 		JudgeDecisions: map[string]string{"initial": "value"},
 	}
 
-	mockProvider := new(MockStateProvider)
+	mockProvider := NewMockStateProvider()
 	mockMessenger := new(MockMessenger)
+
+	meetsMutex.Lock()
+	meets["TestMeet"] = meetState
+	meetsMutex.Unlock()
+
 	mockProvider.On("GetMeetState", "TestMeet").Return(meetState)
 
 	// expect a clearResults broadcast
@@ -72,9 +77,15 @@ func TestTimerManager_HandleTimerAction_StartNextAttemptTimer(t *testing.T) {
 		MeetName:          "TestMeet",
 		NextAttemptTimers: []NextAttemptTimer{},
 	}
-	mockProvider := new(MockStateProvider)
-	mockMessenger := new(MockMessenger)
+	mockProvider := NewMockStateProvider()
+
+	meetsMutex.Lock()
+	meets["TestMeet"] = meetState
+	meetsMutex.Unlock()
+
 	mockProvider.On("GetMeetState", "TestMeet").Return(meetState)
+
+	mockMessenger := new(MockMessenger)
 
 	// create TimerManager with fast ticker and a very low starting value
 	tm := &TimerManager{

@@ -13,6 +13,8 @@
 <h1>Admin Panel for: {{ .meetName }}</h1>
 
 <h2>Current Occupants</h2>
+
+<!--table-->
 <table class="admin-table">
   <thead>
   <tr>
@@ -85,7 +87,7 @@
             .then(response => response.json())
             .then(data => {
               let select = document.getElementById("username");
-              select.innerHTML = ""; // Clear previous options
+              select.innerHTML = "";  // clear previous options
               data.users.forEach(user => {
                 let option = document.createElement("option");
                 option.value = user;
