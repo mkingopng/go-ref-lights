@@ -90,14 +90,11 @@ func SetupRouter(env string) *gin.Engine {
 		// Permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
 		c.Writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// You could also add X-XSS-Protection (legacy IE/Chrome); modern browsers mostly ignore it now:
-		// c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
-
 		// End security headers; proceed to next handler
 		c.Next()
 	})
 
-	// Disable HTTP caching (optional: suitable if you want no caching of dynamic pages)
+	// disable HTTP caching (optional: suitable if you want no caching of dynamic pages)
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")

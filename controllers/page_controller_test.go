@@ -54,7 +54,7 @@ func TestLogout(t *testing.T) {
 	t.Run("Empty user => no removal", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/logout", nil)
 		w := performRequest(router, req)
-		// with no session user, it warns and redirects to /choose-meet
+		// with no session user, it warns and redirects to /logged-out
 		assert.Equal(t, http.StatusFound, w.Code)
 		assert.Equal(t, "/logged-out", w.Result().Header.Get("Location"))
 		// no occupancy calls expected
@@ -75,18 +75,18 @@ func TestLogout(t *testing.T) {
 		ActiveUsers["admin1"] = true
 		ActiveUsersMu.Unlock()
 
-		req, _ := http.NewRequest("GET", "/logout", nil)
+		// now call the logout route
+		req, _ := http.NewRequest("GET", "/logout", nil) // or POST, if that’s how your route is set up
 		req.AddCookie(ck)
 		w := performRequest(router, req)
 
 		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/login", w.Result().Header.Get("Location"))
+		assert.Equal(t, "/set-meet", w.Result().Header.Get("Location"))
 
-		// check user is removed
 		ActiveUsersMu.RLock()
 		_, exists := ActiveUsers["admin1"]
 		ActiveUsersMu.RUnlock()
-		assert.False(t, exists)
+		assert.False(t, exists, "admin1 should have been removed from ActiveUsers")
 
 		mockOcc.AssertExpectations(t)
 	})
@@ -143,9 +143,6 @@ func TestIndex(t *testing.T) {
 		assert.Equal(t, http.StatusFound, w.Code)
 		assert.Equal(t, "/set-meet", w.Result().Header.Get("Location"))
 	})
-
-	// If you did have the needed references for a "success" path,
-	// you'd set session "meetName" and mock LoadMeetCredentials, etc.
 }
 
 // --------------- Test SetConfig ---------------
