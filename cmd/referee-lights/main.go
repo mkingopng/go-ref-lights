@@ -150,7 +150,6 @@ func SetupRouter(env string) *gin.Engine {
 	router.POST("/login", controllers.LoginHandler)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) })
 	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })
-	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
 	router.GET("/logged-out", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "logged-out.html", gin.H{"Title": "You are now logged out"})
 	})
