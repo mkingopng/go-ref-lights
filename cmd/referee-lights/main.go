@@ -165,7 +165,7 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/occupancy", positionController.GetOccupancyAPI)
 		protected.POST("/position/vacate", positionController.VacatePosition)
 		protected.GET("/active-users", controllers.ActiveUsersHandler)
-		protected.GET("/admin-panel", meetDirectorController.AdminPanel)
+		protected.GET("/admin", meetDirectorController.AdminPanel)
 		protected.POST("/force-vacate", meetDirectorController.ForceVacate)
 		protected.POST("/reset-instance", meetDirectorController.ResetInstance)
 		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
