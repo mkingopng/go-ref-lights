@@ -564,4 +564,4 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 5. fix all remaining warnings, TODO and FIX_ME
 6. format logout page
 7. general formatting issues
-8. fix samsumg issues
+8. fix samsung issues
