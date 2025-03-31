@@ -259,8 +259,9 @@ func NewSudoController(svc services.OccupancyServiceInterface) *SudoController {
 // data should be a slice of map, or a custom struct slice
 // that your template can iterate over
 func (sc *SudoController) SudoPanel(c *gin.Context) {
-	// user := sessions.Default(c).Get("user") // your superuser's name if needed
 	meetsData, _ := services.LoadMeetCredentials()
+
+	// Gather occupancy across meets
 	var allOccupancies []map[string]interface{}
 	for _, meet := range meetsData.Meets {
 		occ := sc.OccupancyService.GetOccupancy(meet.Name)
@@ -272,8 +273,15 @@ func (sc *SudoController) SudoPanel(c *gin.Context) {
 		})
 	}
 
+	// Pull the superuser logo if it exists
+	var sudoLogo string
+	if meetsData.Superuser != nil {
+		sudoLogo = meetsData.Superuser.Logo
+	}
+
 	c.HTML(http.StatusOK, "sudo.html", gin.H{
 		"meetsOccupancy": allOccupancies,
+		"SudoLogo":       sudoLogo,
 	})
 }
 
@@ -381,7 +389,7 @@ func (sc *SudoController) broadcastOccupancy(meetName string) {
 	websocket.SendBroadcastMessage(mustMarshal(msg))
 }
 
-// mustMarshal is a tiny helper
+// mustMarshal is a tiny helperSudoPanel
 func mustMarshal(v interface{}) []byte {
 	bytes, _ := json.Marshal(v)
 	return bytes

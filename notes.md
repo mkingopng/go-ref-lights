@@ -7,7 +7,6 @@ or run from docker:
 ```bash
 docker run -e ENV=development -p 8080:8080 referee-lights
 ```
-
 -------------------------------
 run all tests
 ```bash
@@ -27,9 +26,7 @@ go test -v -tags=unit ./websocket
 ```bash
 go test -v -tags=unit ./controllers
 ```
-
 ----------
-
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
@@ -37,7 +34,6 @@ http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
 https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/right
 https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/center
 https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/left
-
 ------------------------
 # test coverage
 
