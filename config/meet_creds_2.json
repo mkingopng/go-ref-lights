@@ -1,16 +1,16 @@
 {
   "meets": [
     {
-      "name": "Queensland Drug-Tested Raw States",
-      "date": "March 22",
+      "name": "Lift3 Heavy Hitters",
+      "date": "April 5",
       "admin": {
-        "username": "qld_states",
+        "username": "lift3",
         "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "qld_states2",
+          "username": "Lift_3",
           "password": "Y8DrnC",
           "isadmin": true
         }
@@ -18,16 +18,16 @@
       "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Peninsula Cup",
-      "date": "March 22-23",
+      "name": "Victorian State Championships",
+      "date": "April 6",
       "admin": {
-        "username": "peninsula_cup",
+        "username": "vic_states",
         "password": "2WYcNU",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "peninsula_cup2",
+          "username": "vic_states2",
           "password": "7XHKXb",
           "isadmin": true
         }
