@@ -155,28 +155,6 @@ class RefereeLightsCdkStack(Stack):
                 "PORT": "8080"
             },
             health_check=None,
-            # ecs.HealthCheck(
-            #     command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
-            #     interval=Duration.seconds(30),
-            #     timeout=Duration.seconds(10),
-            #     retries=3,
-            #     start_period=Duration.seconds(120)
-            # )
-        )
-
-        xray_container = task_definition.add_container(
-            "XRayDaemon",
-            image=ecs.ContainerImage.from_registry("amazon/aws-xray-daemon"),
-            memory_reservation_mib=256,
-            essential=False,
-            logging=ecs.LogDrivers.aws_logs(stream_prefix="xray"),
-        )
-        xray_container.add_port_mappings(
-            ecs.PortMapping(container_port=2000, protocol=ecs.Protocol.UDP)
-        )
-
-        task_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("AWSXRayDaemonWriteAccess")
         )
 
         container.add_port_mappings(

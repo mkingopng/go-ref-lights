@@ -10,9 +10,14 @@
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 <body>
+
+{{template "header.html" .}}
+
 <h1>Admin Panel for: {{ .meetName }}</h1>
 
 <h2>Current Occupants</h2>
+
+<!--table-->
 <table class="admin-table">
   <thead>
   <tr>
@@ -57,7 +62,7 @@
     <td>{{ .occupancy.RightUser }}</td>
     <td>
       {{ if .occupancy.RightUser }}
-      <form action="/admin/force-vacate" method="POST">
+      <form action="/force-vacate" method="POST">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
         <input type="hidden" name="position" value="right">
         <button type="submit">Vacate</button>
@@ -70,14 +75,6 @@
   </tbody>
 </table>
 
-<!-- full instance reset section -->
-<h2>Full Instance Reset</h2>
-<p>This will log out all users and reset all referee positions for this meet.</p>
-<form method="POST" action="/admin/reset-instance">
-  <input type="hidden" name="meetName" value="{{ .meetName }}">
-  <button type="submit">Reset Meet</button>
-</form>
-
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     // fetch the list of active users
@@ -85,7 +82,7 @@
             .then(response => response.json())
             .then(data => {
               let select = document.getElementById("username");
-              select.innerHTML = ""; // Clear previous options
+              select.innerHTML = "";  // clear previous options
               data.users.forEach(user => {
                 let option = document.createElement("option");
                 option.value = user;
@@ -127,10 +124,6 @@
   });
 </script>
 
-<h2>Logout (Meet Director)</h2>
-<form action="/logout" method="GET">
-  <button type="submit">Logout</button>
-</form>
 
 <div class="logo-container">
   <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>

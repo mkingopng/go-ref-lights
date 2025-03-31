@@ -3,9 +3,7 @@
 package websocket
 
 import (
-	"context"
 	"encoding/json"
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"time"
 
 	"go-ref-lights/logger"
@@ -16,23 +14,21 @@ var sleepFunc = time.Sleep
 
 // StartNextAttemptTimer is an exported wrapper that triggers the next attempt timer for the given meet.
 func StartNextAttemptTimer(meetState *MeetState) {
+	// check if the meetState is nil
 	if defaultTimerManager == nil {
 		logger.Error.Println("[StartNextAttemptTimer] defaultTimerManager is nil!")
 		return
 	}
+	// check if the meetState is nil
 	defaultTimerManager.startNextAttemptTimer(meetState)
 }
 
 // HandleMessages listens for messages on the broadcast channel and distributes them to connections.
 func HandleMessages() {
-	rootCtx := context.Background()
 
 	for {
 		// read incoming message from the broadcast channel
 		msg := <-broadcast
-
-		// create a subsegment for this broadcast iteration
-		_, bcSeg := xray.BeginSubsegment(rootCtx, "HandleBroadcast")
 
 		// parse and annotate
 		var msgMap map[string]interface{}
@@ -41,19 +37,9 @@ func HandleMessages() {
 		if err := json.Unmarshal(msg, &msgMap); err == nil {
 			if m, ok := msgMap["meetName"].(string); ok {
 				meetFilter = m
-				if bcSeg != nil {
-					_ = bcSeg.AddAnnotation("meetFilter", meetFilter)
-				}
 			}
 		} else {
-			if bcSeg != nil {
-				_ = bcSeg.AddAnnotation("unmarshalError", err.Error())
-			}
-		}
-
-		// optionally note msg size
-		if bcSeg != nil {
-			_ = bcSeg.AddAnnotation("msgLength", len(msg))
+			logger.Debug.Printf("[HandleMessages] JSON unmarshal error: %v", err)
 		}
 
 		// acquire lock, broadcast to each connection
@@ -67,17 +53,9 @@ func HandleMessages() {
 				// message queued
 			default:
 				logger.Warn.Printf("[HandleMessages] Dropping broadcast msg for %v", c.conn.RemoteAddr())
-				if bcSeg != nil {
-					_ = bcSeg.AddAnnotation("droppedMsg", c.conn.RemoteAddr().String())
-				}
 			}
 		}
 		connectionsMu.RUnlock()
-
-		// close subsegment explicitly
-		if bcSeg != nil {
-			bcSeg.Close(nil)
-		}
 	}
 }
 

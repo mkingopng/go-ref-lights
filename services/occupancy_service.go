@@ -2,11 +2,9 @@
 package services
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"go-ref-lights/models"
 	"os"
 	"sync"
@@ -18,8 +16,10 @@ import (
 // Global mutex + map remain the same
 var occupancyMutex sync.Mutex
 
+// occupancyMap holds the occupancy state for each meetName.
 var occupancyMap = make(map[string]*Occupancy)
 
+// GlobalMeetCredentials holds the credentials for the meet.
 var GlobalMeetCredentials *models.MeetCreds
 
 // Occupancy holds occupant data for each position plus a timestamp.
@@ -52,6 +52,7 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
+	// get the occupancy record for the meet
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		occ = &Occupancy{}
@@ -63,21 +64,11 @@ func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 
 // SetPosition seats a user at a given position, allowing them to re-enter the seat if they’re already occupant.
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
-	_, seg := xray.BeginSegment(context.Background(), "SetPosition") // safely start a root segment
-	if seg != nil {
-		defer seg.Close(nil)
-	}
-
-	// only annotate if we got a real subsegment.
-	if seg != nil {
-		_ = seg.AddAnnotation("meet", meetName)
-		_ = seg.AddAnnotation("position", position)
-		_ = seg.AddAnnotation("user", userEmail)
-	}
-
+	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
+	// get the occupancy record for the meet
 	occ, exists := occupancyMap[meetName]
 	if !exists {
 		occ = &Occupancy{}
@@ -147,18 +138,6 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
-	_, seg := xray.BeginSegment(context.Background(), "UnsetPosition")
-	if seg != nil {
-		defer seg.Close(nil)
-	}
-
-	// only annotate if we got a real subsegment.
-	if seg != nil {
-		_ = seg.AddAnnotation("meet", meetName)
-		_ = seg.AddAnnotation("position", position)
-		_ = seg.AddAnnotation("user", userEmail)
-	}
-
 	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
@@ -213,9 +192,9 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 
 // ResetOccupancyForMeet clears all occupant fields for the specified meet
 func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
+	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
-
 	logger.Info.Printf("[ResetOccupancyForMeet] Clearing all positions for meet=%s", meetName)
 
 	// clear all occupant fields
@@ -228,6 +207,7 @@ func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
 
 // TouchActivity updates the LastUpdated timestamp for the given meet
 func (s *OccupancyService) TouchActivity(meetName string) {
+	// ignore errors from AddAnnotation, or handle them
 	if occ, exists := occupancyMap[meetName]; exists {
 		occ.LastUpdated = time.Now()
 		logger.Debug.Printf("[TouchActivity] Updated LastUpdated for meet=%s to %v", meetName, occ.LastUpdated)
@@ -238,9 +218,11 @@ func (s *OccupancyService) TouchActivity(meetName string) {
 func LoadJSONFile(path string, target interface{}) error {
 	// #nosec G304
 	data, err := os.ReadFile(path)
+	//
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %w", path, err)
 	}
+	// Unmarshal the JSON data into the target struct
 	if err := json.Unmarshal(data, target); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
@@ -254,6 +236,7 @@ func LoadBasicMeets() (*models.BasicMeets, error) {
 		path = env
 	}
 
+	// Load the JSON file
 	var basic models.BasicMeets
 	if err := LoadJSONFile(path, &basic); err != nil {
 		return nil, err
@@ -263,11 +246,13 @@ func LoadBasicMeets() (*models.BasicMeets, error) {
 
 // LoadMeetCredentials Loads the meet credentials from config/meet_creds.json
 func LoadMeetCredentials() (*models.MeetCreds, error) {
+	//
 	path := "config/meet_creds.json"
 	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
 		path = env
 	}
 
+	// Load the JSON file
 	var creds models.MeetCreds
 	if err := LoadJSONFile(path, &creds); err != nil {
 		return nil, err
@@ -275,10 +260,12 @@ func LoadMeetCredentials() (*models.MeetCreds, error) {
 	return &creds, nil
 }
 
+// SetGlobalMeetCredentials sets the global meet credentials
 func SetGlobalMeetCredentials(c *models.MeetCreds) {
 	GlobalMeetCredentials = c
 }
 
+// GetGlobalMeetCredentials returns the global meet credentials
 func GetGlobalMeetCredentials() *models.MeetCreds {
 	return GlobalMeetCredentials
 }

@@ -1,10 +1,5 @@
 run app locally
 ```bash
-go run ./cmd/referee-lights
-```
-
-or
-```bash
 go run cmd/referee-lights/main.go
 ```
 
@@ -13,6 +8,7 @@ or run from docker:
 docker run -e ENV=development -p 8080:8080 referee-lights
 ```
 
+-------------------------------
 run all tests
 ```bash
 go test -v ./...
@@ -32,20 +28,15 @@ go test -v -tags=unit ./websocket
 go test -v -tags=unit ./controllers
 ```
 
-run x-ray
-```bash
-aws xray get-trace-summaries \
-  --start-time "$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)" \
-  --end-time "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-```
-
 ----------
 
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
-
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
-
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
+
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/right
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/center
+https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/left
 
 ------------------------
 # test coverage
@@ -102,7 +93,6 @@ k6 run --out json=test/k6/results.json tests/k6/script.js
 ```
 
 ---------------------------------------
-
 # Best Practices for Maintaining Unit Tests
 Since we’re writing **a large number of tests**, here are **best practices** to
 ensure long-term maintainability:
@@ -152,7 +142,6 @@ Write tests in a **clear, structured way**:
 - **Focus on high-risk areas first**.
 
 -----------------
-
 # tasks
 1. Integration tests
     - Login + Session Management → Ensure login persists a session.
@@ -186,45 +175,6 @@ Write tests in a **clear, structured way**:
 7. logout from anywhere
 8. reset meet state
 9. sudo page
-
----
-
-# Improvements and bugs
-1. When a referee is in position, if they look at another page or app on
-   their phone, it can cause the health check to fail. Ideally, the
-   healthy connection should be maintained regardless of what the user does
-   on their phone, as long as the browser window is open. However, if, for
-   whatever reason, the connection becomes unhealthy, the user should be
-   able to refresh the page and rejoin the meet without any issues. This is
-   not always happening as it should. In many cases, when I hit refresh, I get
-   a 404 error. Refer to the screenshots attached
-2. There are many mechanisms for the referee to vacate their position,
-   or log out however only the admin panel is working correctly. The other
-   mechanisms don't work correctly.
-   - On the referee screen, there is a button called vacate position. see
-     attached image. When this button is pressed it should vacate the position
-     and take the user back to /index. However, it does not do this. The
-     user gets a 404 error. Refer to the screenshots attached. This is not
-     the correct behaviour. We need to correct this. What should happen is a
-     redirect to /index.
-   - The referee screen has a button called logout. When this button is
-     pressed, the user should be logged out and taken back to the login
-     page. This doesn't happen. The user gets a 404 error. Refer to the
-     screenshot. we need to fix this. What should happen is the user is
-     logged out from that when the button is pressed, the referee is taken
-     back to /index where they can take on a new position.
-   - the referee page has a button called Home. we should remove this button
-     as it is not needed.
-   - When the referee logs out the meet persists
-   - When the admin logs out the meet resets
-3. There needs to be a super-user or sudo role who can log into
-   any meet and take control as a fall-back position. This is not yet built in
-   to the functionality. Not sure how to implement this yet.
-4. Need to implement dynamic logo. Most meets currently use the APL logo,
-   however more and more meets will use specific logos. In anticipation of
-   this i have included logo in the meet.go data structure but it is not
-   used anywhere yet. Need to implement this.
-5. Review the CDK code and optimise. Consider how to scale to zero
 
 -------
 
@@ -612,9 +562,10 @@ You’ve mentioned you want a more comprehensive test suite. Right now, the code
 
 ### Summary of key “next steps”
 1. Make sure all docstrings and comments **reflect the actual code** after you unify the logic for meeting selection, seat vacancy, etc.
-2. super user code & functionality
+2. sudo code & functionality
 3. testing suite
 4. CDK code improvements
-5. remove x-ray or fix it
-6. fix all remaining warnings, TODO and FIX_ME
-7. format logout page
+5. fix all remaining warnings, TODO and FIX_ME
+6. format logout page
+7. general formatting issues
+8. fix samsumg issues

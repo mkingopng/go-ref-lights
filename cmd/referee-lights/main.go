@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -54,20 +53,51 @@ func SetupRouter(env string) *gin.Engine {
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   86400, // 1 day
-		HttpOnly: true,
-		Secure:   true,                  // correct for real HTTPS
-		SameSite: http.SameSiteNoneMode, // <-- Add this
+		MaxAge:   86400,
+		HttpOnly: true, // In production, set Secure: true (requires HTTPS)
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode, // Ensure that your environment actually supports cross-site usage if needed
 	})
 	router.Use(sessions.Sessions("mySession", store))
 
 	// basic security headers
 	router.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("X-Frame-Options", "ALLOW-FROM https://referee-lights.michaelkingston.com.au")
+		c.Writer.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://referee-lights.michaelkingston.com.au;")
 		c.Next()
 	})
 
-	// disable HTTP caching
+	// ---------------- Security Headers Middleware ----------------
+	router.Use(func(c *gin.Context) {
+		// Strict-Transport-Security (only if you serve HTTPS in prod)
+		// Tells browsers to only connect via HTTPS for the next 31536000 seconds (~1 year).
+		if env == "production" {
+			c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+		}
+
+		// Content-Security-Policy (example: limit frames to self and a specific domain)
+		// Adjust frame-ancestors or other directives as needed:
+		c.Writer.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://referee-lights.michaelkingston.com.au;")
+
+		// X-Frame-Options (older header for clickjacking protection) — SAMEORIGIN or DENY are common
+		c.Writer.Header().Set("X-Frame-Options", "SAMEORIGIN")
+
+		// X-Content-Type-Options helps prevent MIME-type sniffing
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+
+		// Referrer-Policy (control what referrer info is sent)
+		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+
+		// Permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
+		c.Writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+
+		// You could also add X-XSS-Protection (legacy IE/Chrome); modern browsers mostly ignore it now:
+		// c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+
+		// End security headers; proceed to next handler
+		c.Next()
+	})
+
+	// Disable HTTP caching (optional: suitable if you want no caching of dynamic pages)
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", "no-store, must-revalidate")
 		c.Writer.Header().Set("Pragma", "no-cache")
@@ -80,15 +110,21 @@ func SetupRouter(env string) *gin.Engine {
 
 	// simple log endpoint
 	router.POST("/log", func(c *gin.Context) {
+
+		// parse the JSON payload
 		var payload struct {
 			Message string `json:"message"`
 			Level   string `json:"level"`
 		}
+
+		// bind JSON payload
 		if err := c.ShouldBindJSON(&payload); err != nil {
 			logger.Warn.Printf("[SetupRouter /log] Invalid log payload: %v", err)
 			c.Status(http.StatusBadRequest)
 			return
 		}
+
+		// log the message based on level
 		switch payload.Level {
 		case "error":
 			logger.Error.Println(payload.Message)
@@ -112,32 +148,26 @@ func SetupRouter(env string) *gin.Engine {
 	router.POST("/set-meet", controllers.SetMeetHandler)
 	router.GET("/login", controllers.PerformLogin)
 	router.POST("/login", controllers.LoginHandler)
-	router.GET("/logged-out", func(c *gin.Context) {
-		// render a super simple page saying "You are now logged out"
-		c.HTML(http.StatusOK, "logged-out.html", gin.H{
-			"Title": "You are now logged out",
-		})
-	})
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) })
 	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })
 	router.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*.html")))
-
+	router.GET("/logged-out", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "logged-out.html", gin.H{"Title": "You are now logged out"})
+	})
+	// Enforcement: require meetName in session for protected routes
 	router.Use(func(c *gin.Context) {
-		// skip for static
+		// skip if static or login/logout
 		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
 			c.Next()
 			return
 		}
-
-		// skip for /login, /logout, /referee-updates
 		if c.Request.URL.Path == "/login" ||
 			c.Request.URL.Path == "/logout" ||
 			c.Request.URL.Path == "/referee-updates" {
 			c.Next()
 			return
 		}
-
-		// otherwise enforce meetName in session
+		// otherwise enforce that meetName is in session
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {
 			c.Redirect(http.StatusFound, "/")
@@ -204,6 +234,7 @@ func SetupRouter(env string) *gin.Engine {
 	return router
 }
 
+// Heartbeat tracking
 var (
 	refereeSessions = make(map[string]time.Time)
 	sessionLock     = sync.Mutex{}
@@ -218,18 +249,18 @@ type Manager struct {
 // Handler updates the last seen timestamp of a referee
 func Handler(w http.ResponseWriter, r *http.Request) {
 	// Start a subsegment, but it may return nil if there's no parent segment
-	ctx, seg := xray.BeginSubsegment(r.Context(), "HeartbeatHandler")
-	if seg != nil {
-		defer seg.Close(nil)
-	}
+	//ctx, seg := xray.BeginSubsegment(r.Context(), "HeartbeatHandler")
+	//if seg != nil {
+	//	defer seg.Close(nil)
+	//}
 
 	// update request's context in case anything else reads it
-	r = r.WithContext(ctx)
+	//r = r.WithContext(ctx)
 
 	refereeID := r.URL.Query().Get("referee_id")
-	if refereeID != "" && seg != nil {
-		_ = seg.AddAnnotation("refereeID", refereeID)
-	}
+	//if refereeID != "" && seg != nil {
+	//	_ = seg.AddAnnotation("refereeID", refereeID)
+	//}
 
 	if refereeID == "" {
 		logger.Warn.Println("[Handler] Missing referee ID in query params")
@@ -332,21 +363,6 @@ func main() {
 	// announce start
 	logger.Info.Println("[main] Starting application on port :8080")
 
-	// setup the router
-	router := SetupRouter(env)
-
-	// optional: Set X-Ray config
-	err = xray.Configure(xray.Config{
-		ServiceVersion: "1.0.0",
-	})
-	if err != nil {
-		return
-	}
-
-	// wrap router with X-Ray middleware
-	xraySegmentNamer := xray.NewFixedSegmentNamer("RefereeLightsApp")
-	xrayHandler := xray.Handler(xraySegmentNamer, router)
-
 	// start background routines
 	hbManager := NewHeartbeatManager()
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
@@ -370,7 +386,6 @@ func main() {
 	// create an HTTP server with timeouts
 	server := &http.Server{
 		Addr:         addr,
-		Handler:      xrayHandler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,
