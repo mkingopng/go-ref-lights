@@ -10,11 +10,12 @@
 <body>
 <header class="site-header">
     <nav class="nav-container">
+        <!--logout-->
         <form action="/logout" method="GET" class="nav-form">
             <button type="submit" class="nav-button">Logout</button>
         </form>
 
-        <!-- === NEW: "Reset Meet" button in header === -->
+        <!-- reset meet -->
         <form method="POST" action="/admin/reset-instance" class="nav-form">
             <input type="hidden" name="meetName" value="{{ .meetName }}">
             <button type="submit" class="nav-button">Reset Meet</button>

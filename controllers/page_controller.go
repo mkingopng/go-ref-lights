@@ -101,9 +101,9 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 
 	// final redirect
 	if isAdmin {
-		// meet director => redirect to /login
-		logger.Info.Println("[Logout] Admin user. Redirecting to /login")
-		c.Redirect(http.StatusFound, "/login")
+		// meet director => redirect to /set-meet
+		logger.Info.Println("[Logout] Admin user. Redirecting to /set-meet")
+		c.Redirect(http.StatusFound, "/set-meet")
 	} else {
 		// referee => redirect to /logged-out (or your new page)
 		logger.Info.Println("[Logout] Referee user. Redirecting to /logged-out")
