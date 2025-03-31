@@ -372,12 +372,15 @@ func main() {
 	}
 	addr := host + ":" + port
 
+	router := SetupRouter(env)
+
 	// create an HTTP server with timeouts
 	server := &http.Server{
 		Addr:         addr,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,
+		Handler:      router,
 	}
 
 	logger.Info.Printf("[main] Server running on %s", addr)
