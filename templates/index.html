@@ -10,14 +10,6 @@
 
 <h1>Referee Positions for {{ .meetName }}</h1>
 
-{{ if .IsSudo }}
-<p>
-  <a href="/sudo">
-    <button>Go to Sudo Dashboard</button>
-  </a>
-</p>
-{{ end }}
-
 <div class="qr-code-container">
   <div class="qr-code-item">
     <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
