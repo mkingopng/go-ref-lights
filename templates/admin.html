@@ -62,7 +62,7 @@
     <td>{{ .occupancy.RightUser }}</td>
     <td>
       {{ if .occupancy.RightUser }}
-      <form action="/admin/force-vacate" method="POST">
+      <form action="/force-vacate" method="POST">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
         <input type="hidden" name="position" value="right">
         <button type="submit">Vacate</button>
