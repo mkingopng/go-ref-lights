@@ -53,7 +53,7 @@ func SetupRouter(env string) *gin.Engine {
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   86400,
+		MaxAge:   5400,
 		HttpOnly: true, // In production, set Secure: true (requires HTTPS)
 		Secure:   true,
 		SameSite: http.SameSiteNoneMode, // Ensure that your environment actually supports cross-site usage if needed
@@ -157,12 +157,20 @@ func SetupRouter(env string) *gin.Engine {
 			c.Next()
 			return
 		}
+
+		// let "/referee/:meetName/:position" proceed even if no session
+		if strings.HasPrefix(c.Request.URL.Path, "/referee/") {
+			c.Next()
+			return
+		}
+
 		if c.Request.URL.Path == "/login" ||
 			c.Request.URL.Path == "/logout" ||
 			c.Request.URL.Path == "/referee-updates" {
 			c.Next()
 			return
 		}
+
 		// otherwise enforce that meetName is in session
 		session := sessions.Default(c)
 		if _, ok := session.Get("meetName").(string); !ok {

@@ -182,6 +182,7 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
+
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
 		meetName, _ = session.Get("meetName").(string)
@@ -194,10 +195,12 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 
 	logger.Info.Printf("[ResetInstance] Resetting meet '%s'", meetName)
 
-	// clear active users
+	// clear all active users so none are "already logged in" for the old meet
+	ActiveUsersMu.Lock()
 	ActiveUsers = make(map[string]bool)
+	ActiveUsersMu.Unlock()
 
-	// reset occupancy
+	// reset occupancy for the old meet
 	ac.OccupancyService.ResetOccupancyForMeet(meetName)
 	ac.PositionController.BroadcastOccupancy(meetName)
 
