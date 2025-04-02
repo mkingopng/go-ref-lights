@@ -32,9 +32,9 @@ http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
 http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
 
-https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/right
-https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/center
-https://referee-lights.michaelkingston.com.au/referee/Queensland%20Drug-Tested%20Raw%20States/left
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/right
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/center
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/left
 ------------------------
 # test coverage
 
