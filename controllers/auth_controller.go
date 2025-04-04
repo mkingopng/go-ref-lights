@@ -15,7 +15,6 @@ import (
 )
 
 // ---------- global variables ----------
-var isSudo bool
 
 // ActiveUsers tracks currently logged-in users.
 var ActiveUsers = make(map[string]bool)
