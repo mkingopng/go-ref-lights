@@ -1,6 +1,23 @@
 {
   "meets": [
     {
+      "name": "test mule",
+      "date": "April 5",
+      "admin": {
+        "username": "test",
+        "password": "mule",
+        "isadmin": true
+      },
+      "secondaryAdmins": [
+        {
+          "username": "test2",
+          "password": "mule2",
+          "isadmin": true
+        }
+      ],
+      "logo": "/static/images/APL_logo_white.png"
+    },
+    {
       "name": "Lift3 Heavy Hitters",
       "date": "April 5",
       "admin": {
