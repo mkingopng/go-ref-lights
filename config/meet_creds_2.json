@@ -56,7 +56,7 @@
       "date": "April 6",
       "admin": {
         "username": "sudo",
-        "password": "Pzuf9x",
+        "password": "sudo",
         "isadmin": true,
         "sudo": true
       },
