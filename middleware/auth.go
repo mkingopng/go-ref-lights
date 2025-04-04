@@ -22,10 +22,12 @@ func AuthRequired(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
 
+	logger.Debug.Printf("[AuthRequired] Checking session for user. user=%v (type=%T), remoteAddr=%s",
+		user, user, c.Request.RemoteAddr)
+
 	// block request if user session is missing
 	if user == nil {
-		logger.Warn.Printf("[AuthRequired] No user found in session (user=%v). Redirecting to /choose-meet",
-			session.Get("user"))
+		logger.Warn.Printf("[AuthRequired] user is nil => redirecting to /choose-meet. Possibly missing cookie.")
 		c.Redirect(http.StatusFound, "/choose-meet")
 		c.Abort() // prevents further execution
 		return

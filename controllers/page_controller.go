@@ -56,7 +56,6 @@ func Health(c *gin.Context) {
 // Logout logs the user out, removes them from ActiveUsers, vacates their
 // position, and redirects to login.
 func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface) {
-
 	// session data
 	session := sessions.Default(c)
 	userEmail, _ := session.Get("user").(string)
@@ -246,10 +245,17 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	meetNameParam := c.Param("meetName")
 	position := c.Param("position")
 
+	logger.Debug.Printf("[RefereeHandler] BEGIN. QR code requested: meetName=%s, position=%s, remoteAddr=%s",
+		meetNameParam, position, c.Request.RemoteAddr)
+
 	// retrieve session data
 	session := sessions.Default(c)
 	occupant, occupantExists := session.Get("user").(string)
 	storedMeet, storedMeetExists := session.Get("meetName").(string)
+
+	// log what’s in session right away
+	logger.Debug.Printf("[RefereeHandler] occupantExists=%v occupant=%q storedMeetExists=%v storedMeet=%q",
+		occupantExists, occupant, storedMeetExists, storedMeet)
 
 	// if the session already has a meetName but it differs from the route param, handle it
 	if storedMeetExists && storedMeet != "" && storedMeet != meetNameParam {
@@ -265,11 +271,13 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	// if occupant doesn’t exist, create a new occupant name
 	if !occupantExists || occupant == "" {
 		occupant = getNextAnonymousName()
+		logger.Debug.Println("[RefereeHandler] occupant not found in session. Generating an anonymous occupant name.")
 	}
 
 	// if the session had no meet set, or it was empty, store the new one
 	if !storedMeetExists || storedMeet == "" {
 		session.Set("meetName", meetNameParam)
+		logger.Debug.Printf("[RefereeHandler] Setting meetName=%s in session", meetNameParam)
 	}
 
 	// attempt to claim the seat
@@ -283,8 +291,13 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	// store occupant + position in session
 	session.Set("user", occupant)
 	session.Set("refPosition", position)
+	logger.Debug.Printf("[RefereeHandler] Set session user=%s refPosition=%s. Now saving session...", occupant, position)
+
+	// save session
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[RefereeHandler] Failed to save session occupant=%s: %v", occupant, err)
+	} else {
+		logger.Debug.Printf("[RefereeHandler] session.Save() succeeded for occupant=%s", occupant)
 	}
 
 	// 7) Render the correct referee view
