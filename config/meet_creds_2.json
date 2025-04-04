@@ -11,7 +11,7 @@
       "secondaryAdmins": [
         {
           "username": "test2",
-          "password": "test2",
+          "password": "mule2",
           "isadmin": true
         }
       ],
@@ -50,13 +50,25 @@
         }
         ],
       "logo": "/static/images/APL_logo_white.png"
+    },
+    {
+      "name": "Sudo",
+      "date": "April 6",
+      "admin": {
+        "username": "sudo",
+        "password": "Pzuf9x",
+        "isadmin": true,
+        "sudo": true
+      },
+      "secondaryAdmins": [
+        {
+          "username": "sudo2",
+          "password": "Pzuf9x",
+          "isadmin": true,
+          "sudo": true
+        }
+      ],
+      "logo": "/static/images/APL_logo_white.png"
     }
-  ],
-  "superuser": {
-    "username": "sudo",
-    "password": "Pzuf9x",
-    "isadmin": true,
-    "sudo": true,
-    "logo": "/static/images/APL_logo_white.png"
-  }
+  ]
 }
