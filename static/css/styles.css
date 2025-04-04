@@ -205,7 +205,7 @@ input[type="submit"]:hover {
 
 .logo-container img {
     max-width: 600px;
-    width: 100%;
+    width: auto;
     height: auto;
     opacity: 0.8;
 }
