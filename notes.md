@@ -28,9 +28,9 @@ go test -v -tags=unit ./websocket
 go test -v -tags=unit ./controllers
 ```
 ----------
-https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/right
-https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/center
-https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/left
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Hitters/right
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Hitters/center
+https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20%Hitters/left
 ------------------------
 # test coverage
 
@@ -465,7 +465,9 @@ class RefereeLightsCdkStack(Stack):
 ```
 # some simple real tests
 
-Below is a concise list of scenarios you can methodically run through in the remaining time, covering each major flow. If all (or most) of these work as expected, you’ll be in a good place for your presentation.
+Below is a concise list of scenarios you can methodically run through in
+the remaining time, covering each major flow. If all (or most) of these
+work as expected, you’ll be in a good place for your presentation.
 
 1. Single-User (Referee) Flows
 
@@ -560,3 +562,4 @@ Below is a concise list of scenarios you can methodically run through in the rem
 4. CDK code improvements
 5. fix all remaining warnings, TODO and FIX_ME
 6. fix samsung issues
+7. prune unused code
