@@ -11,7 +11,7 @@
       "secondaryAdmins": [
         {
           "username": "test2",
-          "password": "mule2",
+          "password": "test2",
           "isadmin": true
         }
       ],

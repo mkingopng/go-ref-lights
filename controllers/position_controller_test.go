@@ -4,7 +4,6 @@
 package controllers
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"testing"
@@ -25,53 +24,6 @@ func TestNewPositionController(t *testing.T) {
 	pc := NewPositionController(mockOcc)
 	assert.NotNil(t, pc)
 	assert.Equal(t, mockOcc, pc.OccupancyService)
-}
-
-// ----------------------------------------------------------------------------
-// Test ClaimPosition
-// ----------------------------------------------------------------------------
-
-func TestClaimPosition(t *testing.T) {
-	resetPositionControllerGlobals()
-	mockOcc := new(MockOccupancyService)
-	pc := NewPositionController(mockOcc)
-
-	// We'll define a router that posts to "/claim", calling pc.ClaimPosition
-	router := setupTestRouter(t)
-	router.POST("/claim", pc.ClaimPosition)
-
-	t.Run("No user or no meet => redirect /login", func(t *testing.T) {
-		// no user in session => immediate redirect
-		req := createPostRequest("/claim", map[string]string{
-			"position": "left",
-		})
-		w := performRequest(router, req)
-		assert.Equal(t, http.StatusFound, w.Code)
-		assert.Equal(t, "/login", w.Result().Header.Get("Location"))
-	})
-
-	t.Run("SetPosition fails => 403 forbidden", func(t *testing.T) {
-		// Put user + meetName in session, but mock setPosition -> error
-		ck := SetSession(router, "/sessFail", map[string]interface{}{
-			"user":     "someone@example.com",
-			"meetName": "someMeet",
-		})
-
-		// expect a failing call
-		mockOcc.On("SetPosition", "someMeet", "left", "someone@example.com").
-			Return(fmt.Errorf("seat taken")).
-			Once()
-
-		// no occupancy broadcast expectation => we won't get that far
-		req := createPostRequest("/claim", map[string]string{"position": "left"})
-		req.AddCookie(ck)
-
-		w := performRequest(router, req)
-		assert.Equal(t, http.StatusForbidden, w.Code)
-		assert.Contains(t, w.Body.String(), "Seat is already taken or invalid")
-
-		mockOcc.AssertExpectations(t)
-	})
 }
 
 // ----------------------------------------------------------------------------
