@@ -205,7 +205,7 @@ input[type="submit"]:hover {
 
 .logo-container img {
     max-width: 600px;
-    width: 100%;
+    width: auto;
     height: auto;
     opacity: 0.8;
 }
@@ -547,4 +547,23 @@ input[type="submit"]:hover {
     text-align: center;
     width: max-content;         /* shrink to fit the text */
     transition: all 0.3s ease;  /* smooth hover transitions if you want them */
+}
+
+/* A styled dropdown that mimics the action-button look */
+.styled-select {
+    background-color: #3A5DAB;  /* Same color as .action-button */
+    color: #fff;
+    padding: 10px 20px;
+    border: 2px solid #3A5DAB;
+    border-radius: 5px;
+    font-size: 16px;
+    margin: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.styled-select:hover,
+.styled-select:focus {
+    background-color: #2980b9;  /* Same hover effect as .action-button */
+    border-color: #2980b9;
+    outline: none;
 }

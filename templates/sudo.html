@@ -10,18 +10,36 @@
     <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 <body>
+
+<!-- common header -->
+{{template "header.html" .}}
+
 <h1>Sudo Dashboard - All Meets</h1>
 
+<!-- a dropdown to quickly jump to a specific meet’s anchor -->
+<div style="margin-bottom: 20px; text-align:center;">
+    <label for="meetDropdown">Jump to a Meet:</label>
+    <select id="meetDropdown" class="styled-select" onchange="location.hash = this.value">
+        {{ range .meetsOccupancy }}
+        <option value="{{ .meetName }}">{{ .meetName }}</option>
+        {{ end }}
+    </select>
+</div>
+
+<!-- loop over all meets; each one gets a table with our "admin-table" class -->
 {{ range .meetsOccupancy }}
-<section class="sudo-meet-block">
+<section class="sudo-meet-block" id="{{ .meetName }}">
     <h2>Meet: {{ .meetName }}</h2>
 
-    <table>
+    <table class="admin-table">
+        <thead>
         <tr>
             <th>Position</th>
             <th>Occupant</th>
             <th>Action</th>
         </tr>
+        </thead>
+        <tbody>
         <tr>
             <td>Left</td>
             <td>{{ .leftUser }}</td>
@@ -30,7 +48,8 @@
                 <form action="/sudo/force-vacate-ref" method="POST">
                     <input type="hidden" name="meetName" value="{{ .meetName }}">
                     <input type="hidden" name="position" value="left">
-                    <button type="submit">Force Vacate</button>
+                    <!-- class="action-button" -->
+                    <button type="submit" class="action-button">Force Vacate</button>
                 </form>
                 {{ else }}
                 N/A
@@ -45,7 +64,7 @@
                 <form action="/sudo/force-vacate-ref" method="POST">
                     <input type="hidden" name="meetName" value="{{ .meetName }}">
                     <input type="hidden" name="position" value="center">
-                    <button type="submit">Force Vacate</button>
+                    <button type="submit" class="action-button">Force Vacate</button>
                 </form>
                 {{ else }}
                 N/A
@@ -60,22 +79,23 @@
                 <form action="/sudo/force-vacate-ref" method="POST">
                     <input type="hidden" name="meetName" value="{{ .meetName }}">
                     <input type="hidden" name="position" value="right">
-                    <button type="submit">Force Vacate</button>
+                    <button type="submit" class="action-button">Force Vacate</button>
                 </form>
                 {{ else }}
                 N/A
                 {{ end }}
             </td>
         </tr>
+        </tbody>
     </table>
 
     <!-- Full instance reset for this meet -->
     <h3>Reset / Clear This Meet</h3>
     <form method="POST" action="/sudo/restart-meet">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <button type="submit">Restart/Reset</button>
+        <!-- class="action-button" -->
+        <button type="submit" class="action-button">Restart/Reset</button>
     </form>
-
     <hr>
 </section>
 {{ end }}
@@ -83,13 +103,14 @@
 <!-- Force-logout form for any user in ActiveUsers -->
 <h2>Force-Logout a User</h2>
 <p>
-    <select id="username">User Name</select>
-    <button id="forceLogoutBtn">Force Logout</button>
+    <!-- class="styled-select" for user dropdown -->
+    <label for="username">Select a User:</label>
+    <select id="username" class="styled-select">User Name</select>
+    <button id="forceLogoutBtn" class="action-button">Force Logout</button>
 </p>
 <p id="logoutStatus"></p>
 
 <script>
-    // Example: fetch active user list & handle forced logout
     document.addEventListener("DOMContentLoaded", function() {
         function loadActiveUsers() {
             fetch("/active-users")
@@ -119,11 +140,16 @@
                 .then(resp => resp.text())
                 .then(txt => {
                     document.getElementById("logoutStatus").textContent = txt;
-                    loadActiveUsers(); // Refresh after logging someone out
+                    loadActiveUsers();
                 })
                 .catch(err => console.error("Error forcing logout:", err));
         });
     });
 </script>
+
+<div class="logo-container">
+    <img src="{{ .SudoLogo }}" alt="Superuser Logo" style="max-height:100px;" />
+</div>
+
 </body>
 </html>
