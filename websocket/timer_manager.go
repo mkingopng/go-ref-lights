@@ -175,6 +175,7 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 				if timeLeft <= 0 {
 					logger.Info.Printf("[startPlatformReadyTimer] Timer reached 0; marking expired for meet='%s'",
 						meetState.MeetName)
+					tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", 0, 0, meetState.MeetName)
 					tm.Messenger.BroadcastRaw([]byte(`{"action":"platformReadyExpired"}`))
 					meetState.PlatformReadyActive = false
 					meetState.PlatformReadyEnd = time.Time{}
