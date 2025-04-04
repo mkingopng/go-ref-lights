@@ -319,7 +319,7 @@ func main() {
 	if env == "" {
 		env = "production"
 	}
-	logger.SetLogLevel(env)
+	//logger.SetLogLevel(env)
 
 	// optionally defer close:
 	defer func() {
