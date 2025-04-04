@@ -12,23 +12,24 @@
 <body>
 
 <!-- common header -->
-{{template "header.html" .}}
+{{ template "header.html" . }}
 
 <h1>Sudo Dashboard - All Meets</h1>
 
-<!-- dropdown to jump to a specific meet’s anchor -->
+<!-- dropdown to select a meet; we will hide/show meets via JavaScript -->
 <div style="margin-bottom: 20px; text-align:center;">
     <label for="meetDropdown">Jump to a Meet:</label>
-    <select id="meetDropdown" class="styled-select" onchange="location.hash = this.value">
+    <select id="meetDropdown" class="styled-select">
+        <!-- this builds one <option> per meet -->
         {{ range .meetsOccupancy }}
         <option value="{{ .meetName }}">{{ .meetName }}</option>
         {{ end }}
     </select>
 </div>
 
-<!-- loop over all meets; each one gets a table with our "admin-table" class -->
+<!-- we render each meet in a separate, hidden by default. -->
 {{ range .meetsOccupancy }}
-<section class="sudo-meet-block" id="{{ .meetName }}">
+<section class="sudo-meet-block" id="{{ .meetName }}" style="display: none;">
     <h2>Meet: {{ .meetName }}</h2>
 
     <table class="admin-table">
@@ -92,7 +93,6 @@
     <h3>Reset / Clear This Meet</h3>
     <form method="POST" action="/sudo/restart-meet">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <!-- class="action-button" -->
         <button type="submit" class="action-button">Restart/Reset</button>
     </form>
     <hr>
@@ -109,7 +109,13 @@
 <p id="logoutStatus"></p>
 
 <script>
+    // On DOMContentLoaded, we’ll do three things:
+    // 1) populate the "active users" dropdown
+    // 2) listen for ForceLogout
+    // 3) show the correct meet section if there's a hash, or show the first by default
     document.addEventListener("DOMContentLoaded", function() {
+
+        // 1) load Active Users
         function loadActiveUsers() {
             fetch("/active-users")
                 .then(resp => resp.json())
@@ -125,9 +131,9 @@
                 })
                 .catch(err => console.error("Failed loading active users:", err));
         }
-
         loadActiveUsers();
 
+        // 2) force Logout
         document.getElementById("forceLogoutBtn").addEventListener("click", function() {
             const user = document.getElementById("username").value;
             fetch("/sudo/force-logout-meet-director", {
@@ -142,11 +148,46 @@
                 })
                 .catch(err => console.error("Error forcing logout:", err));
         });
+
+        // 3) meet block show/hide logic
+        const meetSelect = document.getElementById("meetDropdown");
+        const meetBlocks = document.querySelectorAll(".sudo-meet-block");
+
+        // function to hide all meets, then show the selected one
+        function showMeet(meetName) {
+            meetBlocks.forEach(block => {
+                block.style.display = "none";
+            });
+            const selected = document.getElementById(meetName);
+            if (selected) {
+                selected.style.display = "block";
+                // if you want to update the URL hash, do so:
+                location.hash = meetName;
+            }
+        }
+
+        // on dropdown change, show the chosen meet
+        meetSelect.addEventListener("change", function() {
+            showMeet(meetSelect.value);
+        });
+
+        // if there's a hash in the URL, pick that meet. otherwise pick the first one
+        if (location.hash) {
+            const hashMeet = location.hash.substring(1); // remove the '#'
+            meetSelect.value = hashMeet;
+            showMeet(hashMeet);
+        } else {
+            // default to the first meet in the dropdown (if any)
+            if (meetSelect.options.length > 0) {
+                meetSelect.selectedIndex = 0;
+                showMeet(meetSelect.options[0].value);
+            }
+        }
     });
 </script>
 
 <div class="logo-container">
-    <img src="{{ .SudoLogo }}" alt="Superuser Logo" style="max-height:100px;" />
+    <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;" />
 </div>
 
 </body>

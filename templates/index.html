@@ -8,7 +8,7 @@
 
 {{template "header.html" .}}
 
-<h1>Referee Positions for {{ .meetName }}</h1>
+<h1>Referee Positions for: {{ .meetName }}</h1>
 
 <div class="qr-code-container">
   <div class="qr-code-item">
@@ -27,7 +27,7 @@
 
 <div class="button-container">
   <a href="/lights" class="button-link">Lights</a>
-  <a href="/admin?meet={{ .meetName }}" class="button-link">Admin Panel</a>
+  <a href="/admin?meet={{ .meetName }}" class="button-link">Meet Director Panel</a>
 </div>
 
 <div class="logo-container">
