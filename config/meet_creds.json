@@ -5,13 +5,13 @@
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$x9FMZjpSVQU4mtqdVh8bCuTInWJ3IK6o3eSlcZYvwsONFwzj2tlPO",
+                "password": "$2b$12$5K/sezUvr6/qgsRIpLXkgOqETHDxMFGgVgL0Su5f/w603fyy8YPEe",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$Klptk0uyYjY.2PH5fFi/bOtl/0t5OmVFz8vXwUidVwz3dZcOPOKnq",
+                    "password": "$2b$12$pKpv7MGE3vU5.KVpibJ8juNpdXXFf1aRA2iV.sgsmYti8QbEIcYaK",
                     "isadmin": true
                 }
             ],
@@ -22,13 +22,13 @@
             "date": "April 5",
             "admin": {
                 "username": "lift3",
-                "password": "$2b$12$hA2bsd6FWzPvdA2kyQvetuHE6DacCd4WklyY6kQP0.wQmrkDeb92.",
+                "password": "$2b$12$5L7T5qB65i9XogzhTOBhh.4o/U/LIVjCkXYt4rNVxWR0zPt4Z/fRa",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "Lift_3",
-                    "password": "$2b$12$uR6V3I6vxv6neWKDkm3joua24X31kds6neKmYLWkZXxh2yEQUwz5.",
+                    "password": "$2b$12$wOlHBUADCmsyq2ldqEnhA.ZoLnsVAxo.GHnnpSjUrEbi1CkYzjdWi",
                     "isadmin": true
                 }
             ],
@@ -39,13 +39,13 @@
             "date": "April 6",
             "admin": {
                 "username": "vic_states",
-                "password": "$2b$12$jM3365HjjH0CnD2RWXtLK.E1BAHifE.xeWQGz3JIcmZfHn7Tmvk4G",
+                "password": "$2b$12$ZijTN/qsXoGRg6F3nz7bgeqSzqLUVI9eV32Zytv5V0ZgbU7nDPuXq",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "vic_states2",
-                    "password": "$2b$12$IPpQ8QukyXhXbdR5LQqJROSyzAFcnMD/zfSdmza2zRFL.s3hxEvTa",
+                    "password": "$2b$12$8Qv89WXma1/yBDu3D9VTFO6966mVThfLXn.OVAO43M2vueFIiD7mW",
                     "isadmin": true
                 }
             ],
@@ -56,14 +56,14 @@
             "date": "April 6",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$/EYC8OTtlifL4EmEaYL2p..AUA8geutnoFJxtGIx4XAju0hgIoYhW",
+                "password": "$2b$12$2h9BxalzCMZvk/BJ4UBNhOIaZ.fLUAqwBunauCq4EZFwEK6DaH46i",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$vFdB4jOoSxPQ92qplrtKf.gPKVIbqflJRTxBgbqY2W0VctZXU28RK",
+                    "password": "$2b$12$Ww972lqKmJQL4DRPUnccgO/gnkYmfgrrz1ORus4jb69FR6CdJ9P.S",
                     "isadmin": true,
                     "sudo": true
                 }
