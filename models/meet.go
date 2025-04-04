@@ -9,6 +9,7 @@ type Admin struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	IsAdmin  bool   `json:"isadmin"`
+	Sudo     bool   `json:"sudo,omitempty"`
 }
 
 //------------------------ superuser model -----------------------

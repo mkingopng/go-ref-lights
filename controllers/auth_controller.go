@@ -15,6 +15,7 @@ import (
 )
 
 // ---------- global variables ----------
+var isSudo bool
 
 // ActiveUsers tracks currently logged-in users.
 var ActiveUsers = make(map[string]bool)
@@ -279,13 +280,14 @@ func LoginHandler(c *gin.Context) {
 	// load meet credentials
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
-		// handle the error or fallback
 		logger.Error.Println("Global credentials not set")
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 		return
 	}
 
-	// check for superuser login
+	// ----------------------------------------------------------------
+	// 1) Check for top-level superuser (unchanged)
+	// ----------------------------------------------------------------
 	if creds.Superuser != nil &&
 		creds.Superuser.Username == username &&
 		checkPasswordHash(password, creds.Superuser.Password) {
@@ -298,9 +300,11 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// validate the provided credentials against the selected meet
-	var isAdmin bool
-	var authenticated bool
+	// ----------------------------------------------------------------
+	// 2) Check for a meet-level admin or secondaryAdmin, including 'sudo' field
+	// ----------------------------------------------------------------
+	var isAdmin, isSudo, authenticated bool
+
 	for _, m := range creds.Meets {
 		if m.Name != meetName {
 			continue
@@ -309,6 +313,8 @@ func LoginHandler(c *gin.Context) {
 		// primary admin
 		if m.Admin.Username == username && checkPasswordHash(password, m.Admin.Password) {
 			isAdmin = m.Admin.IsAdmin
+			// ADDED: pick up the 'sudo' field from meet-level admin
+			isSudo = m.Admin.Sudo // <---- ADDED
 			authenticated = true
 			break
 		}
@@ -317,14 +323,18 @@ func LoginHandler(c *gin.Context) {
 		for _, sa := range m.SecondaryAdmins {
 			if sa.Username == username && checkPasswordHash(password, sa.Password) {
 				isAdmin = sa.IsAdmin
+				// ADDED: pick up the 'sudo' field from meet-level secondary admin
+				isSudo = sa.Sudo // <---- ADDED
 				authenticated = true
 				break
 			}
 		}
 
-		break // stop after checking this meet
+		// break after we processed this meet
+		break
 	}
 
+	// if still not authenticated, fail
 	if !authenticated {
 		logger.Warn.Printf("[LoginHandler] Invalid login attempt for user=%s at meet=%s", username, meetName)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
@@ -334,14 +344,14 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// prevent duplicate logins
+	// 3) Prevent duplicate logins
 	ActiveUsersMu.Lock()
 	if ActiveUsers[username] {
 		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Invalid username or password.",
-			"Logo":     getLogoForMeet(meetName), // helper function
+			"Logo":     getLogoForMeet(meetName),
 		})
 		ActiveUsersMu.Unlock()
 		return
@@ -349,9 +359,10 @@ func LoginHandler(c *gin.Context) {
 	ActiveUsers[username] = true
 	ActiveUsersMu.Unlock()
 
+	// 4) Store user info in session (ADDED: store isSudo)
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
-	logger.Debug.Printf("[LoginHandler] Setting isAdmin=%v for user=%s", isAdmin, username)
+	session.Set("sudo", isSudo) // <---- ADDED
 
 	if err := session.Save(); err != nil {
 		logger.Error.Printf("[LoginHandler] Failed to save session: %v", err)
@@ -362,13 +373,14 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v)", username, meetName, isAdmin)
+	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v, isSudo=%v)",
+		username, meetName, isAdmin, isSudo)
 
-	// auto-claim desired position
+	// 5) If a position was desired, auto-claim it
 	desiredPos := session.Get("desiredPosition")
 	if desiredPos != nil {
-		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", desiredPos, username)
 		posString := desiredPos.(string)
+		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", posString, username)
 		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
 			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
 			c.String(http.StatusForbidden, "That seat is already taken or invalid. Please try another seat.")
@@ -380,17 +392,21 @@ func LoginHandler(c *gin.Context) {
 		switch posString {
 		case "left":
 			c.Redirect(http.StatusFound, "/left")
+			return
 		case "center":
 			c.Redirect(http.StatusFound, "/center")
+			return
 		case "right":
 			c.Redirect(http.StatusFound, "/right")
+			return
 		default:
+			// fallback
 			c.Redirect(http.StatusFound, "/index")
+			return
 		}
-		return
 	}
 
-	// default redirect on success
+	// 6) Otherwise, just send them to /index
 	c.Redirect(http.StatusFound, "/index")
 }
 

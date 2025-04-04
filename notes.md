@@ -28,10 +28,6 @@ go test -v -tags=unit ./websocket
 go test -v -tags=unit ./controllers
 ```
 ----------
-http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/right
-http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/center
-http://localhost:8080/referee/Queensland%20Drug-Tested%20Raw%20States/left
-
 https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/right
 https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/center
 https://referee-lights.michaelkingston.com.au/referee/Lift3%20Heavy%20Raw%Hitters/left
@@ -563,6 +559,4 @@ Below is a concise list of scenarios you can methodically run through in the rem
 3. testing suite
 4. CDK code improvements
 5. fix all remaining warnings, TODO and FIX_ME
-6. format logout page
-7. general formatting issues
-8. fix samsung issues
+6. fix samsung issues
