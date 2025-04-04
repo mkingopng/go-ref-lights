@@ -71,13 +71,13 @@ func CloseLogger() error {
 // SetLogLevel modifies the Debug logger’s output. Typically called after InitLogger, e.g.:
 //
 //	logger.SetLogLevel(os.Getenv("ENV"))
-func SetLogLevel(env string) {
-	if env == "production" {
-		// Discard Debug logs in production
-		// Debug.SetOutput(io.Discard)  // fix_me
-	}
-	// Otherwise, do nothing – Debug remains on for dev/test.
-}
+//func SetLogLevel(env string) {
+//	if env == "production" {
+// Discard Debug logs in production
+// Debug.SetOutput(io.Discard)  // fix_me
+//}
+// Otherwise, do nothing – Debug remains on for dev/test.
+//}
 
 func init() {
 	// If we’re in a test build, or if no ENV is set, default to “test”

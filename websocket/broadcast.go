@@ -120,7 +120,6 @@ func broadcastFinalResults(meetName string) {
 
 // broadcastTimeUpdateWithIndex sends a time update message with an index to all clients in the meet.
 //
-//nolint:unu
 //nolint:unused
 func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) { //nolint:unused
 	msg, err := json.Marshal(map[string]interface{}{
