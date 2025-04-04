@@ -74,7 +74,7 @@ func CloseLogger() error {
 func SetLogLevel(env string) {
 	if env == "production" {
 		// Discard Debug logs in production
-		Debug.SetOutput(io.Discard)
+		// Debug.SetOutput(io.Discard)  // fix_me
 	}
 	// Otherwise, do nothing – Debug remains on for dev/test.
 }

@@ -69,9 +69,9 @@ func SetupRouter(env string) *gin.Engine {
 	// ---------------- Security Headers Middleware ----------------
 	router.Use(func(c *gin.Context) {
 		// Strict-Transport-Security (only if you serve HTTPS in prod)
-		// Tells browsers to only connect via HTTPS for the next 31536000 seconds (~1 year).
+		// tells browsers to only connect via HTTPS for the next 5400 seconds
 		if env == "production" {
-			c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+			c.Writer.Header().Set("Strict-Transport-Security", "max-age=5400; includeSubDomains; preload")
 		}
 
 		// Content-Security-Policy (example: limit frames to self and a specific domain)
@@ -141,15 +141,15 @@ func SetupRouter(env string) *gin.Engine {
 	meetDirectorController := controllers.NewAdminController(occupancyService, positionController)
 
 	// ------------------ public routes ------------------
-	router.GET("/", controllers.ChooseMeetHandler)
-	router.POST("/set-meet", controllers.SetMeetHandler)
-	router.GET("/login", controllers.PerformLogin)
-	router.POST("/login", controllers.LoginHandler)
-	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) })
-	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })
+	router.GET("/", controllers.ChooseMeetHandler)                                                                       // meet director
+	router.POST("/set-meet", controllers.SetMeetHandler)                                                                 // meet director
+	router.GET("/login", controllers.PerformLogin)                                                                       // meet director
+	router.POST("/login", controllers.LoginHandler)                                                                      // meet director
+	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) }) // referee
+	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })                                      // all devices and users
 	router.GET("/logged-out", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "logged-out.html", gin.H{"Title": "You are now logged out"})
-	})
+	}) // referee and meet director
 	// Enforcement: require meetName in session for protected routes
 	router.Use(func(c *gin.Context) {
 		// skip if static or login/logout
@@ -158,7 +158,7 @@ func SetupRouter(env string) *gin.Engine {
 			return
 		}
 
-		// let "/referee/:meetName/:position" proceed even if no session
+		// let "/referee/:meetName/:position" proceed
 		if strings.HasPrefix(c.Request.URL.Path, "/referee/") {
 			c.Next()
 			return
@@ -194,37 +194,37 @@ func SetupRouter(env string) *gin.Engine {
 		c.Next()
 	})
 	{
-		protected.GET("/index", controllers.Index)
-		protected.GET("/qrcode", controllers.GetQRCode)
-		protected.GET("/lights", controllers.Lights)
-		protected.GET("/occupancy", positionController.GetOccupancyAPI)
-		protected.POST("/position/vacate", positionController.VacatePosition)
-		protected.GET("/active-users", controllers.ActiveUsersHandler)
-		protected.GET("/admin", meetDirectorController.AdminPanel)
-		protected.POST("/force-vacate", meetDirectorController.ForceVacate)
-		protected.POST("/reset-instance", meetDirectorController.ResetInstance)
-		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
-		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })
+		protected.GET("/index", controllers.Index)                                                  // meet director
+		protected.GET("/qrcode", controllers.GetQRCode)                                             // meet director
+		protected.GET("/lights", controllers.Lights)                                                // meet director
+		protected.GET("/occupancy", positionController.GetOccupancyAPI)                             // meet director
+		protected.POST("/position/vacate", positionController.VacatePosition)                       // meet director
+		protected.GET("/active-users", controllers.ActiveUsersHandler)                              // meet director
+		protected.GET("/admin", meetDirectorController.AdminPanel)                                  // meet director
+		protected.POST("/force-vacate", meetDirectorController.ForceVacate)                         // meet director
+		protected.POST("/reset-instance", meetDirectorController.ResetInstance)                     // meet director
+		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })  // meet director
+		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) }) // meet director
 	}
 
 	// ------------------ sudo routes ------------------
-	sudoController := controllers.NewSudoController(occupancyService)
+	sudoController := controllers.NewSudoController(occupancyService) // sudo
 	sudoRoutes := router.Group("/sudo")
 	{
-		sudoRoutes.Use(middleware.AuthRequired)
-		sudoRoutes.Use(middleware.SudoRequired())
+		sudoRoutes.Use(middleware.AuthRequired)   //sudo
+		sudoRoutes.Use(middleware.SudoRequired()) // sudo
 		{
-			sudoRoutes.GET("/", sudoController.SudoPanel)
-			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)
-			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector)
-			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)
+			sudoRoutes.GET("/", sudoController.SudoPanel)                                          // sudo
+			sudoRoutes.POST("/force-vacate-ref", sudoController.ForceVacateRefForAnyMeet)          // sudo
+			sudoRoutes.POST("/force-logout-meet-director", sudoController.ForceLogoutMeetDirector) // sudo
+			sudoRoutes.POST("/restart-meet", sudoController.RestartAndClearMeet)                   // sudo
 		}
 	}
 
 	// WebSocket route
 	router.GET("/referee-updates", func(c *gin.Context) {
 		websocket.ServeWs(c.Writer, c.Request)
-	})
+	}) // referees
 
 	// confirm template path
 	_, b, _, _ := runtime.Caller(0)

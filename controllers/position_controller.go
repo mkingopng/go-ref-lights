@@ -23,57 +23,6 @@ func NewPositionController(service services.OccupancyServiceInterface) *Position
 	return &PositionController{OccupancyService: service}
 }
 
-// ------------------- Position assignment -------------------
-
-// ClaimPosition allows a referee to claim a position
-func (pc *PositionController) ClaimPosition(c *gin.Context) {
-	session := sessions.Default(c)
-	user := session.Get("user")
-	meetName, ok := session.Get("meetName").(string)
-
-	// check if the user is logged in and a meet is selected
-	if user == nil || !ok || meetName == "" {
-		logger.Warn.Println("[ClaimPosition] User not logged in or no meet selected; redirecting to /login")
-		c.Redirect(http.StatusFound, "/login")
-		return
-	}
-
-	// check if the user is already assigned a position
-	position := c.PostForm("position")
-	userEmail := user.(string)
-	logger.Info.Printf("[ClaimPosition] User=%s attempting to claim position=%s in meet=%s", userEmail, position, meetName)
-
-	// check if the position is already taken
-	err := pc.OccupancyService.SetPosition(meetName, position, userEmail)
-	if err != nil {
-		logger.Error.Printf("[ClaimPosition] Position is taken or invalid: %v", err)
-		c.String(http.StatusForbidden, "Seat is already taken or invalid. Please try another approach.")
-		return
-	}
-
-	// update the session with the claimed position
-	session.Set("refPosition", position)
-	if err := session.Save(); err != nil {
-		logger.Error.Printf("[ClaimPosition] Error saving session for user=%s: %v", userEmail, err)
-		c.String(http.StatusInternalServerError, "Error saving session")
-		return
-	}
-
-	// redirect to the claimed position
-	switch position {
-	case "left":
-		c.Redirect(http.StatusFound, "/left")
-	case "center":
-		c.Redirect(http.StatusFound, "/center")
-	case "right":
-		c.Redirect(http.StatusFound, "/right")
-	default:
-		logger.Warn.Printf("[ClaimPosition] Unknown position %s; redirecting to /index", position)
-		c.Redirect(http.StatusFound, "/index")
-	}
-	go pc.BroadcastOccupancy(meetName)
-}
-
 // ------------------- Position vacancy -------------------
 
 // VacatePosition allows a referee to vacate their assigned position

@@ -1,17 +1,34 @@
 {
     "meets": [
         {
+            "name": "test mule",
+            "date": "April 5",
+            "admin": {
+                "username": "test",
+                "password": "$2b$12$t4Ykq5e30FyWGYphTcgN0.WUIWixg/eYvPNpPdOio8O3PxJxcqXDu",
+                "isadmin": true
+            },
+            "secondaryAdmins": [
+                {
+                    "username": "test2",
+                    "password": "$2b$12$0IP9yBzN5LzjSKrieB3.tOBh8MElH626UYOqzq9CWKZUeFEcEqPIe",
+                    "isadmin": true
+                }
+            ],
+            "logo": "/static/images/APL_logo_white.png"
+        },
+        {
             "name": "Lift3 Heavy Hitters",
             "date": "April 5",
             "admin": {
                 "username": "lift3",
-                "password": "$2b$12$eVAw8ruQB8rSesbLZAMOneH0NJyiFbI7hFejzR0umHFT7Pwd/RXvG",
+                "password": "$2b$12$LqL4o6uq5Nv3b3ZiALzpN.VvOL0tqFcm5j0LfJ77f/4jLgnPzBBr6",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "Lift_3",
-                    "password": "$2b$12$7BHP7g6v9gHrFxloiBb.ZOc04fosEZ2GyPRihpSNwDWPIs4QywDsq",
+                    "password": "$2b$12$NDvqhO4NFBtueRZnCyJsOeAL5lrzyJsuNTcSV61CCNxxnTI2vRRAe",
                     "isadmin": true
                 }
             ],
@@ -22,13 +39,13 @@
             "date": "April 6",
             "admin": {
                 "username": "vic_states",
-                "password": "$2b$12$XmfwQARdpSyGh.2W7LbgyObB7rrp8h3hhIZIxeNKKzoiwZWQF.GmG",
+                "password": "$2b$12$MkVDj8IDi6hRjFXFfSiNA.eKhTRkD4GPUT7ypSXxyo35qX691hP7O",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "vic_states2",
-                    "password": "$2b$12$648wsoYCsVO/c/tkdQByFe8pPGW.TzC5UwcG0wX17oJwZfrCG8wp2",
+                    "password": "$2b$12$X.xkUixOKWZERF9Oaxa.Huixw.u8f1E1FGPb8Gem0bn/iubcipdxO",
                     "isadmin": true
                 }
             ],
@@ -37,9 +54,9 @@
     ],
     "superuser": {
         "username": "sudo",
-        "password": "$2b$12$oUN8K75bCCx6xKMetR6BmuFUwmDV5WvUd41iTPNkpbArq7TTpYYsO",
+        "password": "$2b$12$1v0AWaLz0ahUFuXFkKlLjeeky14gyebXRYTRa1v8O2ANkJtVTL/gO",
         "isadmin": true,
         "sudo": true,
-        "logo": "/static/images/sudo_logo.png"
+        "logo": "/static/images/APL_logo_white.png"
     }
 }

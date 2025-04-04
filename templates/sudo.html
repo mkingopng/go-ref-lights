@@ -16,7 +16,7 @@
 
 <h1>Sudo Dashboard - All Meets</h1>
 
-<!-- a dropdown to quickly jump to a specific meet’s anchor -->
+<!-- dropdown to jump to a specific meet’s anchor -->
 <div style="margin-bottom: 20px; text-align:center;">
     <label for="meetDropdown">Jump to a Meet:</label>
     <select id="meetDropdown" class="styled-select" onchange="location.hash = this.value">
@@ -48,7 +48,6 @@
                 <form action="/sudo/force-vacate-ref" method="POST">
                     <input type="hidden" name="meetName" value="{{ .meetName }}">
                     <input type="hidden" name="position" value="left">
-                    <!-- class="action-button" -->
                     <button type="submit" class="action-button">Force Vacate</button>
                 </form>
                 {{ else }}
@@ -89,7 +88,7 @@
         </tbody>
     </table>
 
-    <!-- Full instance reset for this meet -->
+    <!-- full instance reset for this meet -->
     <h3>Reset / Clear This Meet</h3>
     <form method="POST" action="/sudo/restart-meet">
         <input type="hidden" name="meetName" value="{{ .meetName }}">
@@ -100,10 +99,9 @@
 </section>
 {{ end }}
 
-<!-- Force-logout form for any user in ActiveUsers -->
+<!-- force-logout form for any user in ActiveUsers -->
 <h2>Force-Logout a User</h2>
 <p>
-    <!-- class="styled-select" for user dropdown -->
     <label for="username">Select a User:</label>
     <select id="username" class="styled-select">User Name</select>
     <button id="forceLogoutBtn" class="action-button">Force Logout</button>
