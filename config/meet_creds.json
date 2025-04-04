@@ -5,13 +5,13 @@
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$t4Ykq5e30FyWGYphTcgN0.WUIWixg/eYvPNpPdOio8O3PxJxcqXDu",
+                "password": "$2b$12$x9FMZjpSVQU4mtqdVh8bCuTInWJ3IK6o3eSlcZYvwsONFwzj2tlPO",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$0IP9yBzN5LzjSKrieB3.tOBh8MElH626UYOqzq9CWKZUeFEcEqPIe",
+                    "password": "$2b$12$Klptk0uyYjY.2PH5fFi/bOtl/0t5OmVFz8vXwUidVwz3dZcOPOKnq",
                     "isadmin": true
                 }
             ],
@@ -22,13 +22,13 @@
             "date": "April 5",
             "admin": {
                 "username": "lift3",
-                "password": "$2b$12$LqL4o6uq5Nv3b3ZiALzpN.VvOL0tqFcm5j0LfJ77f/4jLgnPzBBr6",
+                "password": "$2b$12$hA2bsd6FWzPvdA2kyQvetuHE6DacCd4WklyY6kQP0.wQmrkDeb92.",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "Lift_3",
-                    "password": "$2b$12$NDvqhO4NFBtueRZnCyJsOeAL5lrzyJsuNTcSV61CCNxxnTI2vRRAe",
+                    "password": "$2b$12$uR6V3I6vxv6neWKDkm3joua24X31kds6neKmYLWkZXxh2yEQUwz5.",
                     "isadmin": true
                 }
             ],
@@ -39,24 +39,36 @@
             "date": "April 6",
             "admin": {
                 "username": "vic_states",
-                "password": "$2b$12$MkVDj8IDi6hRjFXFfSiNA.eKhTRkD4GPUT7ypSXxyo35qX691hP7O",
+                "password": "$2b$12$jM3365HjjH0CnD2RWXtLK.E1BAHifE.xeWQGz3JIcmZfHn7Tmvk4G",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "vic_states2",
-                    "password": "$2b$12$X.xkUixOKWZERF9Oaxa.Huixw.u8f1E1FGPb8Gem0bn/iubcipdxO",
+                    "password": "$2b$12$IPpQ8QukyXhXbdR5LQqJROSyzAFcnMD/zfSdmza2zRFL.s3hxEvTa",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/APL_logo_white.png"
+        },
+        {
+            "name": "Sudo",
+            "date": "April 6",
+            "admin": {
+                "username": "sudo",
+                "password": "$2b$12$/EYC8OTtlifL4EmEaYL2p..AUA8geutnoFJxtGIx4XAju0hgIoYhW",
+                "isadmin": true,
+                "sudo": true
+            },
+            "secondaryAdmins": [
+                {
+                    "username": "sudo2",
+                    "password": "$2b$12$vFdB4jOoSxPQ92qplrtKf.gPKVIbqflJRTxBgbqY2W0VctZXU28RK",
+                    "isadmin": true,
+                    "sudo": true
+                }
+            ],
+            "logo": "/static/images/APL_logo_white.png"
         }
-    ],
-    "superuser": {
-        "username": "sudo",
-        "password": "$2b$12$1v0AWaLz0ahUFuXFkKlLjeeky14gyebXRYTRa1v8O2ANkJtVTL/gO",
-        "isadmin": true,
-        "sudo": true,
-        "logo": "/static/images/APL_logo_white.png"
-    }
+    ]
 }
