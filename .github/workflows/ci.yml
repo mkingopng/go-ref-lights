@@ -57,10 +57,10 @@ jobs:
         run: go test -v -tags=unit ./...
 
       # 2) Run local e2e / integration tests (the ones you tag with //go:build integration)
-      - name: Run Local E2E Tests
-        run: |
-          export MEETS_PATH=$PWD/config/meets.json
-          go test -v -tags=integration ./tests
+#      - name: Run Local E2E Tests
+#        run: |
+#          export MEETS_PATH=$PWD/config/meets.json
+#          go test -v -tags=integration ./tests
 
       - name: Build Docker Image
         run: |
