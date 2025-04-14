@@ -1,51 +1,51 @@
 {
     "meets": [
         {
-            "name": "test-mule",
+            "name": "test_mule",
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$jZeg6A1zkWL021Y6X5mLS..SGBuv5SudgQRvw.w3beSYhF.GB61Gu",
+                "password": "$2b$12$bV.9h2acxgSFyYEZS9KBCuAAQVr7yvPy02Q52/I6z1Pm.PN.XNcbC",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$FFhXWZLxdA.KDptD0rElcOyehCenxvLtob14n0Ms1buzfwmcKtM6a",
+                    "password": "$2b$12$GFSgYLdMb88LnxIWUAyRkOqZRq0PhF5K8Qf6VoaRP7t7onU9K15e6",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/APL_logo_white.png"
         },
         {
-            "name": "Lift3 Heavy Hitters",
+            "name": "Lift3_Heavy_Hitters",
             "date": "April 5",
             "admin": {
                 "username": "lift3",
-                "password": "$2b$12$voynQRp5sI0HlplPEvPLX.VDZvW0SsTscZRYynKYor9zuyfR5ub5W",
+                "password": "$2b$12$tCOVX.2RyHxJCiE/20dbmODeNPiIbt1CrlZj3fTrNEVqcFck.vIvi",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "Lift_3",
-                    "password": "$2b$12$YdXx1CA27fmGfBBFz7WijePAktJRTDx12MDbebTowlwIi8cccd8Ti",
+                    "password": "$2b$12$OqP4euXy74Hn1sxgsA4AuODr0AOIVSEc4LbP5jrPvxkMJuYP4oU52",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/APL_logo_white.png"
         },
         {
-            "name": "Victorian State Championships",
+            "name": "Victorian_State_Championships",
             "date": "April 6",
             "admin": {
                 "username": "vic_states",
-                "password": "$2b$12$.5LRirS.Gv4po1fSyxUV6ulHLSW7nCWpbdEwCk6V7voVqxXOOn4CO",
+                "password": "$2b$12$fZt6UKNa.T2uuJgrvaIqQumNV1Q7G0g01iJh9Qw40UnTOoKtP.Qgi",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "vic_states2",
-                    "password": "$2b$12$PhyKMxAtdZkBEYjh7vLSTuYpgEhCqPQfM5fIZVmcNjn/.i2NYThGC",
+                    "password": "$2b$12$7SwrkZkpncXIu8HdPb4X3.4YY0lq8pfPyYaR5Hw3gaLqODoBwNuUa",
                     "isadmin": true
                 }
             ],
@@ -56,14 +56,14 @@
             "date": "April 6",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$.xNWyORgpiYKtvkxGl3OVu/vYM1bS9PqQKyu6mX21lkb1u2uIzMLO",
+                "password": "$2b$12$bmxuqC/5E1YYiH3FLPZEGuZbwBO.1YrIZOHQWT5gqkJMU1z08DyTK",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$TeUZUsvtz2uhOdF1drL7xulVOWa/RjK6OcfIi3AxeNbEcOGjP8Pdy",
+                    "password": "$2b$12$ou79t2ztAd1l8kzI99kPRehvSlXIhsE0VxuI/WnmX/TtbqQV03.C6",
                     "isadmin": true,
                     "sudo": true
                 }
