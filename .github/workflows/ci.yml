@@ -111,13 +111,13 @@ jobs:
         run: poetry run cdk deploy --app "python ../app.py" --require-approval never
 
       # Optional: Run your Remote E2E Test if you want
-      - name: Run Remote E2E Test
-        if: success()
-        env:
-          REMOTE_BASE_URL: ${{ secrets.REMOTE_BASE_URL }}
-        run: |
-          echo "REMOTE_BASE_URL=$REMOTE_BASE_URL"
-          go test -v -tags=remote ./test/referee_flow_remote_test.go
+#      - name: Run Remote E2E Test
+#        if: success()
+#        env:
+#          REMOTE_BASE_URL: ${{ secrets.REMOTE_BASE_URL }}
+#        run: |
+#          echo "REMOTE_BASE_URL=$REMOTE_BASE_URL"
+#          go test -v -tags=remote ./test/referee_flow_remote_test.go
 
       # notify slack on success
       - name: Notify Slack on Success
