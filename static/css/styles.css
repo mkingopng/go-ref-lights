@@ -255,7 +255,7 @@ input[type="submit"]:hover {
 
 /* Hidden class to hide elements */
 .hidden {
-    display: none;
+    /*display: none;*/
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -529,10 +529,10 @@ input[type="submit"]:hover {
 
 /* The container for all next-attempt timers */
 #multiNextAttemptTimers {
-    /* Optional: display them vertically, centered */
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
+    justify-content: center;
     gap: 10px; /* spacing between timer blocks */
 }
 
