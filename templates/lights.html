@@ -8,6 +8,23 @@
   <title>Referee Lights</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/styles.css" rel="stylesheet">
+  <style>
+    /* Keep container always in flow with min-height so lights don’t jump */
+    #multiNextAttemptTimers {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      min-height: 50px;
+      transition: opacity 0.2s;
+    }
+    /* Instead of removing it from the layout, just make it invisible */
+    #multiNextAttemptTimers.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+  </style>
 </head>
 
 <body>

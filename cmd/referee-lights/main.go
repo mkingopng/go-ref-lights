@@ -141,10 +141,11 @@ func SetupRouter(env string) *gin.Engine {
 	meetDirectorController := controllers.NewAdminController(occupancyService, positionController)
 
 	// ------------------ public routes ------------------
-	router.GET("/", controllers.ChooseMeetHandler)                                                                       // meet director
-	router.POST("/set-meet", controllers.SetMeetHandler)                                                                 // meet director
-	router.GET("/login", controllers.PerformLogin)                                                                       // meet director
-	router.POST("/login", controllers.LoginHandler)                                                                      // meet director
+	router.GET("/", controllers.ChooseMeetHandler)       // meet director
+	router.POST("/set-meet", controllers.SetMeetHandler) // meet director
+	router.GET("/login", controllers.PerformLogin)       // meet director
+	router.POST("/login", controllers.LoginHandler)      // meet director
+	router.POST("/force-my-login", controllers.ForceMyLogin)
 	router.GET("/referee/:meetName/:position", func(c *gin.Context) { controllers.RefereeHandler(c, occupancyService) }) // referee
 	router.GET("/heartbeat", func(c *gin.Context) { Handler(c.Writer, c.Request) })                                      // all devices and users
 	router.GET("/logged-out", func(c *gin.Context) {

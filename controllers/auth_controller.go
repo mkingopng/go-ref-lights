@@ -349,7 +349,8 @@ func LoginHandler(c *gin.Context) {
 		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
-			"Error":    "Invalid username or password.",
+			"Error":    "You are already logged in elsewhere. Force logout?",
+			"Username": username,
 			"Logo":     getLogoForMeet(meetName),
 		})
 		ActiveUsersMu.Unlock()
@@ -423,4 +424,23 @@ func getLogoForMeet(meetName string) string {
 		}
 	}
 	return ""
+}
+
+// ForceMyLogin forcibly removes the user from ActiveUsers and redirects back to login
+func ForceMyLogin(c *gin.Context) {
+	username := c.PostForm("username")
+	if username == "" {
+		c.HTML(http.StatusBadRequest, "login.html", gin.H{"Error": "Missing username."})
+		return
+	}
+
+	// remove from ActiveUsers
+	ActiveUsersMu.Lock()
+	delete(ActiveUsers, username)
+	ActiveUsersMu.Unlock()
+
+	logger.Info.Printf("[ForceMyLogin] User %s forcibly cleared from ActiveUsers", username)
+
+	// redirect to login
+	c.Redirect(http.StatusFound, "/login?username="+username)
 }

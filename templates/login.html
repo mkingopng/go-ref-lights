@@ -26,6 +26,13 @@
 
   {{ if .Error }}
   <div class="error">{{ .Error }}</div>
+
+    {{ if eq .Error "You are already logged in elsewhere. Force logout?" }}
+    <form method="POST" action="/force-my-login" class="vacate-form" style="margin-top: 1em;">
+      <input type="hidden" name="username" value="{{ .Username }}">
+      <button type="submit" class="action-button">Force My Login</button>
+    </form>
+    {{ end }}
   {{ end }}
 </div>
 
