@@ -18,34 +18,17 @@
       "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Lift3_Heavy_Hitters",
-      "date": "April 5",
+      "name": "Mountain_Top_Rumble",
+      "date": "April 27",
       "admin": {
-        "username": "lift3",
+        "username": "mtr1",
         "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "Lift_3",
+          "username": "mtr2",
           "password": "Y8DrnC",
-          "isadmin": true
-        }
-        ],
-      "logo": "/static/images/APL_logo_white.png"
-    },
-    {
-      "name": "Victorian_State_Championships",
-      "date": "April 6",
-      "admin": {
-        "username": "vic_states",
-        "password": "2WYcNU",
-        "isadmin": true
-      },
-      "secondaryAdmins": [
-        {
-          "username": "vic_states2",
-          "password": "7XHKXb",
           "isadmin": true
         }
         ],
