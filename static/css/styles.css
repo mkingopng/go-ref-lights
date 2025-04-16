@@ -1,47 +1,47 @@
 /* static/css/styles.css */
 
-/* Global styles */
+/* global styles */
 body, html {
     margin: 0;
     font-family: 'Roboto', sans-serif;
     font-size: 20px;
     background-color: #0f0f0f;
     color: white;
-    height: 100%; /* Ensure full height */
+    height: 100%;                       /* ensure full height */
 }
 
 body {
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centers content horizontally */
-    justify-content: center; /* Centers content vertically */
-    min-height: 100vh; /* Ensure body takes full viewport height */
+    align-items: center;                /* centers content horizontally */
+    justify-content: center;            /* centers content vertically */
+    min-height: 100vh;                  /* ensure body takes full viewport height */
 }
 
-/* Heading */
+/* heading */
 h2 {
     margin-top: 20px;
     margin-bottom: 20px;
     text-align: center;
 }
 
-/* For the select element */
+/* for the select element */
 #positionSelect {
     font-family: 'Roboto', sans-serif;
-    font-size: 20px; /* Adjust font size */
-    color: #333; /* Optional: Change text color */
+    font-size: 20px;                    /* adjust font size */
+    color: #333;                        /* optional: Change text color */
 }
 
-/* For the option elements inside the select dropdown */
+/* for the option elements inside the select dropdown */
 #positionSelect option {
     font-family: 'Roboto', sans-serif;
-    font-size: 20px; /* Adjust font size */
-    color: #333; /* Optional: Change text color */
+    font-size: 20px;                    /* adjust font size */
+    color: #333;                        /* change text color */
 }
 
 /* QR code styles */
 .qr-code-container {
-    margin-bottom: 20px; /* Adjust spacing as needed */
+    margin-bottom: 20px;                /* adjust spacing as needed */
 }
 
 .qr-code-container img {
@@ -52,17 +52,17 @@ h2 {
     border-radius: 10px;
 }
 
-/* Button container */
+/* button container */
 .button-container {
     display: flex;
     flex-direction: column;
-    flex-wrap: nowrap;   /* Prevent wrapping to the next line */
+    flex-wrap: nowrap;                  /* prevent wrapping to the next line */
     justify-content: center;
-    gap: 20px;           /* Space between buttons */
+    gap: 20px;                          /* space between buttons */
     margin-bottom: 10px;
 }
 
-/* Button link styles */
+/* button link styles */
 .button-link {
     display: inline-block;
     padding: 15px 30px;
@@ -75,7 +75,7 @@ h2 {
     cursor: pointer;
     transition: background-color 0.3s ease;
     min-width: 150px;
-    margin: 5px; /* Space around each button */
+    margin: 5px;                        /* space around each button */
 }
 
 .button-link:hover {
@@ -151,7 +151,7 @@ input[type="submit"]:hover {
     background-color: #666;
 }
 
-/* Timer styles */
+/* timer styles */
 .timer-container {
     display: flex;
     align-items: center;
@@ -168,7 +168,7 @@ input[type="submit"]:hover {
     text-align: center;
 }
 
-/* Circle container */
+/* circle container */
 .container {
     display: flex;
     justify-content: center;
@@ -186,7 +186,7 @@ input[type="submit"]:hover {
     border-radius: 50%;
 }
 
-/* Message styles */
+/* message styles */
 .message {
     font-size: 48px;
     color: white;
@@ -196,7 +196,7 @@ input[type="submit"]:hover {
     line-height: 60px;
 }
 
-/* Logo container */
+/* logo container */
 .logo-container {
     background-color: transparent;
     margin-top: 5px;
@@ -204,13 +204,13 @@ input[type="submit"]:hover {
 }
 
 .logo-container img {
-    max-width: 600px;
+    max-width: 500px;
     width: auto;
     height: auto;
     opacity: 0.8;
 }
 
-/* Home icon styles */
+/* home icon styles */
 .home-icon {
     position: absolute;
     top: 20px;
@@ -238,7 +238,7 @@ input[type="submit"]:hover {
     color: #3498db;
 }
 
-/* Judge Submission Indicators */
+/* judge submission indicators */
 .judge-indicators {
     display: flex;
     justify-content: center;
@@ -249,26 +249,25 @@ input[type="submit"]:hover {
 .indicator {
     width: 20px;
     height: 20px;
-    background-color: grey; /* Default color */
+    background-color: grey;                 /* default color */
     border-radius: 50%;
 }
 
-/* Hidden class to hide elements */
+/* hidden class to hide elements */
 .hidden {
-    /*display: none;*/
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
-/* Optional: Ensure smooth transitions when showing/hiding */
+/* ensure smooth transitions when showing/hiding */
 .timer-container, .timer {
     transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
 
-/* Media Queries for Responsiveness */
-/* For screens smaller than 768px (tablets and phones) */
+/* media queries for responsiveness */
+/* for screens smaller than 768px (tablets and phones) */
 @media (max-width: 768px) {
     .timer {
         font-size: 40px;
@@ -302,7 +301,7 @@ input[type="submit"]:hover {
     }
 }
 
-/* For screens smaller than 480px (small phones) */
+/* for screens smaller than 480px (small phones) */
 @media (max-width: 480px) {
     .timer {
         font-size: 30px;
@@ -340,7 +339,7 @@ input[type="submit"]:hover {
     }
 }
 
-/* Action button styles */
+/* action button styles */
 .action-button {
     padding: 15px 30px;
     font-size: 18px;
@@ -359,7 +358,7 @@ input[type="submit"]:hover {
     background-color: #2980b9;
 }
 
-/* Specific color classes */
+/* specific color classes */
 .action-button.white {
     background-color: white;
     color: black;
@@ -399,18 +398,18 @@ input[type="submit"]:hover {
     text-decoration: underline;
 }
 
-/* Navigation bar container */
+/* navigation bar container */
 .nav-container {
     display: flex;
-    gap: 10px; /* Space between buttons */
-    justify-content: center; /* Center the buttons horizontally */
+    gap: 10px;                              /* space between buttons */
+    justify-content: center;                /* center the buttons horizontally */
     align-items: center;
-    background-color: #333; /* Dark gray background */
+    background-color: #333;                 /* dark gray background */
     padding: 10px;
     border-radius: 5px;
 }
 
-/* Remove form styling for navigation */
+/* remove form styling for navigation */
 .nav-form {
     background-color: transparent !important;
     padding: 0;
@@ -419,12 +418,12 @@ input[type="submit"]:hover {
     display: inline-block;
 }
 
-/* Navigation button styling */
+/* navigation button styling */
 .nav-button {
-    background-color: #666; /* Gray background */
+    background-color: #666;                 /* gray background */
     color: white;
-    width: 80px; /* Square shape */
-    height: 50px; /* Square shape */
+    width: 80px;                            /* square shape */
+    height: 50px;                           /* square shape */
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -438,33 +437,33 @@ input[type="submit"]:hover {
     padding: 5px;
 }
 
-/* Button hover effect */
+/* button hover effect */
 .nav-button:hover {
-    background-color: #888; /* Lighter gray on hover */
+    background-color: #888;                 /* lighter gray on hover */
 }
 
-/* QR Code Container - Forces horizontal layout */
+/* QR Code container - horizontal layout */
 .qr-code-container {
-    display: flex !important; /* Enables horizontal row layout */
-    flex-direction: row !important; /* Forces items to be side-by-side */
-    justify-content: center; /* Centers the items */
-    gap: 30px; /* Space between QR codes */
-    flex-wrap: wrap; /* Allows wrapping if screen is too small */
-    width: 100%; /* Ensures it spans full width */
+    display: flex !important;               /* enables horizontal row layout */
+    flex-direction: row !important;         /* forces items to be side-by-side */
+    justify-content: center;                /* centers the items */
+    gap: 30px;                              /* space between QR codes */
+    flex-wrap: wrap;                        /* allows wrapping if screen is too small */
+    width: 100%;                            /* ensures it spans full width */
 }
 
-/* Each QR Code + Label */
+/* each QR Code + label */
 .qr-code-item {
     display: flex;
-    flex-direction: column; /* Ensures text stays below image */
-    align-items: center; /* Centers QR code and text */
+    flex-direction: column;                 /* ensures text stays below image */
+    align-items: center;                    /* centers QR code and text */
     text-align: center;
-    width: 200px; /* Ensures each QR code stays uniform */
+    width: 200px;                           /* ensures each QR code stays uniform */
 }
 
-/* QR Code Image Styling */
+/* QR Code image styling */
 .qr-code-item img {
-    width: 150px; /* Adjusts size */
+    width: 150px;                           /* adjusts size */
     height: auto;
     border: 3px solid #fff;
     border-radius: 10px;
@@ -472,13 +471,13 @@ input[type="submit"]:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Admin Panel Table Styling */
+/* admin panel table styling */
 .admin-table {
     width: 80%;
     max-width: 800px;
     border-collapse: collapse;
-    margin: 20px auto; /* Centers the table */
-    background-color: #1a1a1a; /* Dark background for contrast */
+    margin: 20px auto;                  /* centers the table */
+    background-color: #1a1a1a;          /* dark background for contrast */
     color: white;
     border: 2px solid #3A5DAB;
 }
@@ -490,7 +489,7 @@ input[type="submit"]:hover {
 }
 
 .admin-table th {
-    background-color: #3A5DAB; /* Header color */
+    background-color: #3A5DAB;          /* header color */
     color: white;
     font-weight: bold;
     text-transform: uppercase;
@@ -504,13 +503,13 @@ input[type="submit"]:hover {
     background-color: #2d2d2d;
 }
 
-/* Hover effect for table rows */
+/* hover effect for table rows */
 .admin-table tbody tr:hover {
     background-color: #3A5DAB;
     transition: 0.3s;
 }
 
-/* Force Logout Button inside Table */
+/* force logout button inside table */
 .admin-table button {
     background-color: red;
     color: white;
@@ -525,33 +524,33 @@ input[type="submit"]:hover {
     background-color: darkred;
 }
 
-/* Next atttempt timers styles */
+/* next atttempt timers styles */
 
-/* The container for all next-attempt timers */
+/* the container for all next-attempt timers */
 #multiNextAttemptTimers {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 10px; /* spacing between timer blocks */
+    gap: 10px;                              /* spacing between timer blocks */
 }
 
-/* Each individual timer block */
+/* each individual timer block */
 .single-attempt-timer {
-    background-color: #2b2b2b;  /* dark background */
-    border: 1px solid #666;     /* subtle border */
+    background-color: #2b2b2b;              /* dark background */
+    border: 1px solid #666;                 /* subtle border */
     border-radius: 5px;
     padding: 10px 10px;
-    font-size: 40px;            /* larger text for readability */
-    color: #fff;                /* white text */
+    font-size: 40px;                        /* larger text for readability */
+    color: #fff;                            /* white text */
     text-align: center;
-    width: max-content;         /* shrink to fit the text */
-    transition: all 0.3s ease;  /* smooth hover transitions if you want them */
+    width: max-content;                     /* shrink to fit the text */
+    transition: all 0.3s ease;              /* smooth hover transitions if you want them */
 }
 
-/* A styled dropdown that mimics the action-button look */
+/* a styled dropdown that mimics the action-button look */
 .styled-select {
-    background-color: #3A5DAB;  /* Same color as .action-button */
+    background-color: #3A5DAB;              /* same color as .action-button */
     color: #fff;
     padding: 10px 20px;
     border: 2px solid #3A5DAB;
@@ -563,7 +562,7 @@ input[type="submit"]:hover {
 }
 .styled-select:hover,
 .styled-select:focus {
-    background-color: #2980b9;  /* Same hover effect as .action-button */
+    background-color: #2980b9;              /* same hover effect as .action-button */
     border-color: #2980b9;
     outline: none;
 }
