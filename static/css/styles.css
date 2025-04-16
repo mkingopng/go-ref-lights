@@ -385,6 +385,8 @@ input[type="submit"]:hover {
 }
 
 .site-header {
+    position: relative;
+    min-height: 60px;
     background-color: #333;
     padding: 10px;
     margin-bottom: 20px;
@@ -566,4 +568,39 @@ input[type="submit"]:hover {
     background-color: #2980b9;  /* Same hover effect as .action-button */
     border-color: #2980b9;
     outline: none;
+}
+
+.hamburger-container {
+    position: relative; /* So the dropdown can position itself absolutely */
+    top: 10px;
+    right: 10px;
+}
+
+/* Hide the dropdown by default */
+.nav-dropdown {
+    display: none;
+    position: absolute;
+    top: 2.5em;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+/* Show the dropdown when .show-dropdown is applied */
+.nav-dropdown.show-dropdown {
+    display: block;
+}
+
+.hamburger-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    /* any extra styling you want (padding, etc.) */
+}
+
+.nav-form {
+    margin: 0;
+    padding: 0;
+    /* adjust spacing, fonts, etc. as desired */
 }
