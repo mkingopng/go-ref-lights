@@ -95,7 +95,7 @@ window.addEventListener("DOMContentLoaded", function () {
             const div = document.createElement("div");
             div.id = `nextAttemptTimer_${timer.ID}`;
             div.classList.add("single-attempt-timer");
-            div.textContent = `Next Attempt: ${timeLeft}s`;
+            div.textContent = `Submit Next Attempt in: ${timeLeft}s`;
             multiNextAttemptTimers.classList.remove("hidden");
             multiNextAttemptTimers.appendChild(div);
             nextAttemptTimers[timer.ID] = div;
