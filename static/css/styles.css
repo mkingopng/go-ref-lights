@@ -31,7 +31,7 @@ h2 {
 }
 
 .qr-code-container img {
-    max-width: 300px;
+    max-width: 500px;
     width: 100%;
     height: auto;
     border: 3px solid #fff;
