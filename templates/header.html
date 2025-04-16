@@ -1,15 +1,12 @@
 <!-- templates/header.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
-</head>
-<body>
+
 <header class="site-header">
     <nav class="nav-container">
+        <!-- home -->
+        <form action="/index" method="GET" class="nav-form">
+            <button type="submit" class="nav-button">Home</button>
+        </form>
+
         <!-- logout -->
         <form action="/logout" method="GET" class="nav-form">
             <button type="submit" class="nav-button">Logout</button>
@@ -22,5 +19,3 @@
         </form>
     </nav>
 </header>
-</body>
-</html>

@@ -179,8 +179,8 @@ input[type="submit"]:hover {
 }
 
 .circle {
-    width: 400px;
-    height: 400px;
+    width: 500px;
+    height: 500px;
     background-color: black;
     border: 5px solid white;
     border-radius: 50%;
@@ -541,8 +541,8 @@ input[type="submit"]:hover {
     background-color: #2b2b2b;  /* dark background */
     border: 1px solid #666;     /* subtle border */
     border-radius: 5px;
-    padding: 10px 20px;
-    font-size: 50px;            /* larger text for readability */
+    padding: 10px 10px;
+    font-size: 40px;            /* larger text for readability */
     color: #fff;                /* white text */
     text-align: center;
     width: max-content;         /* shrink to fit the text */
