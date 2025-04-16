@@ -10,109 +10,81 @@
   <link href="/static/css/styles.css" rel="stylesheet">
 </head>
 <body>
+  <div class="main-content">
 
-{{template "header.html" .}}
+  {{template "header.html" .}}
 
-<h1>Admin Panel for: {{ .meetName }}</h1>
+  <h1>Admin Panel for: {{ .meetName }}</h1>
 
-<h2>Current Occupants</h2>
+  <h2>Current Occupants</h2>
 
-<!--table-->
-<table class="admin-table">
-  <thead>
-  <tr>
-    <th>Position</th>
-    <th>Occupant</th>
-    <th>Action</th>
-  </tr>
-  </thead>
+  <!--table-->
+  <table class="admin-table">
+    <thead>
+    <tr>
+      <th>Position</th>
+      <th>Occupant</th>
+      <th>Action</th>
+    </tr>
+    </thead>
 
-  <tbody>
-  <tr>
-    <td>Left</td>
-    <td>{{ .occupancy.LeftUser }}</td>
-    <td>
-      {{ if .occupancy.LeftUser }}
-      <form action="/force-vacate" method="POST">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="left">
-        <button type="submit">Vacate</button>
-      </form>
-      {{ else }}
-      N/A
-      {{ end }}
-    </td>
-  </tr>
-  <tr>
-    <td>Center</td>
-    <td>{{ .occupancy.CenterUser }}</td>
-    <td>
-      {{ if .occupancy.CenterUser }}
-      <form action="/force-vacate" method="POST">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="center">
-        <button type="submit">Vacate</button>
-      </form>
-      {{ else }}
-      N/A
-      {{ end }}
-    </td>
-  </tr>
-  <tr>
-    <td>Right</td>
-    <td>{{ .occupancy.RightUser }}</td>
-    <td>
-      {{ if .occupancy.RightUser }}
-      <form action="/force-vacate" method="POST">
-        <input type="hidden" name="meetName" value="{{ .meetName }}">
-        <input type="hidden" name="position" value="right">
-        <button type="submit">Vacate</button>
-      </form>
-      {{ else }}
-      N/A
-      {{ end }}
-    </td>
-  </tr>
-  </tbody>
-</table>
+    <tbody>
+    <tr>
+      <td>Left</td>
+      <td>{{ .occupancy.LeftUser }}</td>
+      <td>
+        {{ if .occupancy.LeftUser }}
+        <form action="/force-vacate" method="POST">
+          <input type="hidden" name="meetName" value="{{ .meetName }}">
+          <input type="hidden" name="position" value="left">
+          <button type="submit">Vacate</button>
+        </form>
+        {{ else }}
+        N/A
+        {{ end }}
+      </td>
+    </tr>
+    <tr>
+      <td>Center</td>
+      <td>{{ .occupancy.CenterUser }}</td>
+      <td>
+        {{ if .occupancy.CenterUser }}
+        <form action="/force-vacate" method="POST">
+          <input type="hidden" name="meetName" value="{{ .meetName }}">
+          <input type="hidden" name="position" value="center">
+          <button type="submit">Vacate</button>
+        </form>
+        {{ else }}
+        N/A
+        {{ end }}
+      </td>
+    </tr>
+    <tr>
+      <td>Right</td>
+      <td>{{ .occupancy.RightUser }}</td>
+      <td>
+        {{ if .occupancy.RightUser }}
+        <form action="/force-vacate" method="POST">
+          <input type="hidden" name="meetName" value="{{ .meetName }}">
+          <input type="hidden" name="position" value="right">
+          <button type="submit">Vacate</button>
+        </form>
+        {{ else }}
+        N/A
+        {{ end }}
+      </td>
+    </tr>
+    </tbody>
+  </table>
 
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    // fetch the list of active users
-    fetch("/active-users")
-            .then(response => response.json())
-            .then(data => {
-              let select = document.getElementById("username");
-              select.innerHTML = "";  // clear previous options
-              data.users.forEach(user => {
-                let option = document.createElement("option");
-                option.value = user;
-                option.textContent = user;
-                select.appendChild(option);
-              });
-            })
-            .catch(error => console.error("Error fetching active users:", error));
-
-    // handle force logout submission
-    document.getElementById("forceLogoutForm").addEventListener("submit", function (event) {
-      event.preventDefault();
-      let username = document.getElementById("username").value;
-
-      fetch("/force-logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `username=${encodeURIComponent(username)}`
-      })
-              .then(response => response.json())
-              .then(data => {
-                document.getElementById("logoutStatus").textContent = data.message || data.error;
-                // Refresh user list after logout
-                return fetch("/active-users");
-              })
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // fetch the list of active users
+      fetch("/active-users")
               .then(response => response.json())
               .then(data => {
                 let select = document.getElementById("username");
-                select.innerHTML = "";
+                select.innerHTML = "";  // clear previous options
                 data.users.forEach(user => {
                   let option = document.createElement("option");
                   option.value = user;
@@ -120,15 +92,43 @@
                   select.appendChild(option);
                 });
               })
-              .catch(error => console.error("Error forcing logout:", error));
+              .catch(error => console.error("Error fetching active users:", error));
+
+      // handle force logout submission
+      document.getElementById("forceLogoutForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        let username = document.getElementById("username").value;
+
+        fetch("/force-logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `username=${encodeURIComponent(username)}`
+        })
+                .then(response => response.json())
+                .then(data => {
+                  document.getElementById("logoutStatus").textContent = data.message || data.error;
+                  // Refresh user list after logout
+                  return fetch("/active-users");
+                })
+                .then(response => response.json())
+                .then(data => {
+                  let select = document.getElementById("username");
+                  select.innerHTML = "";
+                  data.users.forEach(user => {
+                    let option = document.createElement("option");
+                    option.value = user;
+                    option.textContent = user;
+                    select.appendChild(option);
+                  });
+                })
+                .catch(error => console.error("Error forcing logout:", error));
+      });
     });
-  });
-</script>
+  </script>
 
-
-<div class="logo-container">
-  <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
-</div>
-
+  <div class="logo-container">
+    <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
+  </div>
+  </div>
 </body>
 </html>

@@ -11,12 +11,22 @@ body, html {
 }
 
 body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    font-size: 20px;
+    background-color: #0f0f0f;
+    color: white;
+}
+
+.main-content {
     display: flex;
     flex-direction: column;
-    align-items: center; /* centers content horizontally */
-    justify-content: center; /* centers content vertically */
-    min-height: 100vh; /* ensure body takes full viewport height */
+    align-items: center; /* center horizontally */
+    justify-content: center; /* center vertically if you want */
+    min-height: calc(100vh - 60px);
 }
+
 
 /* heading */
 h2 {
@@ -151,7 +161,6 @@ input[type="submit"]:hover {
     background-color: #666;
 }
 
-/* timer styles */
 .timer-container {
     display: flex;
     align-items: center;
@@ -160,7 +169,6 @@ input[type="submit"]:hover {
     margin-bottom: 20px;
 }
 
-/* platform ready timer */
 .timer {
     font-size: 60px;
     color: white;
@@ -196,7 +204,6 @@ input[type="submit"]:hover {
     line-height: 60px;
 }
 
-/* logo container */
 .logo-container {
     background-color: transparent;
     margin-top: 5px;
@@ -211,7 +218,6 @@ input[type="submit"]:hover {
     opacity: 0.8;
 }
 
-/* home icon styles */
 .home-icon {
     position: absolute;
     top: 20px;
@@ -404,50 +410,6 @@ input[type="submit"]:hover {
     text-decoration: underline;
 }
 
-/* navigation bar container */
-.nav-container {
-    display: flex;
-    gap: 10px; /* Space between buttons */
-    justify-content: center; /* center the buttons horizontally */
-    align-items: center;
-    background-color: #333; /* dark gray background */
-    padding: 10px;
-    border-radius: 5px;
-}
-
-/* remove form styling for navigation */
-.nav-form {
-    background-color: transparent !important;
-    padding: 0;
-    margin: 0;
-    border: none;
-    display: inline-block;
-}
-
-/* navigation button styling */
-.nav-button {
-    background-color: #666; /* gray background */
-    color: white;
-    width: 80px; /* square shape */
-    height: 50px; /* square shape */
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.3s ease;
-    padding: 5px;
-}
-
-/* button hover effect */
-.nav-button:hover {
-    background-color: #888; /* lighter gray on hover */
-}
-
 /* QR Code Container - forces horizontal layout */
 .qr-code-container {
     display: flex !important; /* enables horizontal row layout */
@@ -568,13 +530,13 @@ input[type="submit"]:hover {
 }
 .styled-select:hover,
 .styled-select:focus {
-    background-color: #2980b9;  /* same hover effect as .action-button */
+    background-color: #2980b9;
     border-color: #2980b9;
     outline: none;
 }
 
 .hamburger-container {
-    position: relative; /* so the dropdown can position itself absolutely */
+    position: absolute; /* so the dropdown can position itself absolutely */
     top: 10px;
     right: 10px;
 }

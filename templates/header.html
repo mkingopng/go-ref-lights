@@ -1,35 +1,27 @@
 <!-- templates/header.html -->
 <header class="site-header">
     <div class="hamburger-container">
-
         <!-- hamburger icon button -->
         <button type="button" class="hamburger-button" onclick="toggleMenu()">
             <img src="/static/images/hamburger.png" alt="Menu" />
         </button>
-
         <!-- dropdown -->
         <div id="navDropdown" class="nav-dropdown">
-
             <!-- home -->
             <form action="/index" method="GET" class="nav-form">
                 <button type="submit" class="nav-button">Home</button>
             </form>
-
             <!-- logout -->
             <form action="/logout" method="GET" class="nav-form">
                 <button type="submit" class="nav-button">Logout</button>
             </form>
-
             <!-- reset instance -->
             <form action="/reset-instance" method="POST" class="nav-form">
                 <input type="hidden" name="meetName" value="{{ .meetName }}">
                 <button type="submit" class="nav-button">Reset Meet</button>
             </form>
-
         </div>
-
     </div>
-
 </header>
 
 <script>
