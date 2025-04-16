@@ -25,20 +25,6 @@ h2 {
     text-align: center;
 }
 
-/* for the select element */
-#positionSelect {
-    font-family: 'Roboto', sans-serif;
-    font-size: 20px;                    /* adjust font size */
-    color: #333;                        /* optional: Change text color */
-}
-
-/* for the option elements inside the select dropdown */
-#positionSelect option {
-    font-family: 'Roboto', sans-serif;
-    font-size: 20px;                    /* adjust font size */
-    color: #333;                        /* change text color */
-}
-
 /* QR code styles */
 .qr-code-container {
     margin-bottom: 20px;                /* adjust spacing as needed */
@@ -173,14 +159,14 @@ input[type="submit"]:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 100px;
+    gap: 50px;
     flex-wrap: wrap;
-    margin-bottom: 50px;
+    margin-bottom: 30px;
 }
 
 .circle {
-    width: 500px;
-    height: 500px;
+    width: 600px;
+    height: 600px;
     background-color: black;
     border: 5px solid white;
     border-radius: 50%;
@@ -204,7 +190,7 @@ input[type="submit"]:hover {
 }
 
 .logo-container img {
-    max-width: 500px;
+    max-width: 400px;
     width: auto;
     height: auto;
     opacity: 0.8;
