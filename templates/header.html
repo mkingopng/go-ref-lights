@@ -1,15 +1,7 @@
 <!-- templates/header.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
-</head>
-<body>
 <header class="site-header">
     <div class="hamburger-container">
+
         <!-- hamburger icon button -->
         <button type="button" class="hamburger-button" onclick="toggleMenu()">
             <img src="/static/images/hamburger.png" alt="Menu" />
@@ -17,6 +9,7 @@
 
         <!-- dropdown -->
         <div id="navDropdown" class="nav-dropdown">
+
             <!-- home -->
             <form action="/index" method="GET" class="nav-form">
                 <button type="submit" class="nav-button">Home</button>
@@ -32,8 +25,11 @@
                 <input type="hidden" name="meetName" value="{{ .meetName }}">
                 <button type="submit" class="nav-button">Reset Meet</button>
             </form>
+
         </div>
+
     </div>
+
 </header>
 
 <script>
@@ -42,6 +38,3 @@
         dropdown.classList.toggle("show-dropdown");
     }
 </script>
-
-</body>
-</html>

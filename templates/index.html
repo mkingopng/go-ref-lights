@@ -1,9 +1,11 @@
 <!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <Title>Select Referee Positions for {{ .meetName }}</Title>
 </head>
+
 <body>
 
 {{template "header.html" .}}
@@ -11,18 +13,22 @@
 <h1>Referee Positions for: {{ .meetName }}</h1>
 
 <div class="qr-code-container">
+
   <div class="qr-code-item">
     <img src="/qrcode?meetName={{ .meetName }}&position=left" alt="Left Ref QR" />
     <p>Left Referee</p>
   </div>
+
   <div class="qr-code-item">
     <img src="/qrcode?meetName={{ .meetName }}&position=center" alt="Center Ref QR" />
     <p>Center Referee</p>
   </div>
+
   <div class="qr-code-item">
     <img src="/qrcode?meetName={{ .meetName }}&position=right" alt="Right Ref QR" />
     <p>Right Referee</p>
   </div>
+
 </div>
 
 <div class="button-container">
@@ -33,5 +39,6 @@
 <div class="logo-container">
   <img src="{{ .Logo }}" alt="Meet Logo" style="max-height:100px;"/>
 </div>
+
 </body>
 </html>
