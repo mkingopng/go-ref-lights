@@ -565,9 +565,4 @@ go run cmd/referee-lights/main.go
 * Open two browser tabs: lights page & referee page
 * Click “Platform Ready” 20× quickly – lights shouldn’t freeze
 * Force-vacate a referee → their tab should auto-disconnect
-
----
-
-Let me know which task you’d like expanded next (full file blobs, unit-test stubs, or Terraform/CloudWatch alarm snippets) and I’ll prep the code!
-
-----
+-------
