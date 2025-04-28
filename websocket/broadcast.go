@@ -9,6 +9,23 @@ import (
 	"go-ref-lights/logger"
 )
 
+// marshallWithRetry attempts to marshal an object to JSON with retries
+// Returns marshalled bytes or nil if all attempts fail
+func marshallWithRetry(v interface{}, maxRetries int) ([]byte, error) {
+	var lastError error
+	for i := 0; i < maxRetries; i++ {
+		bytes, err := json.Marshal(v)
+		if err == nil {
+			return bytes, nil
+		}
+		lastError = err
+		logger.Warn.Printf("[marshallWithRetry] Attempt %d/%d failed: %v", i+1, maxRetries, err)
+		time.Sleep(10 * time.Millisecond) // Small delay between retries
+	}
+	logger.Error.Printf("[marshallWithRetry] All %d attempts failed", maxRetries)
+	return nil, lastError
+}
+
 // safeSend queues data or logs & drops if the buffer is full (prevents deadlock)
 func safeSend(data []byte) {
 	select {
@@ -73,10 +90,10 @@ func HandleMessages() {
 func BroadcastMessage(meetName string, message map[string]interface{}) {
 	logger.Debug.Printf("[BroadcastMessage] Broadcasting next attempt timers for meet=%s", meetName)
 
-	// convert message to JSON
-	msg, err := json.Marshal(message)
+	// convert message to JSON with retry
+	msg, err := marshallWithRetry(message, 3)
 	if err != nil {
-		logger.Error.Printf("[BroadcastMessage] Error marshalling message: %v", err)
+		logger.Error.Printf("[BroadcastMessage] Error marshalling message after retries: %v", err)
 		return
 	}
 
@@ -96,10 +113,10 @@ func broadcastFinalResults(meetName string) {
 		"rightDecision":  meetState.JudgeDecisions["right"],
 	}
 
-	// convert submission to JSON
-	resultMsg, err := json.Marshal(submission)
+	// convert submission to JSON with retry
+	resultMsg, err := marshallWithRetry(submission, 3)
 	if err != nil {
-		logger.Error.Printf("[broadcastFinalResults] Error marshalling final results message: %v", err)
+		logger.Error.Printf("[broadcastFinalResults] Error marshalling final results message after retries: %v", err)
 		return
 	}
 	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' with Left=%s, center=%s, Right=%s",
@@ -116,9 +133,9 @@ func broadcastFinalResults(meetName string) {
 		sleepFunc(time.Duration(resultsDisplayDuration) * time.Second)
 		// prepare a clear message
 		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, err := json.Marshal(clearMsg)
+		clearJSON, err := marshallWithRetry(clearMsg, 3)
 		if err != nil {
-			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults: %v", err)
+			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults after retries: %v", err)
 			return
 		}
 		// send the clear message to the broadcast channel
@@ -132,14 +149,14 @@ func broadcastFinalResults(meetName string) {
 //
 //nolint:unused
 func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) { //nolint:unused
-	msg, err := json.Marshal(map[string]interface{}{
+	msg, err := marshallWithRetry(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
 		"index":    index,
 		"meetName": meetName,
-	})
+	}, 3)
 	if err != nil {
-		logger.Error.Printf("[broadcastTimeUpdateWithIndex] Error marshalling time update: %v", err)
+		logger.Error.Printf("[broadcastTimeUpdateWithIndex] Error marshalling time update after retries: %v", err)
 		return
 	}
 

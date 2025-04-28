@@ -230,9 +230,9 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 			"action":   "resetLights",
 			"meetName": dm.MeetName,
 		}
-		out, err := json.Marshal(msg)
+		out, err := marshallWithRetry(msg, 3)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetLights: %v", err)
+			logger.Error.Printf("Error marshaling resetLights after retries: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -243,9 +243,9 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 			"action":   "resetTimer",
 			"meetName": dm.MeetName,
 		}
-		out, err := json.Marshal(msg)
+		out, err := marshallWithRetry(msg, 3)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetTimer: %v", err)
+			logger.Error.Printf("Error marshaling resetTimer after retries: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -280,9 +280,9 @@ func processDecision(c *Connection, dm DecisionMessage) {
 		"action":  "judgeSubmitted",
 		"judgeId": dm.JudgeID,
 	}
-	out, err := json.Marshal(submission)
+	out, err := marshallWithRetry(submission, 3)
 	if err != nil {
-		logger.Error.Printf("Error marshaling judgeSubmitted: %v", err)
+		logger.Error.Printf("Error marshaling judgeSubmitted after retries: %v", err)
 		return
 	}
 	broadcastToMeet(dm.MeetName, out)
@@ -324,7 +324,11 @@ var broadcastRefereeHealth = func(meetName string) {
 		"requiredReferees":  3,
 	}
 
-	out, _ := json.Marshal(msg)
+	out, err := marshallWithRetry(msg, 3)
+	if err != nil {
+		logger.Error.Printf("[broadcastRefereeHealth] Error marshaling health data after retries: %v", err)
+		return
+	}
 	broadcastToMeet(meetName, out)
 }
 
