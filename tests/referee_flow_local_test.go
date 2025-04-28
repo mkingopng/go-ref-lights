@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/PuerkitoBio/goquery"
-	"go-ref-lights/internal/app"
 )
 
 // helper: closes a response body and logs any error
@@ -25,17 +24,24 @@ func closeRespBody(t *testing.T, body io.ReadCloser, context string) {
 	}
 }
 
-// TestRefereeFlow simulates the real user flow of:
-//	A) GET / -> choose-meet
-//	B) POST /set-meet
-//	C) POST /login
-//	D) GET /index -> verifying there's 3 QR code items
-//	E) GET /referee/.../center -> verifying the page loads CSS/JS properly
+/*
+TestRefereeFlow simulates the real user flow of:
 
+	A) GET / -> choose-meet
+	B) POST /set-meet
+	C) POST /login
+	D) GET /index -> verifying there's 3 QR code items
+	E) GET /referee/.../center -> verifying the page loads CSS/JS properly
+*/
 func TestRefereeFlow(t *testing.T) {
+	// Test meet configuration
+	const testMeetName = "test_mule"
+	const testUsername = "test"
+	const testPassword = "mule"
+
 	// 1. spin up your Gin router in test mode
 	t.Log("[TestRefereeFlow] Starting local test server in 'test' mode")
-	router := app.SetupRouter("test") // pass "test" or "development"
+	router := SetupTestRouter("test") // pass "test" or "development"
 	server := httptest.NewServer(router)
 	defer server.Close()
 
@@ -61,10 +67,10 @@ func TestRefereeFlow(t *testing.T) {
 		t.Fatalf("GET / returned %d, want 200", respA.StatusCode)
 	}
 
-	// B) POST /set-meet -> "Dragon Cup 2"
-	t.Log("[TestRefereeFlow] Step B: POST /set-meet for 'Dragon Cup 2'")
+	// B) POST /set-meet -> "test_mule"
+	t.Log("[TestRefereeFlow] Step B: POST /set-meet for '" + testMeetName + "'")
 	formData := url.Values{}
-	formData.Set("meetName", "Dragon Cup 2") // or an actual test meet name
+	formData.Set("meetName", testMeetName)
 	respB, errB := client.PostForm(baseURL+"/set-meet", formData)
 	if errB != nil {
 		t.Fatalf("POST /set-meet failed: %v", errB)
@@ -76,21 +82,21 @@ func TestRefereeFlow(t *testing.T) {
 		t.Fatalf("POST /set-meet returned %d (expected 302 or 200)", respB.StatusCode)
 	}
 
-	// C) POST /login with meet director’s username/password
-	t.Log("[TestRefereeFlow] Step C: POST /login with credentials")
+	// C) POST /login with meet director's username/password
+	t.Log("[TestRefereeFlow] Step C: POST /test-login with credentials")
 	loginForm := url.Values{}
-	loginForm.Set("username", "dragon_cup") // todo: actual admin user
-	loginForm.Set("password", "YqW8qd")     // todo: actual password
+	loginForm.Set("meetName", testMeetName)
+	loginForm.Set("username", testUsername)
 
-	respC, errC := client.PostForm(baseURL+"/login", loginForm)
+	respC, errC := client.PostForm(baseURL+"/test-login", loginForm)
 	if errC != nil {
-		t.Fatalf("POST /login failed: %v", errC)
+		t.Fatalf("POST /test-login failed: %v", errC)
 	}
-	closeRespBody(t, respC.Body, "Step C (POST /login)")
+	closeRespBody(t, respC.Body, "Step C (POST /test-login)")
 
 	// usually we expect a redirect to /index if success
 	if respC.StatusCode != http.StatusFound && respC.StatusCode != http.StatusOK {
-		t.Fatalf("POST /login returned %d, want 302 or 200", respC.StatusCode)
+		t.Fatalf("POST /test-login returned %d, want 302 or 200", respC.StatusCode)
 	}
 
 	// D) GET /index -> confirm there are 3 QR code items
@@ -123,9 +129,9 @@ func TestRefereeFlow(t *testing.T) {
 		t.Logf("[TestRefereeFlow] Found %d .qr-code-item elements on /index as expected", qrCount)
 	}
 
-	// E) GET /referee/Dragon%20Cup%202/center
-	t.Log("[TestRefereeFlow] Step E: GET /referee/Dragon%20Cup%202/center")
-	refereePath := "/referee/Dragon%20Cup%202/center"
+	// E) GET /referee/test_mule/center
+	t.Log("[TestRefereeFlow] Step E: GET /referee/" + testMeetName + "/center")
+	refereePath := "/referee/" + url.PathEscape(testMeetName) + "/center"
 	respE, errE := client.Get(baseURL + refereePath)
 	if errE != nil {
 		t.Fatalf("GET referee page failed: %v", errE)
