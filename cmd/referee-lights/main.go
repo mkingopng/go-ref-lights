@@ -262,6 +262,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Notify WebSocket system about the heartbeat
+	// This integrates the separate heartbeat system with the WebSocket connection tracking
+	websocket.UpdateRefereeHeartbeat(refereeID)
+
+	// Keep original behavior for backward compatibility
 	sessionLock.Lock()
 	refereeSessions[refereeID] = time.Now()
 	sessionLock.Unlock()
