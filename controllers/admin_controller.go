@@ -400,3 +400,23 @@ func mustMarshal(v interface{}) []byte {
 	bytes, _ := json.Marshal(v)
 	return bytes
 }
+
+// GetSystemHealthMetrics returns real-time health metrics as JSON
+// This is an API endpoint for the admin dashboard
+func (ac *AdminController) GetSystemHealthMetrics(c *gin.Context) {
+	session := sessions.Default(c)
+
+	// Ensure user is an admin
+	isAdmin, ok := session.Get("isAdmin").(bool)
+	if !ok || !isAdmin {
+		logger.Warn.Println("[GetSystemHealthMetrics] Unauthorized attempt to access health metrics")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	// Get system health metrics from websocket package
+	metrics := websocket.GetSystemHealthMetrics()
+
+	// Return metrics as JSON
+	c.JSON(http.StatusOK, metrics)
+}

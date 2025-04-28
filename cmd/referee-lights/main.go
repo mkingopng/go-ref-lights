@@ -204,6 +204,7 @@ func SetupRouter(env string) *gin.Engine {
 		protected.GET("/admin", meetDirectorController.AdminPanel)                                  // meet director
 		protected.POST("/force-vacate", meetDirectorController.ForceVacate)                         // meet director
 		protected.POST("/reset-instance", meetDirectorController.ResetInstance)                     // meet director
+		protected.GET("/system-health", meetDirectorController.GetSystemHealthMetrics)              // meet director
 		protected.GET("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) })  // meet director
 		protected.POST("/logout", func(c *gin.Context) { controllers.Logout(c, occupancyService) }) // meet director
 	}
