@@ -180,6 +180,9 @@ func registerConnection(c *Connection) {
 	connectionsMu.Lock()
 	connections[c] = true
 	connectionsMu.Unlock()
+
+	// Update CloudWatch metrics with current connection count
+	PublishRefereeConnections(len(connections), c.meetName)
 }
 
 // unregisterConnection removes a WebSocket connection from the global map
@@ -187,6 +190,9 @@ func unregisterConnection(c *Connection) {
 	connectionsMu.Lock()
 	delete(connections, c)
 	connectionsMu.Unlock()
+
+	// Update CloudWatch metrics with current connection count
+	PublishRefereeConnections(len(connections), c.meetName)
 }
 
 // ------------------------ message handling -----------------------
