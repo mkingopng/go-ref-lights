@@ -544,13 +544,13 @@ Replace the one-liner with full cleanup + redirect:
 
 ## 🔜 Backlog / future branches
 
-| Idea | Pointer |
-|------|---------|
-| **Unify Heartbeat & WS maps** | Replace `refereeSessions` with `connections`-map lookups; send PING failures to mark “red” in UI. |
+| Idea                            | Pointer                                                                                                     |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------|
+| **Unify Heartbeat & WS maps**   | Replace `refereeSessions` with `connections`-map lookups; send PING failures to mark “red” in UI.           |
 | **Buffered consumer goroutine** | Off-load JSON-parse + meetFilter work from `HandleMessages` into N workers to reduce head-of-line blocking. |
-| **Admin dashboard panel** | Use `/occupancy` JSON + new `/metrics` endpoint to paint live stats (React or htmx). |
-| **Stale timer detection** | Periodic sweep of `MeetState` to ensure `PlatformReadyActive` false when `time.Now() > EndTime`. |
-| **Integration tests** | Add Go test harness with in-memory WS & HTTP to assert no broadcast drops under 100 rps. |
+| **Admin dashboard panel**       | Use `/occupancy` JSON + new `/metrics` endpoint to paint live stats (React or htmx).                        |
+| **Stale timer detection**       | Periodic sweep of `MeetState` to ensure `PlatformReadyActive` false when `time.Now() > EndTime`.            |
+| **Integration tests**           | Add Go test harness with in-memory WS & HTTP to assert no broadcast drops under 100 rps.                    |
 
 ---
 
@@ -565,4 +565,210 @@ go run cmd/referee-lights/main.go
 * Open two browser tabs: lights page & referee page
 * Click “Platform Ready” 20× quickly – lights shouldn’t freeze
 * Force-vacate a referee → their tab should auto-disconnect
+
 -------
+other todos
+- scale to zero for CDK app. If the app has been idle for say 30 minutes
+  I'd like to scale to zero. Its not just a cost saving measure, its also
+  so that we have "closure" on the logs for an event. the logs we just
+  reviewed were still running 36 hours after the event had finished.
+- improve logging: i'd like exception type logging. For example i don't
+  want to see every time we get a healthy response from a health check. I
+  do want to see when a connection is unhleathy
+- i'd like to improve logging coverage for the application (all parts), but
+  i don't want spammy logs i want to see insightful logs that tell me when
+  something has gone wrong with the app.
+- The logs should be relatively 'lean'. I don't want 1 3gb logs file after
+  a 2 day meet, but at the same time i want to see everythiing i need to in
+  order to know that the app is working properly or not
+
+-----
+# Simulation test plan
+Below is a **self-contained “simulation” test-plan** you can drop into `/tests/integration/simulation_test.go`.
+Its job is to stand-up the whole Gin router in-process, spin-up **fake meet-director + referee browsers (WebSocket clients)**, replay the exact message-exchange pattern that surfaced in the production logs, and assert that every message arrives where it should.
+
+---
+
+## 1  Why an *integration* simulation?
+
+* Unit-tests (the 11 files we listed earlier) protect single functions.
+* The production failure was **cross-cutting**: the browser lights page never received broadcasts even though referees were clearly sending decisions.
+* Re-creating that traffic end-to-end is the only way to know the fix works **before the next real meet**.
+* initially we'll use test_mule as a test event. we'll run a single event
+  only but later we'll run tests on multiple concurrent meets
+---
+
+## 2  Overview of the harness
+
+| Layer                      | What we spin-up                                                              | Library                               |
+|----------------------------|------------------------------------------------------------------------------|---------------------------------------|
+| **HTTP server**            | `httptest.NewServer(SetupRouter("test"))`                                    | `net/http/httptest`                   |
+| **Referee clients (3x)**   | Lightweight goroutines that dial `ws://…/referee-updates?meetName=TestMeet`  | `github.com/gorilla/websocket`        |
+| **Meet-director client**   | Another WebSocket that subscribes to the same room and captures all messages | same                                  |
+| **Assert/require helpers** | Check expected broadcasts & occupancy states                                 | `github.com/stretchr/testify/require` |
+
+Everything lives in-process; no ports, Docker, or AWS credentials needed.
+
+## 3  Scenarios covered
+
+| Scenario ID | Flow reproduced                                                                                     | Log symptom you saw                         | Assertion(s)                                                                                                                                                           |
+|-------------|-----------------------------------------------------------------------------------------------------|---------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **S1**      | 3 referees claim seats → meet-director sees `occupancyChanged`                                      | Sometimes only 2 seats turned green         | Director receives **exactly 3** `occupancyChanged` messages and the final one lists all three names                                                                    |
+| **S2**      | Centre referee clicks *Platform Ready* → timer counts & decisions arrive → results lights broadcast | Lights page never flipped white/red         | (a) Director receives `startTimer` then successive `updatePlatformReadyTime` ticks; (b) after 3 `submitDecision` msgs, director receives a single `displayResults` msg |
+| **S3**      | Referee network drop then page refresh                                                              | Disconnected judge still shown as connected | Close one WebSocket, wait 2 *pingPeriod*s, connect again – `refereeHealth` must first drop to 2 then rise back to 3                                                    |
+| **S4**      | Referee hits *Vacate Position*                                                                      | 404 instead of redirect                     | HTTP POST `/position/vacate` must respond 302 → `/logout?reason=vacate`; afterwards `occupancy.LeftUser == ""` etc.                                                    |
+| **S5**      | Admin *Force Vacate* via POST `/force-vacate`                                                       | Seat stayed occupied in production          | Occupancy empty & `occupancyChanged` broadcast seen by director                                                                                                        |
+| **S6**      | Admin *Reset Instance*                                                                              | Whole state not cleared                     | Occupancy map zeroed **and** `DefaultStateProvider.GetMeetState("TestMeet").JudgeDecisions` length == 0                                                                |
+
+---
+
+## 4 Skeleton code (add/replace only the block below)
+
+```go
+// File: tests/integration/simulation_test.go
+// +build integration
+
+package integration_test
+
+import (
+	"encoding/json"
+	"net/http/httptest"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/require"
+
+	"go-ref-lights/controllers"
+	"go-ref-lights/websocket as ws"
+)
+
+func TestFullSimulation(t *testing.T) {
+	// --- spin up router ---
+	srv := httptest.NewServer(controllers.SetupRouter("test"))
+	defer srv.Close()
+
+	origin := "http://" + srv.Listener.Addr().String()
+	wsURL  := "ws://" + srv.Listener.Addr().String() + "/referee-updates?meetName=TestMeet"
+
+	// --- helper to open a client ---
+	openClient := func() *websocket.Conn {
+		c, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		require.NoError(t, err)
+		return c
+	}
+
+	// --- meet-director socket & capture channel ---
+	director := openClient()
+	defer director.Close()
+	var directorMu sync.Mutex
+	var captured [][]byte
+	go func() {
+		for {
+			_, msg, err := director.ReadMessage()
+			if err != nil {
+				return
+			}
+			directorMu.Lock()
+			captured = append(captured, msg)
+			directorMu.Unlock()
+		}
+	}()
+
+	// --- 3 referee sockets ---
+	refIDs := []string{"left", "center", "right"}
+	for _, id := range refIDs {
+		ref := openClient()
+		defer ref.Close()
+
+		// register ref
+		require.NoError(t,
+			ref.WriteJSON(map[string]string{
+				"action":   "registerRef",
+				"judgeId":  id,
+				"meetName": "TestMeet",
+			}),
+		)
+	}
+
+	// ------- Scenario S1: wait for 3 occupancyChanged -------
+	require.Eventually(t, func() bool {
+		count := 0
+		directorMu.Lock()
+		defer directorMu.Unlock()
+		for _, m := range captured {
+			var tmp map[string]interface{}
+			_ = json.Unmarshal(m, &tmp)
+			if tmp["action"] == "occupancyChanged" {
+				count++
+			}
+		}
+		return count == 3 // exactly 3 seat claims
+	}, 5*time.Second, 100*time.Millisecond, "didn't see 3 occupancyChanged messages")
+
+	// ------- Scenario S2: start timer & submit decisions -------
+	center := openClient()
+	defer center.Close()
+	_ = center.WriteJSON(map[string]string{
+		"action":   "startTimer",
+		"meetName": "TestMeet",
+	})
+	// three decisions
+	for _, id := range refIDs {
+		ref := openClient(); defer ref.Close()
+		_ = ref.WriteJSON(map[string]string{
+			"action":   "submitDecision",
+			"judgeId":  id,
+			"decision": "good",
+			"meetName": "TestMeet",
+		})
+	}
+
+	require.Eventually(t, func() bool {
+		directorMu.Lock(); defer directorMu.Unlock()
+		for _, m := range captured {
+			var tmp map[string]interface{}
+			_ = json.Unmarshal(m, &tmp)
+			if tmp["action"] == "displayResults" {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond, "displayResults never broadcast")
+
+	//  … repeat pattern for S3–S6 (omitted for brevity) ...
+}
+```
+
+### How to run it locally
+we should initially test locally, but thats just a stepping stone
+```bash
+go test ./tests/integration -tags=integration -v
+```
+
+i want to deploy the app to AWS and run these tests in a way that closely
+mimics a real meet
+
+### How to wire it into CI
+
+* Add an `integration` job that runs **after** the unit-test job, **unless** the Docker build tag forbids AWS creds (our harness is fully offline).
+* Fail the pipeline if *any* scenario fails.
+
+---
+
+## 5 Extending / tweaking
+
+* **Throttle/latency** – wrap the websocket `Dial` in a proxy that introduces RTT delays to mimic patchy venue Wi-Fi.
+* **High load** – parametrize `refIDs` and spin 50 referees (they’ll all join “left”; still stresses broadcast fan-out).
+* **Chaos** – randomly `Close()` referee sockets while timers run, then reconnect.
+
+---
+
+## 6 Next steps after the hot-fix
+
+1. **Implement** any code changes the earlier log-review suggested.
+2. **Run `go test …`** – it should now pass 100 %.
+3. Add extra assertions whenever a new regression appears in logs; the harness is easily extendable.
+
+This gives you a repeatable, push-button “competition in a box” you can run on every commit—no more waiting for the next live meet before discovering breakage.

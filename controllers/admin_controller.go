@@ -98,6 +98,9 @@ UnsetPosition, and redirects back to the admin panel.
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
+	// Record activity as this is a significant user action
+	websocket.RecordSystemActivity()
+
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
@@ -177,6 +180,9 @@ panel
 */
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
+
+	// Record activity as this is a significant admin action
+	websocket.RecordSystemActivity()
 
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
@@ -405,6 +411,9 @@ func mustMarshal(v interface{}) []byte {
 // This is an API endpoint for the admin dashboard
 func (ac *AdminController) GetSystemHealthMetrics(c *gin.Context) {
 	session := sessions.Default(c)
+
+	// Active use of dashboard counts as system activity
+	websocket.RecordSystemActivity()
 
 	// Ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)

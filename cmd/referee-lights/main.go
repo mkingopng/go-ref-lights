@@ -3,16 +3,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -267,6 +270,11 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	// This integrates the separate heartbeat system with the WebSocket connection tracking
 	websocket.UpdateRefereeHeartbeat(refereeID)
 
+	// Record system activity for the heartbeat (only if this is a real referee, not a health check agent)
+	if !strings.HasPrefix(refereeID, "healthcheck-") {
+		websocket.RecordSystemActivity()
+	}
+
 	// Keep original behavior for backward compatibility
 	sessionLock.Lock()
 	refereeSessions[refereeID] = time.Now()
@@ -368,6 +376,14 @@ func main() {
 	go hbManager.CleanupInactiveSessions(30 * time.Second)
 	go websocket.HandleMessages()
 
+	// Start the activity tracker for auto-scaling to zero after inactivity
+	activityTracker := websocket.GetActivityTracker()
+	activityTracker.Start()
+
+	// Set up graceful shutdown
+	gracefulShutdown := make(chan os.Signal, 1)
+	signal.Notify(gracefulShutdown, syscall.SIGTERM, syscall.SIGINT)
+
 	// read host/port from environment or default
 	host := os.Getenv("APP_HOST")
 	if host == "" {
@@ -394,9 +410,30 @@ func main() {
 		Handler:      router,
 	}
 
-	logger.Info.Printf("[main] Server running on %s", addr)
-	if err := server.ListenAndServe(); err != nil {
-		// if the server fails to start, we can log a fatal error
-		log.Fatalf("[main] Failed to start server: %v", err)
+	// Start the server in a goroutine
+	go func() {
+		logger.Info.Printf("[main] Server running on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			// if the server fails to start, we can log a fatal error
+			logger.Error.Fatalf("[main] Failed to start server: %v", err)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-gracefulShutdown
+	logger.Info.Println("[main] Received shutdown signal, initiating graceful shutdown")
+
+	// Create a context with timeout for shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Stop the activity tracker
+	activityTracker.Stop()
+
+	// Shutdown the server
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error.Fatalf("[main] Server shutdown failed: %v", err)
 	}
+
+	logger.Info.Println("[main] Server gracefully stopped")
 }

@@ -78,6 +78,9 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Record activity when a new WebSocket connection is established
+	RecordSystemActivity()
+
 	// Set read limit to protect against malicious payloads
 	wsConn.SetReadLimit(1024) // 1 KiB max message size
 
@@ -212,6 +215,9 @@ type DecisionMessage struct {
 func handleIncoming(c *Connection, dm DecisionMessage) {
 	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s",
 		dm.Action, dm.JudgeID, dm.MeetName)
+
+	// Record system activity on any websocket message
+	RecordSystemActivity()
 
 	switch dm.Action {
 	case "registerRef":

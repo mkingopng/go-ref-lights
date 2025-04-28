@@ -4,6 +4,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"go-ref-lights/logger"
@@ -57,6 +58,8 @@ func HandleMessages() {
 		// read incoming message from the broadcast channel
 		msg := <-broadcast
 
+		startTime := time.Now()
+
 		// parse and annotate
 		var msgMap map[string]interface{}
 		var meetFilter string
@@ -69,20 +72,40 @@ func HandleMessages() {
 			logger.Debug.Printf("[HandleMessages] JSON unmarshal error: %v", err)
 		}
 
+		// Count how many connections we'll broadcast to
+		connectionCount := 0
+		droppedCount := 0
+
 		// acquire lock, broadcast to each connection
 		connectionsMu.RLock()
 		for c := range connections {
 			if meetFilter != "" && c.meetName != meetFilter {
 				continue
 			}
+			connectionCount++
 			select {
 			case c.send <- msg:
 				// message queued
 			default:
+				droppedCount++
 				logger.Warn.Printf("[HandleMessages] Dropping broadcast msg for %v", c.conn.RemoteAddr())
 			}
 		}
 		connectionsMu.RUnlock()
+
+		duration := time.Since(startTime)
+
+		// Only log performance metrics if this broadcast was non-trivial
+		if connectionCount > 0 {
+			logger.LogPerformanceMetric(fmt.Sprintf("Broadcast to %d connections (%d dropped)",
+				connectionCount, droppedCount), duration)
+
+			// Log exceptional events when we drop a large percentage of messages
+			if droppedCount > 0 && float64(droppedCount)/float64(connectionCount) > 0.1 {
+				logger.LogExceptional("Dropped %d of %d messages (%.1f%%) during broadcast",
+					droppedCount, connectionCount, 100*float64(droppedCount)/float64(connectionCount))
+			}
+		}
 	}
 }
 
