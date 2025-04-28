@@ -9,6 +9,16 @@ import (
 	"go-ref-lights/logger"
 )
 
+// safeSend queues data or logs & drops if the buffer is full (prevents deadlock)
+func safeSend(data []byte) {
+	select {
+	case broadcast <- data:
+		// Message successfully queued
+	default:
+		logger.Warn.Println("[safeSend] broadcast channel FULL – dropping msg")
+	}
+}
+
 // allow tests to override the sleep behaviour.
 var sleepFunc = time.Sleep
 
@@ -71,7 +81,7 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 	}
 
 	// send the marshalled message to the broadcast channel
-	broadcast <- msg
+	safeSend(msg)
 }
 
 // broadcastFinalResults sends the final decisions to all connections in a meet
@@ -96,7 +106,7 @@ func broadcastFinalResults(meetName string) {
 		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
 
 	// broadcast the results to all clients
-	broadcast <- resultMsg
+	safeSend(resultMsg)
 
 	// start the next attempt timer
 	StartNextAttemptTimer(meetState)
@@ -112,7 +122,7 @@ func broadcastFinalResults(meetName string) {
 			return
 		}
 		// send the clear message to the broadcast channel
-		broadcast <- clearJSON
+		safeSend(clearJSON)
 	}()
 	// reset judge decisions for the next round
 	meetState.JudgeDecisions = make(map[string]string)
@@ -134,10 +144,10 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 	}
 
 	// send the time update message to the broadcast channel
-	broadcast <- msg
+	safeSend(msg)
 }
 
 // SendBroadcastMessage allows raw byte data to be sent over the broadcast channel
 func SendBroadcastMessage(data []byte) {
-	broadcast <- data
+	safeSend(data)
 }

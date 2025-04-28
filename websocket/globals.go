@@ -5,8 +5,9 @@ import (
 	"sync"
 )
 
-// broadcast is a channel for sending messages to all clients
-var broadcast = make(chan []byte)
+// broadcast is a buffered channel for sending messages to all clients
+// Buffer size of 500 absorbs short spikes of traffic without blocking writers
+var broadcast = make(chan []byte, 500)
 
 // resultsDisplayDuration controls how long final decisions remain displayed
 var resultsDisplayDuration = 15

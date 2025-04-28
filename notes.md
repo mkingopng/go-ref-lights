@@ -175,294 +175,6 @@ Write tests in a **clear, structured way**:
 - scheduling
 - scale to zero
 
-```python
-# referee_lights_cdk/referee_lights_cdk_stack.py
-"""
-cdk deployment for go referee lights
-"""
-from aws_cdk import (
-    aws_ec2 as ec2,
-    aws_iam as iam,
-    aws_logs as logs,
-    aws_ecr_assets as ecr_assets,
-    aws_ecs as ecs,
-    aws_ecs_patterns as ecs_patterns,
-    aws_elasticloadbalancingv2 as elbv2,
-    aws_certificatemanager as acm,
-    aws_cloudwatch as cloudwatch,
-    aws_sns as sns,
-    aws_sns_subscriptions as sns_subs,
-    aws_cloudwatch_actions as actions,
-    aws_applicationautoscaling as appscaling,
-    CfnOutput,
-    Duration,
-    Stack,
-    RemovalPolicy,
-    Tags,
-    IAspect,
-)
-from constructs import Construct
-import pathlib
-
-project_root = pathlib.Path(__file__).resolve().parent.parent
-
-class TaggingAspect(IAspect):
-    def __init__(self, key: str, value: str):
-        self.key = key
-        self.value = value
-
-class RefereeLightsCdkStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
-
-        # add comprehensive tags for better cost tracking
-        Tags.of(self).add("Project", "RefereeLightsApp")
-        Tags.of(self).add("Environment", "Production")
-        Tags.of(self).add("Owner", "Michael_Kingston")
-        Tags.of(self).add("CostCenter", "RefereeLights")
-        Tags.of(self).add("Application", "referee-lights")
-        Tags.of(self).add("AutoScale", "enabled")
-
-        # define domain name variable
-        domain_name = "referee-lights.michaelkingston.com.au"
-
-        # create VPC
-        vpc = ec2.Vpc(
-            self,
-            "RefereeLightsVPC",
-            vpc_name="referee-lights-vpc",
-            max_azs=2,
-            nat_gateways=1,
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="Public",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24
-                ),
-                ec2.SubnetConfiguration(
-                    name="Private",
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
-                    cidr_mask=24
-                )
-            ]
-        )
-
-        vpc.add_flow_log("FlowLogs", destination=ec2.FlowLogDestination.to_cloud_watch_logs())
-
-        # create billing alarm
-        billing_alarm = cloudwatch.Alarm(
-            self,
-            "BillingAlarm",
-            metric=cloudwatch.Metric(
-                namespace="AWS/Billing",
-                metric_name="EstimatedCharges",
-                dimensions_map={"Currency": "USD"},
-                period=Duration.hours(6)
-            ),
-            evaluation_periods=1,
-            threshold=50,  # set threshold in USD
-            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-        )
-
-        # create an SNS topic for billing alerts
-        sns_topic = sns.Topic(
-            self,
-            "BillingAlertsTopic",
-            display_name="Billing Alerts for Referee Lights"
-        )
-
-        # add an email subscription
-        sns_topic.add_subscription(sns_subs.EmailSubscription("michael.kenneth.kingston@gmail.com"))
-
-        # attach SNS action to CloudWatch billing alarm
-        billing_alarm.add_alarm_action(actions.SnsAction(sns_topic))
-
-        # create ECS Cluster
-        cluster = ecs.Cluster(
-            self,
-            "RefereeLightsCluster",
-            cluster_name="referee-lights-cluster",
-            vpc=vpc,
-        )
-
-        # define IAM task role
-        task_role = iam.Role(
-            self, "TaskRole",
-            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
-        )
-
-        # define IAM execution role
-        execution_role = iam.Role(
-            self, "ExecutionRole",
-            assumed_by=iam.ServicePrincipal("ecs-tasks.amazonaws.com")
-        )
-
-        execution_role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name(
-                "service-role/AmazonECSTaskExecutionRolePolicy"
-            )
-        )
-
-        # build Docker image
-        docker_image_asset = ecr_assets.DockerImageAsset(
-            self,
-            "RefereeLightsDockerImage",
-            directory=str(project_root),
-            exclude=["cdk.out", "cdk.context.json", "cdk*.json", "cdk.staging", "**/cdk.out/**"]
-        )
-
-        # define Fargate task definition
-        task_definition = ecs.FargateTaskDefinition(
-            self, "RefereeLightsTaskDef",
-            family="referee-lights-task",
-            memory_limit_mib=512,
-            cpu=256,
-            task_role=task_role,
-            execution_role=execution_role
-        )
-
-        # add Container to task definition
-        container = task_definition.add_container(
-            "RefereeLightsContainer",
-            image=ecs.ContainerImage.from_docker_image_asset(docker_image_asset),
-            logging=ecs.LogDrivers.aws_logs(
-                stream_prefix="referee-lights",
-                log_group=logs.LogGroup(
-                    self,
-                    "RefereeLightsLogGroup",
-                    log_group_name="/ecs/referee-lights-app-container",
-                    retention=logs.RetentionDays.ONE_WEEK,
-                    removal_policy=RemovalPolicy.DESTROY,
-                ),
-            ),
-            environment={
-                "ENV": "production",
-                "APPLICATION_URL": f"https://{domain_name}",
-                "WEBSOCKET_URL": f"wss://{domain_name}/referee-updates",
-                "LOG_LEVEL": "DEBUG",
-                "HOST": "0.0.0.0",
-                "PORT": "8080"
-            },
-            health_check=ecs.HealthCheck(
-                command=["CMD-SHELL", "curl -f http://0.0.0.0:8080/health || exit 1"],
-                interval=Duration.seconds(30),
-                timeout=Duration.seconds(5),
-                retries=3,
-                start_period=Duration.seconds(120)
-            )
-        )
-
-        container.add_port_mappings(
-            ecs.PortMapping(container_port=8080),
-        )
-
-        # import ACM certificate
-        certificate = acm.Certificate.from_certificate_arn(
-            self,
-            "RefereeLightsCertificate",
-            certificate_arn="arn:aws:acm:ap-southeast-2:001499655372:certificate/d644df5b-c471-423c-962c-afcc6d86568c"
-        )
-
-        # create Application Load Balanced Fargate Service
-        fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
-            self,
-            "RefereeLightsFargateService",
-            service_name="referee-lights-service",
-            cluster=cluster,
-            task_definition=task_definition,
-            public_load_balancer=True,
-            desired_count=1,
-            listener_port=443,
-            certificate=certificate,
-            protocol=elbv2.ApplicationProtocol.HTTPS,
-            redirect_http=True,
-            capacity_provider_strategies=[
-                ecs.CapacityProviderStrategy(
-                    capacity_provider="FARGATE_SPOT",
-                    weight=1
-                )
-            ]
-        )
-
-        # add explicit security group rule for health checks
-        fargate_service.service.connections.allow_from(
-            fargate_service.load_balancer,
-            ec2.Port.tcp(8080),
-            "Allow health check from ALB"
-        )
-
-        scaling = fargate_service.service.auto_scale_task_count(
-            max_capacity=2,
-            min_capacity=0
-        )
-
-        scaling.scale_on_cpu_utilization(
-            "CpuScaling",
-            target_utilization_percent=50,
-            scale_in_cooldown=Duration.seconds(180),
-            scale_out_cooldown=Duration.seconds(30),
-        )
-
-        scaling.scale_on_request_count(
-            "RequestCountScaling",
-            requests_per_target=100,
-            target_group=fargate_service.target_group,
-            scale_in_cooldown=Duration.seconds(300),
-            scale_out_cooldown=Duration.seconds(60)
-        )
-
-        # scale up for weekend (Friday night to Sunday night)
-        scaling.scale_on_schedule(
-            "WeekendProductionScaling",
-            schedule=appscaling.Schedule.cron(
-                week_day="FRI-SUN",
-                hour="18",
-                minute="0"
-            ),
-            min_capacity=1,
-            max_capacity=2
-        )
-
-        # scale down for weekday development/testing (Monday - Friday)
-        scaling.scale_on_schedule(
-            "WeekdayDevelopmentScaling",
-            schedule=appscaling.Schedule.cron(
-                week_day="Mon-FRI",
-                hour="24",
-                minute="0"
-            ),
-            min_capacity=0,
-            max_capacity=1
-        )
-
-        # configure Health Check
-        fargate_service.target_group.configure_health_check(
-            path="/health",
-            protocol=elbv2.Protocol.HTTP,
-            port="8080",
-            interval=Duration.seconds(10),
-            timeout=Duration.seconds(3),
-            healthy_threshold_count=2,
-            unhealthy_threshold_count=2,
-            healthy_http_codes="200-299",
-        )
-
-        # set idle timeout
-        fargate_service.load_balancer.set_attribute(
-            "idle_timeout.timeout_seconds",
-            "3600" # 60 minutes
-            # "1800" # 30 minutes
-            # "300"
-        )
-
-        # output ALB DNS Name
-        self.output_alb_dns = CfnOutput(
-            self,
-            "ALBDNS",
-            value=fargate_service.load_balancer.load_balancer_dns_name,
-            description="The DNS address of the load balancer"
-        )
-```
 # some simple real tests
 
 Below is a concise list of scenarios you can methodically run through in
@@ -563,3 +275,299 @@ work as expected, you’ll be in a good place for your presentation.
 5. fix all remaining warnings, TODO and FIX_ME
 6. fix samsung issues
 7. prune unused code
+
+----
+
+Alright — I've gone through everything:
+✅ Your uploaded log file,
+✅ All your current project files (`main.go`, controllers, services, websocket handlers, etc.).
+
+---
+
+### **Here’s my structured review:**
+
+### 1. Identified Problems (from logs + codebase review)
+
+| # | Problem | Cause | Impact |
+|:-|:---|:---|:---|
+| 1 | **Broadcast channel (`broadcast`) is overloaded** | Too many messages queued into a single `broadcast` channel; slow consumers. | Dropped messages, stale or missing updates on lights page (`lights.html`). |
+| 2 | **No backpressure or overflow handling on `broadcast` channel** | `broadcast` is unbuffered (`chan []byte`), and writers never check if channel is full. | System degrades silently under load, referees "look connected" but lights freeze. |
+| 3 | **Heartbeat system (refereeSessions map) is separate from websocket `connections` map** | Heartbeat checks session IDs, but WebSocket logic tracks connections differently. | Referees stay "green" even after losing WebSocket connection. |
+| 4 | **Timers (Platform Ready, Next Attempt) are too trusting of connection health** | They assume WebSocket clients receive updates reliably. | Timers can become desynchronized from referee screens if WS messages drop. |
+| 5 | **Force Vacate sometimes fails to clean up associated WS connections** | ForceVacate removes occupancy and ActiveUsers, but does not forcibly close WS. | Zombie WebSocket sessions linger after vacate. |
+| 6 | **Occasional JSON marshal errors not handled defensively** | Broadcast code assumes marshaling always succeeds. | Some messages fail to broadcast without retries. |
+| 7 | **Vacate Position redirects poorly (404)** | Vacate endpoint `/position/vacate` redirects to `/logout?reason=vacate`, but session or state isn't fully cleaned up before redirect. | User gets logged out but page renders incorrectly. |
+| 8 | **Lack of flood protection in `readPump`** | Unlimited reads from clients are allowed. | Malicious or buggy clients can flood server with junk messages. |
+| 9 | **CloudWatch metrics for connections not updated accurately** | Metrics submitted for total WS connections, but not tied tightly enough to lifecycle (open/close). | Cloud monitoring undercounts/overcounts. |
+| 10 | **No central system health dashboard inside app yet** | Only CloudWatch external metrics; no admin panel indicator for platform ready timers, next attempt timers, referee health in-app. | Admins can't easily detect problems during meet. |
+
+---
+
+### 2. Action List to Fix These Problems
+
+| Priority | Action | How | Level of Effort |
+|:-|:---|:---|:---|
+| ⭐ | **Make `broadcast` channel buffered** | e.g., `broadcast = make(chan []byte, 500)` | Low |
+| ⭐ | **Add overflow detection for `broadcast`** | If channel full, log and drop message clearly. | Medium |
+| ⭐ | **Unify heartbeat and WebSocket tracking** | Make heartbeat use WebSocket `connections` map. | High |
+| ⭐ | **Auto-close WebSocket on vacate/logout** | Modify ForceVacate and Logout to forcibly close WS. | Medium |
+| ⭐ | **Fix Vacate redirect issue** | Ensure session is cleared properly before `/logout?reason=vacate` redirect. | Low |
+| ⭐ | **Add read limit and rate limiting to `readPump`** | Set max message size, simple rate limiter. | Medium |
+|  | **Retry marshal errors in broadcasts** | Wrap marshals in retry or fallback. | Medium |
+|  | **Update CloudWatch metrics on WS open/close** | Hook into `registerConnection` and `unregisterConnection`. | Medium |
+|  | **Add Admin Panel Dashboard (heartbeat + timers + queue size)** | Show: active referees, timers, broadcast queue depth. | High |
+|  | **Timer resiliency (stale timer detection)** | Detect and kill stuck timers. | Medium |
+
+---
+
+### 📋 **Immediate To-Do Shortlist (First Moves)**
+
+1. In `globals.go`:
+   ```go
+   var broadcast = make(chan []byte, 500) // add buffer
+   ```
+
+2. In `broadcast.go`:
+   Before sending:
+   ```go
+   select {
+       case broadcast <- msg:
+       default:
+           logger.Warn.Println("[Broadcast] Broadcast channel full! Dropping message")
+   }
+   ```
+
+3. In `connection.go`:
+   - Add `SetReadLimit(512)` on WebSocket connection right after upgrading (protect against flood).
+   - Hook up `unregisterConnection(c)` inside `ForceVacate`, `Logout`, etc.
+
+4. In `page_controller.go` (`VacatePosition`):
+   - Before redirect to `/logout`, explicitly clear session or force redirect via JS if server-side redirect keeps session dirty.
+
+---
+
+### ⚡ If you like, I can break this into even more detailed PR-ready changes (one per task) and show:
+
+- File-by-file: **where to insert**, **what to delete**, **what to replace**, **full code blocks with comments**.
+
+Would you like me to build that next? 🚀
+(Feels like it would really help you work cleanly through it!)
+
+----
+
+Below is a **pull-request-ready game-plan** that you can follow commit-by-commit.
+For every task I give:
+
+* **Why** we’re doing it (linking back to the problems list)
+* **Exactly what to change** – shown in unified-diff format with line-numbers and comments
+* **Any follow-up** (tests, config, deployment tweaks)
+
+---
+
+## ☑️ Task 0 - create a work-branch
+
+```bash
+git checkout -b fix/broadcast-overflow-and-vacate-bugs
+```
+
+---
+
+## ⭐ Task 1 – Buffer the global `broadcast` channel & guard against overflow
+**Files touched:** `websocket/globals.go`, `websocket/broadcast.go`
+
+### 1-A globals.go – change the channel declaration
+
+```diff
+@@
+-// broadcast is a channel for sending messages to all clients
+-var broadcast = make(chan []byte)
++// broadcast is buffered to absorb short spikes (500 msgs ≈ a few seconds of traffic)
++// If overflow occurs we’ll drop & log the packet rather than block every writer.
++var broadcast = make(chan []byte, 500)
+```
+
+> **Why:** avoids the writer goroutines blocking and piling up under load.
+
+### 1-B broadcast.go – wrap **all** writes in a non-blocking send
+
+Add this helper **just below** the imports:
+
+```go
+// safeSend queues data or logs & drops if the buffer is full (prevents deadlock)
+func safeSend(data []byte) {
+	select {
+	case broadcast <- data:
+		// OK
+	default:
+		logger.Warn.Println("[safeSend] broadcast channel FULL – dropping msg")
+	}
+}
+```
+
+Replace every bare `broadcast <- …` send in **this file only** (there are three) with `safeSend(…)`.
+
+Example:
+
+```diff
+-broadcast <- msg
++safeSend(msg)
+```
+
+(Do the same for `broadcastFinalResults`, `broadcastAllNextAttemptTimers`, etc. inside this file.)
+
+---
+
+## ⭐ Task 2 – Read-flood & payload-size protection
+**File:** `websocket/connection.go`
+
+### 2-A Enforce a 1 KiB max per message
+
+Right after successful upgrade in `ServeWs`:
+
+```diff
+ wsConn, err := upgrader.Upgrade(w, r, nil)
+ if err != nil { … }
+
++// ---- security: 1 KiB/message hard-limit & 4 s write timeout ---------- //
++wsConn.SetReadLimit(1024)              // 1024 bytes
+```
+
+(Use any size you consider safe; 1 KiB is plenty for our JSON messages.)
+
+### 2-B Basic per-connection rate limiting (naïve, but enough)
+
+Inside `readPump()` add a simple “time since last message” guard **at the top of the for-loop**:
+
+```go
+var lastMsg time.Time
+…
+for {
+    if !lastMsg.IsZero() && time.Since(lastMsg) < 200*time.Millisecond {
+        logger.Warn.Printf("[readPump] %v flooding; closing", c.conn.RemoteAddr())
+        return
+    }
+    lastMsg = time.Now()
+    …
+}
+```
+
+---
+
+## ⭐ Task 3 – Cleanly kill WS connections when a referee is forced to vacate or logs out
+**Files:** `websocket/connection.go`, `controllers/admin_controller.go`, `controllers/page_controller.go`
+
+### 3-A Add a helper to close all WS for a given user **and/or** meet
+
+Insert in `connection.go` (after `broadcastRefereeHealth` helper):
+
+```go
+// CloseConnectionsForUser forcibly closes any WS whose judgeID *or* remoteAddr
+// matches the supplied identifier (used when force-vacating / logout).
+func CloseConnectionsForUser(identifier string) {
+	connectionsMu.Lock()
+	for c := range connections {
+		if c.judgeID == identifier || c.conn.RemoteAddr().String() == identifier {
+			_ = c.conn.Close() // triggers unregister via read/write pumps
+		}
+	}
+	connectionsMu.Unlock()
+}
+```
+
+### 3-B Call the helper from **ForceVacate** (admin_controller.go)
+
+Inside the switch-case (after we discover the `occupant` we’re kicking):
+
+```diff
+-// remove user from the active list
+-delete(ActiveUsers, occupant)
++// clean up websocket(s) first
++websocket.CloseConnectionsForUser(occupant)
++delete(ActiveUsers, occupant)
+```
+
+### 3-C Call the helper from **Logout** (page_controller.go)
+
+Add just before removing from `ActiveUsers`:
+
+```go
+websocket.CloseConnectionsForUser(userEmail)
+```
+
+---
+
+## ⭐ Task 4 – Fix `/position/vacate` → 404 redirect edge-case
+**File:** `controllers/position_controller.go`
+
+Replace the one-liner with full cleanup + redirect:
+
+```diff
+-func (pc *PositionController) VacatePosition(c *gin.Context) {
+-    c.Redirect(http.StatusFound, "/logout?reason=vacate")
++func (pc *PositionController) VacatePosition(c *gin.Context) {
++    // fully clear session first to avoid stale cookies -> 404
++    session := sessions.Default(c)
++    _ = session.Clear()
++    _ = session.Save()
++
++    // offload to the common Logout flow
++    c.Redirect(http.StatusFound, "/logout?reason=vacate")
+ }
+```
+
+(You already wired `/logout` to the common handler, so this resolves the 404 / “ghost session” report.)
+
+---
+
+## ⭐ Task 5 – Publish accurate CloudWatch metrics on WS connect / disconnect
+**File:** `websocket/connection.go` (two quick hooks)
+
+```diff
+ func registerConnection(c *Connection) {
+     connectionsMu.Lock()
+     connections[c] = true
+     connectionsMu.Unlock()
++
++    websocket.PublishRefereeConnections(len(connections), c.meetName)
+ }
+ …
+ func unregisterConnection(c *Connection) {
+     connectionsMu.Lock()
+     delete(connections, c)
+     connectionsMu.Unlock()
++
++    websocket.PublishRefereeConnections(len(connections), c.meetName)
+ }
+```
+
+---
+
+## 🔜 Backlog / future branches
+
+| Idea | Pointer |
+|------|---------|
+| **Unify Heartbeat & WS maps** | Replace `refereeSessions` with `connections`-map lookups; send PING failures to mark “red” in UI. |
+| **Buffered consumer goroutine** | Off-load JSON-parse + meetFilter work from `HandleMessages` into N workers to reduce head-of-line blocking. |
+| **Admin dashboard panel** | Use `/occupancy` JSON + new `/metrics` endpoint to paint live stats (React or htmx). |
+| **Stale timer detection** | Periodic sweep of `MeetState` to ensure `PlatformReadyActive` false when `time.Now() > EndTime`. |
+| **Integration tests** | Add Go test harness with in-memory WS & HTTP to assert no broadcast drops under 100 rps. |
+
+---
+
+## 🧪 Smoke test locally
+
+```bash
+go vet ./...
+go test ./...          # should still pass
+go run cmd/referee-lights/main.go
+```
+
+* Open two browser tabs: lights page & referee page
+* Click “Platform Ready” 20× quickly – lights shouldn’t freeze
+* Force-vacate a referee → their tab should auto-disconnect
+
+---
+
+Let me know which task you’d like expanded next (full file blobs, unit-test stubs, or Terraform/CloudWatch alarm snippets) and I’ll prep the code!
+
+----

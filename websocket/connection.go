@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
+
+	"github.com/gorilla/websocket"
 )
 
 // ------------------------- websocket connection interface ------------------
@@ -77,6 +78,9 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set read limit to protect against malicious payloads
+	wsConn.SetReadLimit(1024) // 1 KiB max message size
+
 	// create a Connection carrying the same context
 	conn := &Connection{
 		conn:     wsConn,
@@ -101,7 +105,17 @@ func (c *Connection) readPump() {
 		_ = c.conn.Close()
 	}()
 
+	// Rate limiting: track last message time
+	var lastMsg time.Time
+
 	for {
+		// Basic rate limiting - prevent message floods
+		if !lastMsg.IsZero() && time.Since(lastMsg) < 200*time.Millisecond {
+			logger.Warn.Printf("[readPump] %v flooding; closing connection", c.conn.RemoteAddr())
+			return
+		}
+		lastMsg = time.Now()
+
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
 			// break from the loop (closing the connection)
@@ -284,6 +298,7 @@ var broadcastToMeet = func(meetName string, message []byte) {
 	}
 }
 
+// broadcastRefereeHealth function sends referee connection information to all clients
 var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
 
@@ -305,4 +320,19 @@ var broadcastRefereeHealth = func(meetName string) {
 
 	out, _ := json.Marshal(msg)
 	broadcastToMeet(meetName, out)
+}
+
+// CloseConnectionsForUser forcibly closes any WebSocket connections whose judgeID
+// or remoteAddr matches the supplied identifier (used when force-vacating / logout).
+func CloseConnectionsForUser(identifier string) {
+	logger.Info.Printf("[CloseConnectionsForUser] Closing WebSocket connections for user: %s", identifier)
+
+	connectionsMu.Lock()
+	for c := range connections {
+		if c.judgeID == identifier || c.conn.RemoteAddr().String() == identifier {
+			logger.Info.Printf("[CloseConnectionsForUser] Closing connection for %s (%v)", c.judgeID, c.conn.RemoteAddr())
+			_ = c.conn.Close() // triggers unregister via read/write pumps
+		}
+	}
+	connectionsMu.Unlock()
 }

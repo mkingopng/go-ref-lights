@@ -144,6 +144,9 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 		return
 	}
 
+	// close all WebSocket connections for this user first
+	websocket.CloseConnectionsForUser(occupant)
+
 	// remove user from the active list
 	delete(ActiveUsers, occupant)
 
