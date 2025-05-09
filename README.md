@@ -42,9 +42,65 @@ RefLights is a referee lighting system designed for powerlifting competitions. I
    ```
 
 ## Running Tests
-To execute all tests, run:
+The project includes several types of tests:
+
+### Unit Tests
+For testing individual components:
 ```bash
 go test -v ./...
+```
+
+### Integration Tests
+For testing the interaction between components:
+```bash
+go test -v -tags=integration ./tests
+```
+
+### Remote Tests
+For testing against the production AWS environment:
+```bash
+# Update credentials in tests/remote_simulation_test.go first
+go test -v -tags=remote -run=TestFullMeetSimulation ./tests
+```
+
+These remote tests include:
+
+1. **Full Meet Simulation (TestFullMeetSimulation)**
+   - Simulates a complete powerlifting competition with 100 lifters
+   - Each lifter performs 9 attempts (3 squats, 3 bench, 3 deadlift)
+   - ~20 seconds between attempts with random variation
+   - Periodically simulates network disconnections and reconnections
+   - Includes referee position changes and admin actions
+
+2. **Network Resilience Testing (TestRefereeNetworkIssues)**
+   - Rapid disconnection and reconnection of referees
+   - Verifies system maintains state and functionality
+
+3. **Load Testing (TestHighLoad)**
+   - Creates multiple simultaneous connections
+   - Tests broadcast performance
+   - Verifies system handles many concurrent users
+
+Use these tests with caution as they interact with the production environment.
+The constants in `remote_simulation_test.go` should be configured appropriately
+before running.
+
+### Test Structure
+- `tests/` directory contains both unit and integration tests
+- Integration tests use the `integration` build tag
+- Tests can be run against the test_mule meet configuration for consistent results
+- The test infrastructure includes helpers for:
+  - WebSocket testing with message capture
+  - Authentication bypass for testing
+  - Simulating referee connections and interactions
+
+For running specific tests:
+```bash
+# Run a specific test
+go test -v -tags=integration -run=TestRefereeFlow ./tests
+
+# Run tests with race detection
+go test -v -tags=integration -race ./tests
 ```
 
 ## Deployment to AWS

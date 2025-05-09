@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
+
+	"github.com/gorilla/websocket"
 )
 
 // ------------------------- websocket connection interface ------------------
@@ -77,6 +78,12 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Record activity when a new WebSocket connection is established
+	RecordSystemActivity()
+
+	// Set read limit to protect against malicious payloads
+	wsConn.SetReadLimit(1024) // 1 KiB max message size
+
 	// create a Connection carrying the same context
 	conn := &Connection{
 		conn:     wsConn,
@@ -101,7 +108,17 @@ func (c *Connection) readPump() {
 		_ = c.conn.Close()
 	}()
 
+	// Rate limiting: track last message time
+	var lastMsg time.Time
+
 	for {
+		// Basic rate limiting - prevent message floods
+		if !lastMsg.IsZero() && time.Since(lastMsg) < 200*time.Millisecond {
+			logger.Warn.Printf("[readPump] %v flooding; closing connection", c.conn.RemoteAddr())
+			return
+		}
+		lastMsg = time.Now()
+
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
 			// break from the loop (closing the connection)
@@ -166,6 +183,9 @@ func registerConnection(c *Connection) {
 	connectionsMu.Lock()
 	connections[c] = true
 	connectionsMu.Unlock()
+
+	// Update CloudWatch metrics with current connection count
+	PublishRefereeConnections(len(connections), c.meetName)
 }
 
 // unregisterConnection removes a WebSocket connection from the global map
@@ -173,6 +193,9 @@ func unregisterConnection(c *Connection) {
 	connectionsMu.Lock()
 	delete(connections, c)
 	connectionsMu.Unlock()
+
+	// Update CloudWatch metrics with current connection count
+	PublishRefereeConnections(len(connections), c.meetName)
 }
 
 // ------------------------ message handling -----------------------
@@ -193,12 +216,28 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s",
 		dm.Action, dm.JudgeID, dm.MeetName)
 
+	// Record system activity on any websocket message
+	RecordSystemActivity()
+
 	switch dm.Action {
 	case "registerRef":
 		c.judgeID = dm.JudgeID
 		logger.Info.Printf("Referee %s registered on meet %s (conn=%v)",
 			dm.JudgeID, dm.MeetName, c.conn.RemoteAddr())
+
+		// Immediately broadcast updated referee health when a referee registers
 		broadcastRefereeHealth(dm.MeetName)
+
+		// This also updates the MeetState's list of referee sessions
+		if meetState := DefaultStateProvider.GetMeetState(dm.MeetName); meetState != nil {
+			meetsMutex.Lock()
+			if wsConn, ok := c.conn.(interface{ UnderlyingConn() *websocket.Conn }); ok {
+				meetState.RefereeSessions[dm.JudgeID] = wsConn.UnderlyingConn()
+			} else {
+				logger.Warn.Printf("[handleIncoming] Could not convert connection for referee %s to websocket.Conn", dm.JudgeID)
+			}
+			meetsMutex.Unlock()
+		}
 
 	case "startTimer":
 		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
@@ -210,9 +249,9 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 			"action":   "resetLights",
 			"meetName": dm.MeetName,
 		}
-		out, err := json.Marshal(msg)
+		out, err := marshallWithRetry(msg, 3)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetLights: %v", err)
+			logger.Error.Printf("Error marshaling resetLights after retries: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -223,9 +262,9 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 			"action":   "resetTimer",
 			"meetName": dm.MeetName,
 		}
-		out, err := json.Marshal(msg)
+		out, err := marshallWithRetry(msg, 3)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetTimer: %v", err)
+			logger.Error.Printf("Error marshaling resetTimer after retries: %v", err)
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -260,9 +299,9 @@ func processDecision(c *Connection, dm DecisionMessage) {
 		"action":  "judgeSubmitted",
 		"judgeId": dm.JudgeID,
 	}
-	out, err := json.Marshal(submission)
+	out, err := marshallWithRetry(submission, 3)
 	if err != nil {
-		logger.Error.Printf("Error marshaling judgeSubmitted: %v", err)
+		logger.Error.Printf("Error marshaling judgeSubmitted after retries: %v", err)
 		return
 	}
 	broadcastToMeet(dm.MeetName, out)
@@ -284,17 +323,24 @@ var broadcastToMeet = func(meetName string, message []byte) {
 	}
 }
 
+// broadcastRefereeHealth function sends referee connection information to all clients
 var broadcastRefereeHealth = func(meetName string) {
 	var connectedIDs []string
+	var connCount = 0
 
 	connectionsMu.RLock()
 	for c := range connections {
-		if c.meetName == meetName && c.judgeID != "" {
-			connectedIDs = append(connectedIDs, c.judgeID)
+		if c.meetName == meetName {
+			connCount++
+			if c.judgeID != "" {
+				connectedIDs = append(connectedIDs, c.judgeID)
+			}
 		}
 	}
-
 	connectionsMu.RUnlock()
+
+	logger.Debug.Printf("[broadcastRefereeHealth] Found %d connections (%d with judgeIDs) for meet %s",
+		connCount, len(connectedIDs), meetName)
 
 	msg := map[string]interface{}{
 		"action":            "refereeHealth",
@@ -303,6 +349,57 @@ var broadcastRefereeHealth = func(meetName string) {
 		"requiredReferees":  3,
 	}
 
-	out, _ := json.Marshal(msg)
+	out, err := marshallWithRetry(msg, 3)
+	if err != nil {
+		logger.Error.Printf("[broadcastRefereeHealth] Error marshaling health data after retries: %v", err)
+		return
+	}
 	broadcastToMeet(meetName, out)
+}
+
+// CloseConnectionsForUser forcibly closes any WebSocket connections whose judgeID
+// or remoteAddr matches the supplied identifier (used when force-vacating / logout).
+func CloseConnectionsForUser(identifier string) {
+	logger.Info.Printf("[CloseConnectionsForUser] Closing WebSocket connections for user: %s", identifier)
+
+	connectionsMu.Lock()
+	for c := range connections {
+		if c.judgeID == identifier || c.conn.RemoteAddr().String() == identifier {
+			logger.Info.Printf("[CloseConnectionsForUser] Closing connection for %s (%v)", c.judgeID, c.conn.RemoteAddr())
+			_ = c.conn.Close() // triggers unregister via read/write pumps
+		}
+	}
+	connectionsMu.Unlock()
+}
+
+// UpdateRefereeHeartbeat updates the heartbeat status for a referee based on websocket connection
+// This function bridges the gap between the separate heartbeat system and WebSocket connections
+func UpdateRefereeHeartbeat(refereeID string) {
+	if refereeID == "" {
+		return
+	}
+
+	// Check if this referee has an active WebSocket connection
+	connectionsMu.RLock()
+	refereeActive := false
+	var refereeMeet string
+
+	for c := range connections {
+		if c.judgeID == refereeID {
+			refereeActive = true
+			refereeMeet = c.meetName
+			break
+		}
+	}
+	connectionsMu.RUnlock()
+
+	if refereeActive && refereeMeet != "" {
+		// If we found an active connection, broadcast updated referee health
+		logger.Debug.Printf("[UpdateRefereeHeartbeat] Referee %s has active WebSocket for meet %s",
+			refereeID, refereeMeet)
+		broadcastRefereeHealth(refereeMeet)
+	} else {
+		logger.Warn.Printf("[UpdateRefereeHeartbeat] Referee %s has heartbeat but NO active WebSocket",
+			refereeID)
+	}
 }

@@ -4,12 +4,13 @@ package controllers
 
 import (
 	"encoding/json"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
 	"net/http"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 )
 
 // PositionController manages referee position assignments
@@ -27,6 +28,24 @@ func NewPositionController(service services.OccupancyServiceInterface) *Position
 
 // VacatePosition allows a referee to vacate their assigned position
 func (pc *PositionController) VacatePosition(c *gin.Context) {
+	// fully clear session first to avoid stale cookies -> 404
+	session := sessions.Default(c)
+
+	// get user email before clearing session
+	userEmail, _ := session.Get("user").(string)
+
+	// close any websocket connections
+	if userEmail != "" {
+		websocket.CloseConnectionsForUser(userEmail)
+	}
+
+	// clear session
+	session.Clear()
+	if err := session.Save(); err != nil {
+		logger.Error.Printf("[VacatePosition] Error saving session: %v", err)
+	}
+
+	// redirect to logout page
 	c.Redirect(http.StatusFound, "/logout?reason=vacate")
 }
 
