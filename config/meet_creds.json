@@ -5,30 +5,30 @@
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$NQ1pcpwOiumjjRdS68KxCO960kGRUDismv53FRotH4hd/cqaylZXu",
+                "password": "$2b$12$.Kd3PzGnkFwPaZFX5otWF.dH8/HNfJFf0kY7l79qxxgeJ1usCErDW",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$StEk9YANlMunSVQGIHuK/OaeqlqqrquNRcrwW/kCuohHS.I3AriR2",
+                    "password": "$2b$12$D8rh1JSx10.biPMsxCRD4utSfhxmlj/D.w3STQfuRggXQiZaqEQb2",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/APL_logo_white.png"
         },
         {
-            "name": "Mountain_Top_Rumble",
-            "date": "April 27",
+            "name": "Coastal_Classic",
+            "date": "May_10",
             "admin": {
-                "username": "mtr1",
-                "password": "$2b$12$BSAFJpUrQDwXwxVfrT28qOc6nQNKoDmOUp3hzrocELmvn8zhu1oQu",
+                "username": "cc1",
+                "password": "$2b$12$TXnwRLMYS3ZX6SSfakm3IeGAdigx2Reg.jfwcPMX.rDxtc1U6i03C",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
-                    "username": "mtr2",
-                    "password": "$2b$12$l0gQTJv4FLGRbjzGBXgPAeNTWYz8jRZOr7L9/QM2jXKpXIjmG9y5G",
+                    "username": "cc2",
+                    "password": "$2b$12$vi.4KvYG//GlurS367lYPuH3CNxKTIwoRbvC0.iX8H7w3x7kaBS2i",
                     "isadmin": true
                 }
             ],
@@ -39,14 +39,14 @@
             "date": "April 6",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$dGmo1cbFXtHCm52LCM0WoeY4JtDPmwtJy8xqOa5Jw.btnXAzWZjRG",
+                "password": "$2b$12$vIZ92CqQhiFINJlTuoNLFO/PH7mgJVtAG3B4SMkzSBpUiYHiSJHDK",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$XGNy77sNWwgVIAlXaOfuE.SUmZBa5jkkydFbnJ7euh/.l0WUF3k66",
+                    "password": "$2b$12$TVv.IPTTQp/Wcgq0GwxFOu1QZ/W64oxAhyAAZG6w7VT3pf232EdPy",
                     "isadmin": true,
                     "sudo": true
                 }

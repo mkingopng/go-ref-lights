@@ -18,16 +18,16 @@
       "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Mountain_Top_Rumble",
-      "date": "April 27",
+      "name": "Coastal_Classic",
+      "date": "May_10",
       "admin": {
-        "username": "mtr1",
+        "username": "cc1",
         "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "mtr2",
+          "username": "cc2",
           "password": "Y8DrnC",
           "isadmin": true
         }
