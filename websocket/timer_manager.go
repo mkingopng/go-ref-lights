@@ -40,6 +40,69 @@ func init() {
 		TickerInterval:        1 * time.Second, // default 1s interval
 		NextAttemptStartValue: 60,              // default 60s for next attempt
 	}
+
+	// Start a timer to periodically check for stale timers
+	go checkForStaleTimers()
+}
+
+// checkForStaleTimers periodically checks for and kills stale/expired timers
+// that haven't properly terminated
+func checkForStaleTimers() {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		meetsMutex.Lock()
+		for meetName, meetState := range meets {
+			// Check for stale platform ready timers
+			if meetState.PlatformReadyActive && !meetState.PlatformReadyEnd.IsZero() {
+				timeLeft := time.Until(meetState.PlatformReadyEnd)
+
+				// If the end time has passed but the timer is still active, it's stale
+				if timeLeft <= -2*time.Second {
+					logger.Warn.Printf("[checkForStaleTimers] Found stale platform ready timer for meet=%s: "+
+						"expired %v ago but still marked active", meetName, -timeLeft)
+
+					// Force reset the timer
+					meetState.PlatformReadyActive = false
+					if meetState.PlatformReadyCancel != nil {
+						meetState.PlatformReadyCancel()
+						meetState.PlatformReadyCancel = nil
+					}
+
+					// Explicitly notify clients that time is up
+					defaultTimerManager.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", 0, 0, meetName)
+					defaultTimerManager.Messenger.BroadcastRaw([]byte(`{"action":"platformReadyExpired"}`))
+
+					logger.Info.Printf("[checkForStaleTimers] Killed stale platform ready timer for meet=%s", meetName)
+				}
+			}
+
+			// Check for stale next attempt timers
+			for i, timer := range meetState.NextAttemptTimers {
+				if timer.Active && !timer.EndTime.IsZero() {
+					timeLeft := time.Until(timer.EndTime)
+
+					// If the end time has passed but the timer is still active, it's stale
+					if timeLeft <= -2*time.Second {
+						logger.Warn.Printf("[checkForStaleTimers] Found stale next attempt timer (ID=%d) for meet=%s: "+
+							"expired %v ago but still marked active", timer.ID, meetName, -timeLeft)
+
+						// Force reset the timer
+						meetState.NextAttemptTimers[i].Active = false
+						meetState.NextAttemptTimers[i].TimeLeft = 0
+
+						// Broadcast updated timer state
+						broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetName)
+
+						logger.Info.Printf("[checkForStaleTimers] Killed stale next attempt timer (ID=%d) for meet=%s",
+							timer.ID, meetName)
+					}
+				}
+			}
+		}
+		meetsMutex.Unlock()
+	}
 }
 
 // --------------------- timer action handler ---------------------
