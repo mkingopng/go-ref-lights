@@ -14,6 +14,7 @@ import (
 	"go-ref-lights/logger"
 	"go-ref-lights/models"
 	"go-ref-lights/services"
+	"go-ref-lights/websocket"
 )
 
 // -------------------- global configuration --------------------
@@ -86,6 +87,10 @@ func Logout(c *gin.Context, occupancyService services.OccupancyServiceInterface)
 				logger.Info.Printf("[Logout] Freed seat=%s for user=%s in meet=%s", position, userEmail, meetName)
 			}
 		}
+
+		// Close any open WebSocket connections for this user
+		websocket.CloseConnectionsForUser(userEmail)
+
 		ActiveUsersMu.Lock()
 		delete(ActiveUsers, userEmail)
 		ActiveUsersMu.Unlock()
@@ -253,7 +258,7 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 	occupant, occupantExists := session.Get("user").(string)
 	storedMeet, storedMeetExists := session.Get("meetName").(string)
 
-	// log what’s in session right away
+	// log what's in session right away
 	logger.Debug.Printf("[RefereeHandler] occupantExists=%v occupant=%q storedMeetExists=%v storedMeet=%q",
 		occupantExists, occupant, storedMeetExists, storedMeet)
 
@@ -268,7 +273,7 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 		return
 	}
 
-	// if occupant doesn’t exist, create a new occupant name
+	// if occupant doesn't exist, create a new occupant name
 	if !occupantExists || occupant == "" {
 		occupant = getNextAnonymousName()
 		logger.Debug.Println("[RefereeHandler] occupant not found in session. Generating an anonymous occupant name.")

@@ -2,16 +2,16 @@
     "meets": [
         {
             "name": "test_mule",
-            "date": "April 5",
+            "date": "N/A",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$.Kd3PzGnkFwPaZFX5otWF.dH8/HNfJFf0kY7l79qxxgeJ1usCErDW",
+                "password": "$2b$12$F5hk3PPYnDMdChtGhFamOOuz.EqhlsYn9cuSUOeBJcebSOt/YVEd2",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$D8rh1JSx10.biPMsxCRD4utSfhxmlj/D.w3STQfuRggXQiZaqEQb2",
+                    "password": "$2b$12$fidUDZaBFhEvfF9NSDNpT.BZHt/kKG1ClPr/l0i.uB783Gl13FkaW",
                     "isadmin": true
                 }
             ],
@@ -22,13 +22,13 @@
             "date": "May_10",
             "admin": {
                 "username": "cc1",
-                "password": "$2b$12$TXnwRLMYS3ZX6SSfakm3IeGAdigx2Reg.jfwcPMX.rDxtc1U6i03C",
+                "password": "$2b$12$OZ1MiId2EJ3rvXEptZ0sxedwh70IrdfSeQNzIU.pXwhuAvottgnrG",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "cc2",
-                    "password": "$2b$12$vi.4KvYG//GlurS367lYPuH3CNxKTIwoRbvC0.iX8H7w3x7kaBS2i",
+                    "password": "$2b$12$jgkOBkzALM1KPtggpEigXuLyMTBiw5byo3xemYAWOpLvxvfhjImta",
                     "isadmin": true
                 }
             ],
@@ -36,17 +36,17 @@
         },
         {
             "name": "Sudo",
-            "date": "April 6",
+            "date": "May 10th",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$vIZ92CqQhiFINJlTuoNLFO/PH7mgJVtAG3B4SMkzSBpUiYHiSJHDK",
+                "password": "$2b$12$4hIo35XPwZK/2yJniAaZV.qvCV3cG/kPQEH9tgwTzNW76X7eASXUK",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$TVv.IPTTQp/Wcgq0GwxFOu1QZ/W64oxAhyAAZG6w7VT3pf232EdPy",
+                    "password": "$2b$12$Oq3.PsQofkL7a/hBA/gE9uKBmcaXOE4raz9AJpEq1a6QDZJHEkvZW",
                     "isadmin": true,
                     "sudo": true
                 }
