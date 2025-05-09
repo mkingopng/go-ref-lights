@@ -5,13 +5,13 @@
             "date": "N/A",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$F5hk3PPYnDMdChtGhFamOOuz.EqhlsYn9cuSUOeBJcebSOt/YVEd2",
+                "password": "$2b$12$Rf6cwVEeH06tppozw.4Jze2nKONsHfpeni/1qGLvpMdiR0.I0bVWi",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$fidUDZaBFhEvfF9NSDNpT.BZHt/kKG1ClPr/l0i.uB783Gl13FkaW",
+                    "password": "$2b$12$1tI2U6zuhqm5TgpL42rnze/qs2KtPmGOhcDcoFeBQ7u9mNTXyWvvC",
                     "isadmin": true
                 }
             ],
@@ -22,13 +22,13 @@
             "date": "May_10",
             "admin": {
                 "username": "cc1",
-                "password": "$2b$12$OZ1MiId2EJ3rvXEptZ0sxedwh70IrdfSeQNzIU.pXwhuAvottgnrG",
+                "password": "$2b$12$DX4ZilCOHRGUHv5swpi8jeduvmkDZTJG39J4AV.wVSUhoCptigtK.",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "cc2",
-                    "password": "$2b$12$jgkOBkzALM1KPtggpEigXuLyMTBiw5byo3xemYAWOpLvxvfhjImta",
+                    "password": "$2b$12$109SrsCPbG9Q2znZHdDSHe4pecsN3kimnj4QTnCb/Ol2BRzrKOAg.",
                     "isadmin": true
                 }
             ],
@@ -39,14 +39,14 @@
             "date": "May 10th",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$4hIo35XPwZK/2yJniAaZV.qvCV3cG/kPQEH9tgwTzNW76X7eASXUK",
+                "password": "$2b$12$HQguCPm3Gxuk3Z09zsGqguJOkpBndOhlRZLf9.CD2WlIMj61BtAGa",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$Oq3.PsQofkL7a/hBA/gE9uKBmcaXOE4raz9AJpEq1a6QDZJHEkvZW",
+                    "password": "$2b$12$VblCO9qPUZO9ZjLGmKjLbuNOkFn9n9zrkXys246YiolR.3jEobN7i",
                     "isadmin": true,
                     "sudo": true
                 }
