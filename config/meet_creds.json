@@ -5,30 +5,30 @@
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$JLm4pDtfFf1kNnvSSZx8MOdBpc0qWX2553LD1PPun57ifFbX0A0xC",
+                "password": "$2b$12$IYZjaG3V70FRD9DSC3hN.OMFN.8PkdhOgz1S3SmKgSOlV5gJLBfa6",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$pTNJIfNqa.DvXRhicxejAOLSGQccecWa0Mj5hVMs4u2g2Lng688h6",
+                    "password": "$2b$12$CFjl0DblHhECt5Rf/.19m.ys4wz2QRdrXYzFZIHPmivZGQ9nWfctC",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/APL_logo_white.png"
         },
         {
-            "name": "Coastal Classic",
+            "name": "Coastal_Classic",
             "date": "May 10th",
             "admin": {
                 "username": "cc1",
-                "password": "$2b$12$OYRdXAKQ1o/yaaw7zDTV7.8d3OHB.secz7RI9PmS7BuDPyUZfCo9K",
+                "password": "$2b$12$UcH5ucdnNDcDhAcBzPxuxeBTxRfr3qKtsNyzuZ19ELOs.T6a5gteO",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "cc2",
-                    "password": "$2b$12$tHAVufFUb0BFSIgDO7ekO.eR1B9rSoLiAYIKm2QHLxIW1tBtZTnl.",
+                    "password": "$2b$12$KZE7HW6eZENilylzp4gbcuxZsenx7bYGsB8jMdZvmeDw13z01PG0a",
                     "isadmin": true
                 }
             ],
@@ -36,17 +36,17 @@
         },
         {
             "name": "Sudo",
-            "date": "April 6",
+            "date": "May 10th",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$KMMZjQHgiRpSE.GVkhGf6OOQ/tiu97bD45nl3Rg6n4Y8.e7ICaZdi",
+                "password": "$2b$12$zNgvk0yw1feyMKDkV7tAkelFlFxFS78xvQcxABDU3Lu3PBunupFCS",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$52qVbAX1vb.RcGNHUng2WeSAVaSYm54L8ThhhtA97OOtX1OPJp5u6",
+                    "password": "$2b$12$CXn9kL8cYyydpLZMkmoKVurHvTKxppzFop3gT1N2.gwh.aHqLIiRi",
                     "isadmin": true,
                     "sudo": true
                 }
