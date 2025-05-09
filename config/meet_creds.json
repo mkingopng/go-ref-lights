@@ -5,13 +5,13 @@
             "date": "April 5",
             "admin": {
                 "username": "test",
-                "password": "$2b$12$LTugMLirr2VAfMv9GjkSwO/SAjUFm26NnXTdgTygbITf5K.A9Tgcu",
+                "password": "$2b$12$JLm4pDtfFf1kNnvSSZx8MOdBpc0qWX2553LD1PPun57ifFbX0A0xC",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "test2",
-                    "password": "$2b$12$oJ61q129s09.Gu/rkkcWR.qQSaBJt0N4hMPdog5NIxyWEzs9bwLaa",
+                    "password": "$2b$12$pTNJIfNqa.DvXRhicxejAOLSGQccecWa0Mj5hVMs4u2g2Lng688h6",
                     "isadmin": true
                 }
             ],
@@ -19,16 +19,16 @@
         },
         {
             "name": "Coastal Classic",
-            "date": "May 10",
+            "date": "May 10th",
             "admin": {
                 "username": "cc1",
-                "password": "$2b$12$Ycqh92vPHQGB6vdOYuX2yuJlRzoV5is.HGKbwZC9EXD9HPZVGF0pq",
+                "password": "$2b$12$OYRdXAKQ1o/yaaw7zDTV7.8d3OHB.secz7RI9PmS7BuDPyUZfCo9K",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
-                    "username": "cc22",
-                    "password": "$2b$12$ExKpjJ8xaqVRQIlEpiky4uHydFSXFcOmjfdMmoWHAIsVTWfUneMjm",
+                    "username": "cc2",
+                    "password": "$2b$12$tHAVufFUb0BFSIgDO7ekO.eR1B9rSoLiAYIKm2QHLxIW1tBtZTnl.",
                     "isadmin": true
                 }
             ],
@@ -39,14 +39,14 @@
             "date": "April 6",
             "admin": {
                 "username": "sudo",
-                "password": "$2b$12$nrLr6Zf0KcF18uY9/nDbmOSkery/8B8MjKaqMbTpQV6.U0Rw01xH2",
+                "password": "$2b$12$KMMZjQHgiRpSE.GVkhGf6OOQ/tiu97bD45nl3Rg6n4Y8.e7ICaZdi",
                 "isadmin": true,
                 "sudo": true
             },
             "secondaryAdmins": [
                 {
                     "username": "sudo2",
-                    "password": "$2b$12$jhdYTdhc5PbXkF9tgLS2CexH09boJl1SBh2qtqJ3HiW.IdrkcEshO",
+                    "password": "$2b$12$52qVbAX1vb.RcGNHUng2WeSAVaSYm54L8ThhhtA97OOtX1OPJp5u6",
                     "isadmin": true,
                     "sudo": true
                 }
