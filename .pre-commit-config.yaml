@@ -1,5 +1,4 @@
 # .pre-commit-config.yaml
-# .pre-commit-config.yaml
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -11,7 +10,7 @@ repos:
       - id: check-json
 
   - repo: https://github.com/golangci/golangci-lint
-    rev: v1.64.6
+    rev: v2.1.6
     hooks:
       - id: golangci-lint
         args: ["--fast"]

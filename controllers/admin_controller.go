@@ -98,6 +98,9 @@ UnsetPosition, and redirects back to the admin panel.
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
+	// Record activity as this is a significant user action
+	websocket.RecordSystemActivity()
+
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
@@ -144,6 +147,9 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 		return
 	}
 
+	// close all WebSocket connections for this user first
+	websocket.CloseConnectionsForUser(occupant)
+
 	// remove user from the active list
 	delete(ActiveUsers, occupant)
 
@@ -174,6 +180,9 @@ panel
 */
 func (ac *AdminController) ResetInstance(c *gin.Context) {
 	session := sessions.Default(c)
+
+	// Record activity as this is a significant admin action
+	websocket.RecordSystemActivity()
 
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
@@ -396,4 +405,27 @@ func (sc *SudoController) broadcastOccupancy(meetName string) {
 func mustMarshal(v interface{}) []byte {
 	bytes, _ := json.Marshal(v)
 	return bytes
+}
+
+// GetSystemHealthMetrics returns real-time health metrics as JSON
+// This is an API endpoint for the admin dashboard
+func (ac *AdminController) GetSystemHealthMetrics(c *gin.Context) {
+	session := sessions.Default(c)
+
+	// Active use of dashboard counts as system activity
+	websocket.RecordSystemActivity()
+
+	// Ensure user is an admin
+	isAdmin, ok := session.Get("isAdmin").(bool)
+	if !ok || !isAdmin {
+		logger.Warn.Println("[GetSystemHealthMetrics] Unauthorized attempt to access health metrics")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
+		return
+	}
+
+	// Get system health metrics from websocket package
+	metrics := websocket.GetSystemHealthMetrics()
+
+	// Return metrics as JSON
+	c.JSON(http.StatusOK, metrics)
 }
