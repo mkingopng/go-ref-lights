@@ -283,7 +283,7 @@ func TestAdminRequired_Unauthorized(t *testing.T) {
 
 	// validate response
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Non-admin should be blocked")
-	assert.Contains(t, w.Body.String(), "Unauthorized")
+	assert.Contains(t, w.Body.String(), "Admin privileges required")
 }
 
 // TestAdminRequired_MissingSession ensures missing session results in unauthorised access
@@ -298,7 +298,7 @@ func TestAdminRequired_MissingSession(t *testing.T) {
 
 	// validate response
 	assert.Equal(t, http.StatusUnauthorized, w.Code, "Missing session should block access")
-	assert.Contains(t, w.Body.String(), "Unauthorized")
+	assert.Contains(t, w.Body.String(), "Admin privileges required")
 }
 
 var roleRouter *gin.Engine

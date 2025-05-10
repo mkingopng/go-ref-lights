@@ -74,8 +74,8 @@ func SetupRouter(env string) *gin.Engine {
 			c.Writer.Header().Set("Strict-Transport-Security", "max-age=5400; includeSubDomains; preload")
 		}
 
-		// Content-Security-Policy (example: limit frames to self and a specific domain)
-		// Adjust frame-ancestors or other directives as needed:
+		// Content-Security-Policy
+		// adjust frame-ancestors or other directives as needed:
 		c.Writer.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://referee-lights.michaelkingston.com.au;")
 
 		// X-Frame-Options (older header for clickjacking protection) — SAMEORIGIN or DENY are common
@@ -87,10 +87,10 @@ func SetupRouter(env string) *gin.Engine {
 		// Referrer-Policy (control what referrer info is sent)
 		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
+		// permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
 		c.Writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// End security headers; proceed to next handler
+		// end security headers; proceed to next handler
 		c.Next()
 	})
 
@@ -124,13 +124,13 @@ func SetupRouter(env string) *gin.Engine {
 		// log the message based on level
 		switch payload.Level {
 		case "error":
-			logger.Error.Println(payload.Message)
+			logger.Error.Printf(payload.Message)
 		case "warn":
-			logger.Warn.Println(payload.Message)
+			logger.Warn.Printf(payload.Message)
 		case "debug":
-			logger.Debug.Println(payload.Message)
+			logger.Debug.Printf(payload.Message)
 		default: // "info" + any unknown
-			logger.Info.Println(payload.Message)
+			logger.Info.Printf(payload.Message)
 		}
 		c.Status(http.StatusOK)
 	})
@@ -185,15 +185,7 @@ func SetupRouter(env string) *gin.Engine {
 	// ------------------ protected meet director routes ------------------
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
-	protected.Use(func(c *gin.Context) {
-		session := sessions.Default(c)
-		if _, ok := session.Get("meetName").(string); !ok {
-			c.Redirect(http.StatusFound, "/")
-			c.Abort()
-			return
-		}
-		c.Next()
-	})
+	protected.Use(middleware.MeetRequired())
 	{
 		protected.GET("/index", controllers.Index)                                                  // meet director
 		protected.GET("/qrcode", controllers.GetQRCode)                                             // meet director
@@ -232,7 +224,7 @@ func SetupRouter(env string) *gin.Engine {
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		log.Fatalf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
+		logger.Error.Printf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
 	}
 	router.SetHTMLTemplate(template.Must(template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
 	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
@@ -257,7 +249,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	refereeID := r.URL.Query().Get("referee_id")
 
 	if refereeID == "" {
-		logger.Warn.Println("[Handler] Missing referee ID in query params")
+		logger.Warn.Printf("[Handler] Missing referee ID in query params")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
 		return
 	}
@@ -325,7 +317,7 @@ func main() {
 	// optionally defer close:
 	defer func() {
 		if err := logger.CloseLogger(); err != nil {
-			log.Printf("Error closing logger: %v", err)
+			logger.Error.Printf("[Logger] Error closing logger: %v", err)
 		}
 	}()
 
@@ -355,7 +347,7 @@ func main() {
 	}
 
 	// announce start
-	logger.Info.Println("[main] Starting application on port :8080")
+	logger.Info.Printf("[main] Starting application on port :8080")
 
 	// start background routines
 	hbManager := NewHeartbeatManager()
@@ -391,6 +383,7 @@ func main() {
 	logger.Info.Printf("[main] Server running on %s", addr)
 	if err := server.ListenAndServe(); err != nil {
 		// if the server fails to start, we can log a fatal error
-		log.Fatalf("[main] Failed to start server: %v", err)
+		logger.Error.Printf("[main] Failed to start server: %v", err)
+		os.Exit(1)
 	}
 }

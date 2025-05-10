@@ -6,6 +6,12 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      deploy_tag:
+        description: 'Deploy tag'
+        required: false
+        default: 'master'
 
 jobs:
   build:
@@ -73,7 +79,7 @@ jobs:
     # Updated to depend on the 'verify' job
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -127,7 +133,7 @@ jobs:
           channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
           payload: |
             {
-              "text": "Deployment succeeded for the main branch!",
+              "text": "Deployment succeeded for `${{ github.event.inputs.deploy_tag || github.ref_name }}`.",
               "attachments": [{
                 "color": "good",
                 "text": "Your CDK deployment completed successfully."

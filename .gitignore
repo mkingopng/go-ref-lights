@@ -65,5 +65,5 @@ config.yaml
 /models/logs/
 __pycache__/
 /tests/k6/k6_logs/
-/meet_logs/
+/log_analysis/
 /cmd/referee-lights/logs/

@@ -35,8 +35,9 @@ func NewAdminController(service services.OccupancyServiceInterface, posControlle
 // ---------------- admin panel management ----------------
 
 // AdminPanel renders the admin panel page, ensuring the user has admin privileges.
-// If the user is not an admin, they receive an HTTP 401 Unauthorized response.
-// Requires a meet name to be specified via query parameters or session.
+/*
+If the user is not an admin, they receive an HTTP 401 Unauthorized response.
+Requires a meet name to be specified via query parameters or session */
 func (ac *AdminController) AdminPanel(c *gin.Context) {
 	session := sessions.Default(c)
 	adminVal := session.Get("isAdmin")
@@ -45,6 +46,7 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 
 	isAdmin, ok := adminVal.(bool)
 	if !ok || !isAdmin {
+		logger.Warn.Printf("[AdminPanel] Unauthorized access attempt: isAdmin=%v (type=%T) from %s", adminVal, adminVal, c.ClientIP())
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -55,12 +57,14 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 		meetName, _ = session.Get("meetName").(string)
 	}
 	if meetName == "" {
+		logger.Warn.Printf("[AdminPanel] Missing meetName for admin session from %s", c.ClientIP())
 		c.String(http.StatusBadRequest, "Meet not specified")
 		return
 	}
 	// load meets
 	creds, err := services.LoadMeetCredentials()
 	if err != nil {
+		logger.Error.Printf("[AdminPanel] Failed to load meet credentials for meet=%s: %v", meetName, err)
 		c.String(http.StatusInternalServerError, "Failed to load meets")
 		return
 	}
@@ -72,6 +76,9 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 			logo = m.Logo
 			break
 		}
+	}
+	if logo == "" {
+		logger.Warn.Printf("[AdminPanel] No logo found for meet=%s (may indicate missing config)", meetName)
 	}
 
 	// get occupancy
@@ -89,19 +96,16 @@ func (ac *AdminController) AdminPanel(c *gin.Context) {
 
 // ---------------- referee position management ----------------
 
-// ForceVacate
-/*
-Forcibly unassigns a referee from the specified position in a meet.
-Requires admin privileges. It removes the occupant from ActiveUsers, calls
-UnsetPosition, and redirects back to the admin panel.
-*/
+// ForceVacate forcibly unassigns a referee from a specified position in a meet.
+// It requires admin privileges. If successful, the user is removed from ActiveUsers,
+// the seat is vacated, and the change is broadcast to clients.
 func (ac *AdminController) ForceVacate(c *gin.Context) {
 	session := sessions.Default(c)
 
 	// ensure user is an admin
 	isAdmin, ok := session.Get("isAdmin").(bool)
 	if !ok || !isAdmin {
-		logger.Warn.Println("[ForceVacate] Unauthorized attempt")
+		logger.Warn.Printf("[ForceVacate] Unauthorized access attempt from %s", c.ClientIP())
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
@@ -111,6 +115,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 
 	// validate input parameters
 	if meetName == "" || position == "" {
+		logger.Warn.Printf("[ForceVacate] Missing parameters: meetName=%q, position=%q from %s", meetName, position, c.ClientIP())
 		c.String(http.StatusBadRequest, "Missing parameters")
 		return
 	}
@@ -118,6 +123,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	// ensure `GetOccupancy` returns a valid object
 	occupancy := ac.OccupancyService.GetOccupancy(meetName)
 	if occupancy == (services.Occupancy{}) { // Check if meet exists
+		logger.Warn.Printf("[ForceVacate] No occupancy found for meet=%s", meetName)
 		c.String(http.StatusNotFound, "Meet not found")
 		return
 	}
@@ -126,20 +132,19 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	switch position {
 	case "left":
 		occupant = occupancy.LeftUser
-		occupancy.LeftUser = ""
 	case "center":
 		occupant = occupancy.CenterUser
-		occupancy.CenterUser = ""
 	case "right":
 		occupant = occupancy.RightUser
-		occupancy.RightUser = ""
 	default:
+		logger.Warn.Printf("[ForceVacate] Invalid position: %q in meet=%s", position, meetName)
 		c.String(http.StatusBadRequest, "Invalid position")
 		return
 	}
 
 	// ensure there is an occupant before vacating
 	if occupant == "" {
+		logger.Warn.Printf("[ForceVacate] Attempt to vacate already-empty %s position in meet=%s", position, meetName)
 		c.String(http.StatusBadRequest, "Position already vacant")
 		return
 	}
@@ -149,6 +154,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 
 	// update occupancy state
 	if err := ac.OccupancyService.UnsetPosition(meetName, position, occupant); err != nil {
+		logger.Error.Printf("[ForceVacate] Error unsetting position=%s for user=%s in meet=%s: %v", position, occupant, meetName, err)
 		c.String(http.StatusInternalServerError, "Error vacating position: "+err.Error())
 		return
 	}
@@ -156,8 +162,7 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	// ensure WebSocket Broadcast function is called
 	ac.PositionController.BroadcastOccupancy(meetName)
 
-	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s",
-		occupant, position, meetName)
+	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s", occupant, position, meetName)
 
 	// redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
@@ -220,29 +225,31 @@ success.
 */
 func (ac *AdminController) ForceLogout(c *gin.Context) {
 	session := sessions.Default(c)
+	isAdmin := session.Get("isAdmin") // ensure user is an admin
 
-	// ensure user is an admin
-	isAdmin := session.Get("isAdmin")
 	if isAdmin == nil || isAdmin != true {
+		logger.Warn.Printf("[ForceLogout] Unauthorized attempt from %s", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
 
 	username := c.PostForm("username")
 	if username == "" {
+		logger.Warn.Printf("[ForceLogout] Missing username in POST from %s", c.ClientIP())
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
 		return
 	}
 
 	// check if user is logged in
 	if _, exists := ActiveUsers[username]; !exists {
+		logger.Warn.Printf("[ForceLogout] Attempt to logout non-logged-in user=%s by admin from %s", username, c.ClientIP())
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
 	// remove user from the active list
 	delete(ActiveUsers, username)
-
+	logger.Info.Printf("[ForceLogout] Admin forcibly logged out user=%s", username)
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
 
@@ -259,12 +266,19 @@ func NewSudoController(svc services.OccupancyServiceInterface) *SudoController {
 }
 
 // SudoPanel is an example method in SudoController
-// data should be a slice of map, or a custom struct slice
-// that your template can iterate over
+/*
+data should be a slice of map, or a custom struct slice that your template can
+iterate over
+*/
 func (sc *SudoController) SudoPanel(c *gin.Context) {
-	meetsData, _ := services.LoadMeetCredentials()
+	meetsData, err := services.LoadMeetCredentials()
+	if err != nil {
+		logger.Error.Printf("[SudoPanel] Failed to load meet credentials: %v", err)
+		c.String(http.StatusInternalServerError, "Failed to load meet data")
+		return
+	}
 
-	// Gather occupancy across meets
+	// gather occupancy across meets
 	var allOccupancies []map[string]interface{}
 	for _, meet := range meetsData.Meets {
 		occ := sc.OccupancyService.GetOccupancy(meet.Name)
@@ -276,12 +290,14 @@ func (sc *SudoController) SudoPanel(c *gin.Context) {
 		})
 	}
 
-	// Pull the superuser logo if it exists
+	// pull the superuser logo if it exists
 	var sudoLogo string
 	if meetsData.Superuser != nil {
 		sudoLogo = meetsData.Superuser.Logo
 	}
-
+	if sudoLogo == "" {
+		logger.Warn.Println("[SudoPanel] No logo found for superuser – fallback may apply")
+	}
 	c.HTML(http.StatusOK, "sudo.html", gin.H{
 		"meetsOccupancy": allOccupancies,
 		"SudoLogo":       sudoLogo,
@@ -295,6 +311,7 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 
 	// do minimal validation
 	if meetName == "" || position == "" {
+		logger.Warn.Printf("[ForceVacateRefForAnyMeet] Missing meetName or position from %s", c.ClientIP())
 		c.String(http.StatusBadRequest, "Missing meetName or position")
 		return
 	}
@@ -309,17 +326,20 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 	case "right":
 		occupant = occ.RightUser
 	default:
+		logger.Warn.Printf("[ForceVacateRefForAnyMeet] Invalid position=%q for meet=%s from %s", position, meetName, c.ClientIP())
 		c.String(http.StatusBadRequest, "Invalid position")
 		return
 	}
 
 	if occupant == "" {
+		logger.Warn.Printf("[ForceVacateRefForAnyMeet] Attempt to vacate already-empty %s seat in meet=%s from %s", position, meetName, c.ClientIP())
 		c.String(http.StatusBadRequest, "Position is already vacant")
 		return
 	}
 
 	// remove occupant from occupancy
 	if err := sc.OccupancyService.UnsetPosition(meetName, position, occupant); err != nil {
+		logger.Error.Printf("[ForceVacateRefForAnyMeet] Error vacating %s in %s for user=%s: %v", position, meetName, occupant, err)
 		c.String(http.StatusInternalServerError, "Error vacating position: "+err.Error())
 		return
 	}
@@ -330,8 +350,7 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 	ActiveUsersMu.Unlock()
 
 	// broadcast update
-	logger.Info.Printf("[ForceVacateRefForAnyMeet] Superuser forcibly removed %s from meet=%s pos=%s",
-		occupant, meetName, position)
+	logger.Info.Printf("[ForceVacateRefForAnyMeet] Superuser forcibly removed %s from meet=%s pos=%s", occupant, meetName, position)
 	go sc.broadcastOccupancy(meetName)
 
 	// redirect or return success
@@ -342,6 +361,7 @@ func (sc *SudoController) ForceVacateRefForAnyMeet(c *gin.Context) {
 func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 	username := c.PostForm("username")
 	if username == "" {
+		logger.Warn.Printf("[ForceLogoutMeetDirector] Missing username in POST from %s", c.ClientIP())
 		c.String(http.StatusBadRequest, "username is required")
 		return
 	}
@@ -350,6 +370,7 @@ func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 	ActiveUsersMu.Lock()
 	if _, exists := ActiveUsers[username]; !exists {
 		ActiveUsersMu.Unlock()
+		logger.Warn.Printf("[ForceLogoutMeetDirector] Attempt to logout nonexistent user=%s from %s", username, c.ClientIP())
 		c.String(http.StatusNotFound, "No such user is logged in")
 		return
 	}
@@ -365,6 +386,7 @@ func (sc *SudoController) ForceLogoutMeetDirector(c *gin.Context) {
 func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
+		logger.Warn.Printf("[RestartAndClearMeet] Missing meetName in POST from %s", c.ClientIP())
 		c.String(http.StatusBadRequest, "meetName is required")
 		return
 	}
@@ -375,13 +397,18 @@ func (sc *SudoController) RestartAndClearMeet(c *gin.Context) {
 	// reset occupancy
 	sc.OccupancyService.ResetOccupancyForMeet(meetName)
 
-	logger.Info.Printf("[RestartAndClearMeet] Superuser forcibly reset meet: %s", meetName)
+	logger.Info.Printf("[RestartAndClearMeet] Superuser forcibly reset meet=%s", meetName)
 	c.Redirect(http.StatusFound, "/sudo")
 }
 
 // broadcastOccupancy is just a re-use of your existing logic from PositionController
 func (sc *SudoController) broadcastOccupancy(meetName string) {
 	occ := sc.OccupancyService.GetOccupancy(meetName)
+	if occ == (services.Occupancy{}) {
+		logger.Warn.Printf("[broadcastOccupancy] No occupancy found for meet=%s – skipping broadcast", meetName)
+		return
+	}
+
 	msg := map[string]interface{}{
 		"action":     "occupancyChanged",
 		"leftUser":   occ.LeftUser,
@@ -389,11 +416,23 @@ func (sc *SudoController) broadcastOccupancy(meetName string) {
 		"rightUser":  occ.RightUser,
 		"meetName":   meetName,
 	}
-	websocket.SendBroadcastMessage(mustMarshal(msg))
+
+	bytes := mustMarshal(msg)
+	if bytes == nil {
+		logger.Error.Printf("[broadcastOccupancy] Failed to marshal occupancy message for meet=%s", meetName)
+		return
+	}
+
+	websocket.SendBroadcastMessage(bytes)
+	logger.Info.Printf("[broadcastOccupancy] Broadcasted occupancy for meet=%s", meetName)
 }
 
 // mustMarshal is a tiny helperSudoPanel
 func mustMarshal(v interface{}) []byte {
-	bytes, _ := json.Marshal(v)
+	bytes, err := json.Marshal(v)
+	if err != nil {
+		logger.Error.Printf("[mustMarshal] JSON marshal failed: %v", err)
+		return nil
+	}
 	return bytes
 }
