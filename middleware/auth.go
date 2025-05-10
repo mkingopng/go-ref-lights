@@ -47,9 +47,8 @@ func AdminRequired() gin.HandlerFunc {
 
 		// block request if the user is not an admin
 		if !ok || !isAdmin {
-			logger.Warn.Println("[AdminRequired] Unauthorized attempt blocked")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			c.Abort() // prevents further execution
+			logger.Warn.Printf("[AdminRequired] Unauthorized access attempt from %s", c.ClientIP())
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 			return
 		}
 
@@ -72,6 +71,25 @@ func SudoRequired() gin.HandlerFunc {
 		}
 
 		// pass through if superuser
+		c.Next()
+	}
+}
+
+// MeetRequired ensures a valid meetName is present in the session.
+// Redirects to / if missing.
+func MeetRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		meetName, ok := session.Get("meetName").(string)
+
+		if !ok || meetName == "" {
+			logger.Warn.Printf("[MeetRequired] No meetName in session — redirecting %s to /", c.ClientIP())
+			c.Redirect(http.StatusFound, "/")
+			c.Abort()
+			return
+		}
+
+		logger.Debug.Printf("[MeetRequired] meetName=%s found in session — proceeding", meetName)
 		c.Next()
 	}
 }

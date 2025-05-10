@@ -13,30 +13,29 @@ import (
 )
 
 /*
-   This test file references helper funcs in test_helpers.go:
-     - setupTestRouter(t)
-     - createPostRequest(path, formData)
-     - performRequest(router, req)
-     - SetSession(router, route, data)
-     - hashPassword(password)
-     - MockOccupancyService, etc.
+This test file references helper funcs in test_helpers.go:
+- setupTestRouter(t)
+- createPostRequest(path, formData)
+- performRequest(router, req)
+- SetSession(router, route, data)
+- hashPassword(password)
+- MockOccupancyService, etc.
 
-   We do NOT reference services.LoadMeetCredentials or models.MeetCredentials.
-   We also skip code paths like MeetHandler, LoginHandler, PerformLogin, which
-   rely on those unavailable items or detailed HTML checks.
+We do NOT reference services.LoadMeetCredentials or models.MeetCredentials.
+We also skip code paths like MeetHandler, LoginHandler, PerformLogin, which
+rely on those unavailable items or detailed HTML checks.
 
-   These tests focus on:
-     - ComparePasswords / checkPasswordHash
-     - SetMeetHandler (basic paths)
-     - ForceLogoutHandler
-     - ActiveUsersHandler
+These tests focus on:
+- ComparePasswords / checkPasswordHash
+- SetMeetHandler (basic paths)
+- ForceLogoutHandler
+- ActiveUsersHandler
 */
 
 // resetGlobalsForAuthTest resets ActiveUsers/ActiveUsersMu
 func resetGlobalsForAuthTest() {
 	ActiveUsersMu = sync.RWMutex{}
 	ActiveUsers = make(map[string]bool)
-
 	// occupancyService = nil // Not needed if not testing seat claims
 }
 
@@ -45,13 +44,13 @@ func resetGlobalsForAuthTest() {
 func TestComparePasswords(t *testing.T) {
 	t.Run("Correct => true", func(t *testing.T) {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("mySecret"), bcrypt.DefaultCost)
-		ok := ComparePasswords(string(hashed), "mySecret")
+		ok := ComparePasswords("dummyUser", string(hashed), "mySecret")
 		assert.True(t, ok)
 	})
 
 	t.Run("Wrong => false", func(t *testing.T) {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("mySecret"), bcrypt.DefaultCost)
-		ok := ComparePasswords(string(hashed), "otherPass")
+		ok := ComparePasswords("dummyUser", string(hashed), "otherPass")
 		assert.False(t, ok)
 	})
 }

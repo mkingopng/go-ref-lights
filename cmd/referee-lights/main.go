@@ -74,8 +74,8 @@ func SetupRouter(env string) *gin.Engine {
 			c.Writer.Header().Set("Strict-Transport-Security", "max-age=5400; includeSubDomains; preload")
 		}
 
-		// Content-Security-Policy (example: limit frames to self and a specific domain)
-		// Adjust frame-ancestors or other directives as needed:
+		// Content-Security-Policy
+		// adjust frame-ancestors or other directives as needed:
 		c.Writer.Header().Set("Content-Security-Policy", "frame-ancestors 'self' https://referee-lights.michaelkingston.com.au;")
 
 		// X-Frame-Options (older header for clickjacking protection) — SAMEORIGIN or DENY are common
@@ -87,10 +87,10 @@ func SetupRouter(env string) *gin.Engine {
 		// Referrer-Policy (control what referrer info is sent)
 		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
+		// permissions-Policy (formerly Feature-Policy): restrict camera/mic, etc.
 		c.Writer.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 
-		// End security headers; proceed to next handler
+		// end security headers; proceed to next handler
 		c.Next()
 	})
 
@@ -185,15 +185,7 @@ func SetupRouter(env string) *gin.Engine {
 	// ------------------ protected meet director routes ------------------
 	protected := router.Group("/")
 	protected.Use(middleware.AuthRequired)
-	protected.Use(func(c *gin.Context) {
-		session := sessions.Default(c)
-		if _, ok := session.Get("meetName").(string); !ok {
-			c.Redirect(http.StatusFound, "/")
-			c.Abort()
-			return
-		}
-		c.Next()
-	})
+	protected.Use(middleware.MeetRequired())
 	{
 		protected.GET("/index", controllers.Index)                                                  // meet director
 		protected.GET("/qrcode", controllers.GetQRCode)                                             // meet director

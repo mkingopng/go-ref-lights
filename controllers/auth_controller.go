@@ -22,6 +22,8 @@ var ActiveUsers = make(map[string]bool)
 // ActiveUsersMu controls concurrency for ActiveUsers.
 var ActiveUsersMu sync.RWMutex
 
+var occupancyService services.OccupancyServiceInterface
+
 // ----------------------- authentication utilities -----------------------
 
 // lockActiveUsers locks the ActiveUsers map for testing.
@@ -53,8 +55,11 @@ func clearUserActive(username string) {
 }
 
 // ComparePasswords checks if the given password matches the hashed password
-func ComparePasswords(hashedPassword, plainPassword string) bool {
+func ComparePasswords(username, hashedPassword, plainPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainPassword))
+	if err != nil {
+		logger.Warn.Printf("[ComparePasswords] Password mismatch for user=%s", username)
+	}
 	return err == nil
 }
 
@@ -62,17 +67,21 @@ func ComparePasswords(hashedPassword, plainPassword string) bool {
 func SetMeetHandler(c *gin.Context) {
 	meetName := c.PostForm("meetName")
 	if meetName == "" {
+		logger.Warn.Printf("[SetMeetHandler] No meetName provided in form POST from %s", c.ClientIP())
 		c.HTML(http.StatusBadRequest, "choose-meet.html", gin.H{"Error": "Please select a meet."})
 		return
 	}
+
 	session := sessions.Default(c)
 	session.Set("meetName", meetName)
+
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("Failed to save meet session: %v", err)
+		logger.Error.Printf("[SetMeetHandler] Failed to save session for meet=%s from %s: %v", meetName, c.ClientIP(), err)
 		c.HTML(http.StatusInternalServerError, "choose-meet.html", gin.H{"Error": "Internal error, please try again."})
 		return
 	}
-	logger.Info.Printf("Meet %s selected, redirecting to meet page.", meetName)
+
+	logger.Info.Printf("[SetMeetHandler] Meet selected: %s by client %s — redirecting to login", meetName, c.ClientIP())
 	c.Redirect(http.StatusFound, "/login")
 }
 
@@ -83,6 +92,7 @@ func MeetHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	storedMeet := session.Get("meetName")
 	if storedMeet == nil {
+		logger.Warn.Printf("[MeetHandler] No meetName in session from %s", c.ClientIP())
 		c.HTML(http.StatusBadRequest, "choose-meet.html", gin.H{"Error": "No meet selected."})
 		return
 	}
@@ -91,7 +101,7 @@ func MeetHandler(c *gin.Context) {
 	// load meet credentials using the injectable function.
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
-		logger.Error.Printf("Failed to load meets: %v", creds)
+		logger.Error.Println("[MeetHandler] Global meet credentials were nil — possible misconfiguration or init failure")
 		c.HTML(http.StatusInternalServerError, "choose-meet.html", gin.H{"Error": "Internal error loading meets."})
 		return
 	}
@@ -106,18 +116,17 @@ func MeetHandler(c *gin.Context) {
 		}
 	}
 	if currentMeet == nil {
+		logger.Warn.Printf("[MeetHandler] Unknown meetName=%s from %s — not found in loaded credentials", meetName, c.ClientIP())
 		c.HTML(http.StatusNotFound, "choose-meet.html", gin.H{"Error": "Meet not found."})
 		return
 	}
 
-	// prepare data for the template.
-	data := gin.H{
+	// render the template with the correct logo.
+	logger.Info.Printf("[MeetHandler] Rendering index for meet=%s, IP=%s", currentMeet.Name, c.ClientIP())
+	c.HTML(http.StatusOK, "index.html", gin.H{
 		"meetName": currentMeet.Name,
 		"logo":     currentMeet.Logo,
-	}
-
-	// render the template with the correct logo.
-	c.HTML(http.StatusOK, "index.html", data)
+	})
 }
 
 // ----------------------- admin actions -----------------------------------
@@ -128,29 +137,29 @@ func ForceLogoutHandler(c *gin.Context) {
 	isAdmin := session.Get("isAdmin")
 
 	if isAdmin == nil || isAdmin != true {
-		logger.Warn.Println("Unauthorized attempt to force logout a user.")
+		logger.Warn.Println("[ForceLogoutHandler] Unauthorized attempt to force logout a user.")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
 
 	username := c.PostForm("username")
 	if username == "" {
+		logger.Warn.Println("[ForceLogoutHandler] Missing username in POST body.")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing username parameter"})
 		return
 	}
 
-	// acquire the write lock for read-check + deletion
 	ActiveUsersMu.Lock()
 	defer ActiveUsersMu.Unlock()
 
 	if _, exists := ActiveUsers[username]; !exists {
+		logger.Warn.Printf("[ForceLogoutHandler] Attempted to log out non-existent user: %s", username)
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not logged in"})
 		return
 	}
 
 	delete(ActiveUsers, username)
-	logger.Info.Printf("Admin forcibly logged out user: %s", username)
-
+	logger.Info.Printf("[ForceLogoutHandler] Admin forcibly logged out user: %s", username)
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
 
@@ -162,7 +171,7 @@ func ActiveUsersHandler(c *gin.Context) {
 	isAdmin := session.Get("isAdmin")
 
 	if isAdmin == nil || isAdmin != true {
-		logger.Warn.Println("Unauthorized attempt to view active users.")
+		logger.Warn.Printf("[ActiveUsersHandler] Unauthorized attempt to access active user list from %s", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Admin privileges required"})
 		return
 	}
@@ -176,10 +185,9 @@ func ActiveUsersHandler(c *gin.Context) {
 	}
 	ActiveUsersMu.RUnlock()
 
+	logger.Info.Printf("[ActiveUsersHandler] Admin at %s requested active users: count=%d", c.ClientIP(), len(userList))
 	c.JSON(http.StatusOK, gin.H{"users": userList})
 }
-
-var occupancyService services.OccupancyServiceInterface
 
 // ------------------ authentication utilities ------------------
 
@@ -242,7 +250,7 @@ func PerformLogin(c *gin.Context) {
 		}
 	}
 
-	//
+	// render the login page
 	c.HTML(http.StatusOK, "login.html", gin.H{
 		"MeetName": meetName,
 		"Logo":     logo,
@@ -259,7 +267,7 @@ func LoginHandler(c *gin.Context) {
 	meetNameRaw := session.Get("meetName")
 	meetName, ok := meetNameRaw.(string)
 	if !ok || meetName == "" {
-		logger.Warn.Println("[LoginHandler] No meet selected, redirecting to /choose-meet")
+		logger.Warn.Printf("[LoginHandler] No meetName in session — redirecting. IP=%s", c.ClientIP())
 		c.Redirect(http.StatusFound, "/choose-meet")
 		return
 	}
@@ -268,7 +276,7 @@ func LoginHandler(c *gin.Context) {
 	password := c.PostForm("password")
 
 	if username == "" || password == "" {
-		logger.Warn.Println("[LoginHandler] Missing username or password")
+		logger.Warn.Printf("[LoginHandler] Missing login fields for meet=%s from %s", meetName, c.ClientIP())
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Please fill in all fields.",
@@ -279,14 +287,12 @@ func LoginHandler(c *gin.Context) {
 	// load meet credentials
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
-		logger.Error.Println("Global credentials not set")
+		logger.Error.Printf("[LoginHandler] Global credentials nil — meet=%s, IP=%s", meetName, c.ClientIP())
 		c.String(http.StatusInternalServerError, "Failed to load meet credentials")
 		return
 	}
 
-	// ----------------------------------------------------------------
 	// 1) Check for top-level superuser (unchanged)
-	// ----------------------------------------------------------------
 	if creds.Superuser != nil &&
 		creds.Superuser.Username == username &&
 		checkPasswordHash(password, creds.Superuser.Password) {
@@ -294,14 +300,11 @@ func LoginHandler(c *gin.Context) {
 		session.Set("isAdmin", true)
 		session.Set("user", username)
 		_ = session.Save()
-		logger.Info.Printf("[LoginHandler] Superuser %s authenticated", username)
 		c.Redirect(http.StatusFound, "/sudo")
 		return
 	}
 
-	// ----------------------------------------------------------------
 	// 2) Check for a meet-level admin or secondaryAdmin, including 'sudo' field
-	// ----------------------------------------------------------------
 	var isAdmin, isSudo, authenticated bool
 
 	for _, m := range creds.Meets {
@@ -312,8 +315,7 @@ func LoginHandler(c *gin.Context) {
 		// primary admin
 		if m.Admin.Username == username && checkPasswordHash(password, m.Admin.Password) {
 			isAdmin = m.Admin.IsAdmin
-			// ADDED: pick up the 'sudo' field from meet-level admin
-			isSudo = m.Admin.Sudo // <---- ADDED
+			isSudo = m.Admin.Sudo
 			authenticated = true
 			break
 		}
@@ -322,20 +324,18 @@ func LoginHandler(c *gin.Context) {
 		for _, sa := range m.SecondaryAdmins {
 			if sa.Username == username && checkPasswordHash(password, sa.Password) {
 				isAdmin = sa.IsAdmin
-				// ADDED: pick up the 'sudo' field from meet-level secondary admin
-				isSudo = sa.Sudo // <---- ADDED
+				isSudo = sa.Sudo
 				authenticated = true
 				break
 			}
 		}
 
-		// break after we processed this meet
-		break
+		break // break after we processed this meet
 	}
 
 	// if still not authenticated, fail
 	if !authenticated {
-		logger.Warn.Printf("[LoginHandler] Invalid login attempt for user=%s at meet=%s", username, meetName)
+		logger.Warn.Printf("[LoginHandler] Invalid login for user=%s at meet=%s from %s", username, meetName, c.ClientIP())
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Invalid username or password.",
@@ -346,7 +346,7 @@ func LoginHandler(c *gin.Context) {
 	// 3) Prevent duplicate logins
 	ActiveUsersMu.Lock()
 	if ActiveUsers[username] {
-		logger.Warn.Printf("[LoginHandler] User %s already logged in, denying second login", username)
+		logger.Warn.Printf("[LoginHandler] Duplicate login attempt denied for user=%s at meet=%s from %s", username, meetName, c.ClientIP())
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "You are already logged in elsewhere. Force logout?",
@@ -362,10 +362,10 @@ func LoginHandler(c *gin.Context) {
 	// 4) Store user info in session (ADDED: store isSudo)
 	session.Set("user", username)
 	session.Set("isAdmin", isAdmin)
-	session.Set("sudo", isSudo) // <---- ADDED
+	session.Set("sudo", isSudo)
 
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("[LoginHandler] Failed to save session: %v", err)
+		logger.Error.Printf("[LoginHandler] Session save failed for user=%s at meet=%s from %s: %v", username, meetName, c.ClientIP(), err)
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Internal error, please try again.",
@@ -373,14 +373,13 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[LoginHandler] User %s authenticated for meet %s (isAdmin=%v, isSudo=%v)",
-		username, meetName, isAdmin, isSudo)
+	logger.Info.Printf("[LoginHandler] Authenticated user=%s at meet=%s (isAdmin=%v, isSudo=%v) from %s", username, meetName, isAdmin, isSudo, c.ClientIP())
 
 	// 5) If a position was desired, auto-claim it
 	desiredPos := session.Get("desiredPosition")
 	if desiredPos != nil {
 		posString := desiredPos.(string)
-		logger.Info.Printf("[LoginHandler] Attempting to auto-claim position=%s for user=%s", posString, username)
+		logger.Info.Printf("[LoginHandler] Auto-claim requested: user=%s position=%s meet=%s", username, posString, meetName)
 		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
 			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
 			c.String(http.StatusForbidden, "That seat is already taken or invalid. Please try another seat.")
@@ -410,12 +409,12 @@ func LoginHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/index")
 }
 
-// helper function to retrieve logo for meet
+// getLogoForMeet returns the logo URL or path for a given meetName.
+// Logs a warning if the meet is not found.
 func getLogoForMeet(meetName string) string {
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
-		logger.Error.Println("[getLogoForMeet] Global credentials not set")
-		// must return a string here
+		logger.Error.Printf("[getLogoForMeet] Global credentials not set while fetching logo for meet=%s", meetName)
 		return ""
 	}
 	for _, meet := range creds.Meets {
@@ -423,13 +422,15 @@ func getLogoForMeet(meetName string) string {
 			return meet.Logo
 		}
 	}
+	logger.Warn.Printf("[getLogoForMeet] No match found for meet=%s — returning empty logo", meetName)
 	return ""
 }
 
-// ForceMyLogin forcibly removes the user from ActiveUsers and redirects back to login
+// ForceMyLogin forcibly removes the user from ActiveUsers and redirects back to login.
 func ForceMyLogin(c *gin.Context) {
 	username := c.PostForm("username")
 	if username == "" {
+		logger.Warn.Printf("[ForceMyLogin] Missing username in POST from %s", c.ClientIP())
 		c.HTML(http.StatusBadRequest, "login.html", gin.H{"Error": "Missing username."})
 		return
 	}
@@ -439,7 +440,7 @@ func ForceMyLogin(c *gin.Context) {
 	delete(ActiveUsers, username)
 	ActiveUsersMu.Unlock()
 
-	logger.Info.Printf("[ForceMyLogin] User %s forcibly cleared from ActiveUsers", username)
+	logger.Info.Printf("[ForceMyLogin] User %s forcibly removed from ActiveUsers by client %s", username, c.ClientIP())
 
 	// redirect to login
 	c.Redirect(http.StatusFound, "/login?username="+username)
