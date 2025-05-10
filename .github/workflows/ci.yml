@@ -19,8 +19,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.deploy_tag || github.ref_name }}
 
       - name: Debug workspace
         run: |
@@ -85,8 +83,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.deploy_tag || github.ref_name }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
