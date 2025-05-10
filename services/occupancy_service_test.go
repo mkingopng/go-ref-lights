@@ -12,8 +12,18 @@ import (
 	"go-ref-lights/websocket"
 )
 
+// resetGlobalOccupancy clears the global occupancy map (used between tests)
+func resetGlobalOccupancy() {
+	occupancyMutex.Lock()
+	defer occupancyMutex.Unlock()
+	for k := range occupancyMap {
+		delete(occupancyMap, k)
+	}
+}
+
 // TestGetOccupancy_NewMeet ensures that a new meet has no users assigned to any positions
 func TestGetOccupancy_NewMeet(t *testing.T) {
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL State Championship"
@@ -28,6 +38,7 @@ func TestGetOccupancy_NewMeet(t *testing.T) {
 
 // TestSetPosition_Success ensures that a user can take a position that is not already occupied
 func TestSetPosition_Success(t *testing.T) {
+	resetGlobalOccupancy()
 	service := NewOccupancyService()
 
 	// call the existing signature
@@ -40,6 +51,7 @@ func TestSetPosition_Success(t *testing.T) {
 
 // TestSetPosition_FailsIfTaken ensures that a user cannot take a position that is already occupied
 func TestSetPosition_FailsIfTaken(t *testing.T) {
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Regionals"
@@ -59,6 +71,7 @@ func TestSetPosition_FailsIfTaken(t *testing.T) {
 
 // TestSetPosition_ClearsOldSeatBeforeAssigningNewOne ensures that a user can only hold one position at a time
 func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Qualifiers"
@@ -78,6 +91,7 @@ func TestSetPosition_ClearsOldSeatBeforeAssigningNewOne(t *testing.T) {
 
 // TestResetOccupancyForMeet ensures that all positions are cleared when a meet is reset
 func TestResetOccupancyForMeet(t *testing.T) {
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Open"
@@ -97,6 +111,8 @@ func TestResetOccupancyForMeet(t *testing.T) {
 }
 
 func TestUnsetPosition(t *testing.T) {
+	resetGlobalOccupancy()
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Grand Finals"
@@ -115,6 +131,7 @@ func TestUnsetPosition(t *testing.T) {
 
 // TestUnsetPosition_FailsIfPositionDoesNotMatchUser ensures that a user cannot unset a position that they do not hold
 func TestUnsetPosition_FailsIfPositionDoesNotMatchUser(t *testing.T) {
+	resetGlobalOccupancy()
 	websocket.InitTest()
 	service := &OccupancyService{}
 	meetName := "APL Regionals"

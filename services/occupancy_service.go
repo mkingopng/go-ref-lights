@@ -51,75 +51,82 @@ func NewOccupancyService() *OccupancyService {
 func (s *OccupancyService) GetOccupancy(meetName string) Occupancy {
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
-
-	// get the occupancy record for the meet
 	occ, exists := occupancyMap[meetName]
 	if !exists {
+		logger.Info.Printf("[GetOccupancy] No occupancy found for meet=%s, creating new entry", meetName)
 		occ = &Occupancy{}
 		occupancyMap[meetName] = occ
+	} else {
+		logger.Debug.Printf("[GetOccupancy] Found existing occupancy for meet=%s", meetName)
 	}
-	logger.Debug.Printf("[GetOccupancy] meet=%s -> %+v", meetName, occ)
+	logger.Debug.Printf("[GetOccupancy] Final occupancy state: meet=%s → Left=%s, Center=%s, Right=%s", meetName, occ.LeftUser, occ.CenterUser, occ.RightUser)
 	return *occ
 }
 
 // SetPosition seats a user at a given position, allowing them to re-enter the seat if they’re already occupant.
 func (s *OccupancyService) SetPosition(meetName, position, userEmail string) error {
-	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
-	// get the occupancy record for the meet
+	// fetch or create occupancy record
 	occ, exists := occupancyMap[meetName]
 	if !exists {
+		logger.Info.Printf("[SetPosition] No occupancy for meet=%s — creating new", meetName)
 		occ = &Occupancy{}
 		occupancyMap[meetName] = occ
 	}
 
-	logger.Info.Printf("[SetPosition] Attempting to assign position=%s to user=%s for meet=%s", position, userEmail, meetName)
+	logger.Info.Printf("[SetPosition] ➡️ Attempting seat assignment: meet=%s, position=%s, user=%s",
+		meetName, position, userEmail)
 
-	// validate position
+	// validate seat
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
-		err := errors.New("invalid position selected, please choose left, center, or right")
-		logger.Error.Printf("[SetPosition] Failed for meet=%s: %v", meetName, err)
+		err := errors.New("invalid position selected — must be left, center, or right")
+		logger.Error.Printf("[SetPosition] ❌ Invalid position: position=%s, user=%s, meet=%s", position, userEmail, meetName)
 		return err
 	}
 
-	// If occupant is "", or occupant == userEmail => allow
-	// If occupant is another user => error
+	// reject if position already occupied by someone else
 	switch position {
 	case "left":
 		if occ.LeftUser != "" && occ.LeftUser != userEmail {
 			err := errors.New("left position is already taken")
-			logger.Error.Printf("[SetPosition] Failed for meet=%s: %v", meetName, err)
+			logger.Warn.Printf("[SetPosition] 🚫 Conflict: left seat taken by %s — user=%s, meet=%s",
+				occ.LeftUser, userEmail, meetName)
 			return err
 		}
 	case "center":
 		if occ.CenterUser != "" && occ.CenterUser != userEmail {
 			err := errors.New("center position is already taken")
-			logger.Error.Printf("[SetPosition] Failed for meet=%s: %v", meetName, err)
+			logger.Warn.Printf("[SetPosition] 🚫 Conflict: center seat taken by %s — user=%s, meet=%s",
+				occ.CenterUser, userEmail, meetName)
 			return err
 		}
 	case "right":
 		if occ.RightUser != "" && occ.RightUser != userEmail {
 			err := errors.New("right position is already taken")
-			logger.Error.Printf("[SetPosition] Failed for meet=%s: %v", meetName, err)
+			logger.Warn.Printf("[SetPosition] 🚫 Conflict: right seat taken by %s — user=%s, meet=%s",
+				occ.RightUser, userEmail, meetName)
 			return err
 		}
 	}
 
-	// remove the user from other positions if they're currently seated
+	// clear user from any other seats
 	if occ.LeftUser == userEmail {
+		logger.Debug.Printf("[SetPosition] ↩️ Removing user=%s from left (already seated)", userEmail)
 		occ.LeftUser = ""
 	}
 	if occ.CenterUser == userEmail {
+		logger.Debug.Printf("[SetPosition] ↩️ Removing user=%s from center (already seated)", userEmail)
 		occ.CenterUser = ""
 	}
 	if occ.RightUser == userEmail {
+		logger.Debug.Printf("[SetPosition] ↩️ Removing user=%s from right (already seated)", userEmail)
 		occ.RightUser = ""
 	}
 
-	// now seat them in the chosen position
+	// assign user to chosen seat
 	switch position {
 	case "left":
 		occ.LeftUser = userEmail
@@ -129,143 +136,171 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 		occ.RightUser = userEmail
 	}
 
-	// touch activity to update LastUpdated
 	s.TouchActivity(meetName)
-	logger.Info.Printf("[SetPosition] Position=%s assigned to user=%s for meet=%s. Current occupancy: %+v",
-		position, userEmail, meetName, occ)
+	logger.Info.Printf("[SetPosition] ✅ Assigned user=%s to %s seat in meet=%s. Final occupancy → Left=%s, Center=%s, Right=%s", userEmail, position, meetName, occ.LeftUser, occ.CenterUser, occ.RightUser)
 	return nil
 }
 
 // UnsetPosition removes the occupant from a specified position
 func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) error {
-	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
 
-	// get the occupancy record for the meet
+	// fetch occupancy record
 	occ, exists := occupancyMap[meetName]
 	if !exists {
-		logger.Warn.Printf("[UnsetPosition] No occupancy record for meet=%s", meetName)
+		logger.Warn.Printf("[UnsetPosition] 🚫 No occupancy record for meet=%s — cannot unset position", meetName)
 		return errors.New("no occupancy found for that meet")
 	}
 
-	switch position {
+	logger.Info.Printf("[UnsetPosition] ➡️ Attempting to unset: meet=%s, position=%s, user=%s", meetName, position, userEmail)
 
-	// if occupant is "", or occupant == userEmail => allow
+	switch position {
 	case "left":
 		if occ.LeftUser == userEmail {
-			logger.Info.Printf("[UnsetPosition] Clearing left position for user=%s in meet=%s", userEmail, meetName)
+			logger.Info.Printf("[UnsetPosition] ✅ Clearing LEFT seat for user=%s in meet=%s", userEmail, meetName)
 			occ.LeftUser = ""
 		} else {
+			logger.Warn.Printf("[UnsetPosition] ❌ LEFT seat mismatch: expected=%s, actual=%s", userEmail, occ.LeftUser)
 			return errors.New("user does not hold this position")
 		}
 
-	// if occupant is another user => error
 	case "center":
 		if occ.CenterUser == userEmail {
-			logger.Info.Printf("[UnsetPosition] Clearing center position for user=%s in meet=%s", userEmail, meetName)
+			logger.Info.Printf("[UnsetPosition] ✅ Clearing CENTER seat for user=%s in meet=%s", userEmail, meetName)
 			occ.CenterUser = ""
 		} else {
+			logger.Warn.Printf("[UnsetPosition] ❌ CENTER seat mismatch: expected=%s, actual=%s", userEmail, occ.CenterUser)
 			return errors.New("user does not hold this position")
 		}
 
-	// if occupant is another user => error
 	case "right":
 		if occ.RightUser == userEmail {
-			logger.Info.Printf("[UnsetPosition] Clearing right position for user=%s in meet=%s", userEmail, meetName)
+			logger.Info.Printf("[UnsetPosition] ✅ Clearing RIGHT seat for user=%s in meet=%s", userEmail, meetName)
 			occ.RightUser = ""
 		} else {
+			logger.Warn.Printf("[UnsetPosition] ❌ RIGHT seat mismatch: expected=%s, actual=%s", userEmail, occ.RightUser)
 			return errors.New("user does not hold this position")
 		}
 
-	// if position is invalid => error
 	default:
 		err := errors.New("invalid position")
-		logger.Error.Printf("[UnsetPosition] %v", err)
+		logger.Error.Printf("[UnsetPosition] ❌ Invalid position specified: %s", position)
 		return err
 	}
 
-	logger.Info.Printf("[UnsetPosition] Position=%s was vacated by user=%s for meet=%s. Current occupancy: %+v",
-		position, userEmail, meetName, occ)
+	logger.Debug.Printf("[UnsetPosition] Final occupancy state for meet=%s: Left=%s, Center=%s, Right=%s", meetName, occ.LeftUser, occ.CenterUser, occ.RightUser)
 	return nil
 }
 
 // ResetOccupancyForMeet clears all occupant fields for the specified meet
 func (s *OccupancyService) ResetOccupancyForMeet(meetName string) {
-	// ignore errors from AddAnnotation, or handle them
 	occupancyMutex.Lock()
 	defer occupancyMutex.Unlock()
-	logger.Info.Printf("[ResetOccupancyForMeet] Clearing all positions for meet=%s", meetName)
 
-	// clear all occupant fields
-	if occ, exists := occupancyMap[meetName]; exists {
-		occ.LeftUser = ""
-		occ.CenterUser = ""
-		occ.RightUser = ""
+	logger.Info.Printf("[ResetOccupancyForMeet] 🔄 Request to clear all positions for meet=%s", meetName)
+
+	occ, exists := occupancyMap[meetName]
+	if !exists {
+		logger.Warn.Printf("[ResetOccupancyForMeet] ⚠️ No occupancy record found for meet=%s — nothing to reset", meetName)
+		return
 	}
+
+	logger.Debug.Printf("[ResetOccupancyForMeet] Current occupancy before reset: %+v", occ)
+
+	// clear all positions
+	occ.LeftUser = ""
+	occ.CenterUser = ""
+	occ.RightUser = ""
+
+	logger.Info.Printf("[ResetOccupancyForMeet] ✅ Reset successful for meet=%s. All positions cleared.", meetName)
 }
 
 // TouchActivity updates the LastUpdated timestamp for the given meet
+// NOTE: Caller must hold occupancyMutex.
 func (s *OccupancyService) TouchActivity(meetName string) {
-	// ignore errors from AddAnnotation, or handle them
 	if occ, exists := occupancyMap[meetName]; exists {
 		occ.LastUpdated = time.Now()
 		logger.Debug.Printf("[TouchActivity] Updated LastUpdated for meet=%s to %v", meetName, occ.LastUpdated)
 	}
 }
 
-// LoadJSONFile Generic helper that reads a file and unmarshals JSON into 'target'
+// LoadJSONFile is a generic helper that reads a file and unmarshals JSON into 'target'
 func LoadJSONFile(path string, target interface{}) error {
+	logger.Debug.Printf("[LoadJSONFile] Attempting to read file: %s", path)
+
 	// #nosec G304
 	data, err := os.ReadFile(path)
-	//
 	if err != nil {
+		logger.Error.Printf("[LoadJSONFile] Failed to read file %s: %v", path, err)
 		return fmt.Errorf("failed to read file %s: %w", path, err)
 	}
+
+	logger.Debug.Printf("[LoadJSONFile] Successfully read file: %s (size=%d bytes)", path, len(data))
+
 	// Unmarshal the JSON data into the target struct
 	if err := json.Unmarshal(data, target); err != nil {
+		logger.Error.Printf("[LoadJSONFile] Failed to unmarshal JSON from file %s: %v", path, err)
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
+
+	logger.Info.Printf("[LoadJSONFile] Successfully loaded JSON from file: %s", path)
 	return nil
 }
 
-// LoadBasicMeets Loads the basic meets info from config/meets.json
+// LoadBasicMeets loads the basic meets info from config/meets.json
 func LoadBasicMeets() (*models.BasicMeets, error) {
 	path := "config/meets.json" // #nosec G304
 	if env := os.Getenv("MEETS_PATH"); env != "" {
 		path = env
+		logger.Debug.Printf("[LoadBasicMeets] Overriding path from MEETS_PATH env var: %s", path)
+	} else {
+		logger.Debug.Printf("[LoadBasicMeets] Using default path: %s", path)
 	}
 
-	// Load the JSON file
+	// load the JSON file
 	var basic models.BasicMeets
 	if err := LoadJSONFile(path, &basic); err != nil {
+		logger.Error.Printf("[LoadBasicMeets] Failed to load basic meets from %s: %v", path, err)
 		return nil, err
 	}
+
+	logger.Info.Printf("[LoadBasicMeets] Loaded %d meets from %s", len(basic.Meets), path)
 	return &basic, nil
 }
 
-// LoadMeetCredentials Loads the meet credentials from config/meet_creds.json
+// LoadMeetCredentials loads the meet credentials from config/meet_creds.json
 func LoadMeetCredentials() (*models.MeetCreds, error) {
-	//
 	path := "config/meet_creds.json"
 	if env := os.Getenv("MEET_CREDS_PATH"); env != "" {
 		path = env
+		logger.Debug.Printf("[LoadMeetCredentials] Overriding path from MEET_CREDS_PATH env var: %s", path)
+	} else {
+		logger.Debug.Printf("[LoadMeetCredentials] Using default path: %s", path)
 	}
 
-	// Load the JSON file
 	var creds models.MeetCreds
 	if err := LoadJSONFile(path, &creds); err != nil {
+		logger.Error.Printf("[LoadMeetCredentials] Failed to load credentials from %s: %v", path, err)
 		return nil, err
 	}
+
+	logger.Info.Printf("[LoadMeetCredentials] Loaded credentials from %s", path)
 	return &creds, nil
 }
 
 // SetGlobalMeetCredentials sets the global meet credentials
 func SetGlobalMeetCredentials(c *models.MeetCreds) {
 	GlobalMeetCredentials = c
+	logger.Info.Printf("[SetGlobalMeetCredentials] Global meet credentials set. Meets count: %d", len(c.Meets))
 }
 
 // GetGlobalMeetCredentials returns the global meet credentials
 func GetGlobalMeetCredentials() *models.MeetCreds {
+	if GlobalMeetCredentials == nil {
+		logger.Warn.Println("[GetGlobalMeetCredentials] No global meet credentials have been set")
+	} else {
+		logger.Debug.Printf("[GetGlobalMeetCredentials] Returning global meet credentials. Meets count: %d", len(GlobalMeetCredentials.Meets))
+	}
 	return GlobalMeetCredentials
 }
