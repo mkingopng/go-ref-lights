@@ -124,13 +124,13 @@ func SetupRouter(env string) *gin.Engine {
 		// log the message based on level
 		switch payload.Level {
 		case "error":
-			logger.Error.Println(payload.Message)
+			logger.Error.Printf(payload.Message)
 		case "warn":
-			logger.Warn.Println(payload.Message)
+			logger.Warn.Printf(payload.Message)
 		case "debug":
-			logger.Debug.Println(payload.Message)
+			logger.Debug.Printf(payload.Message)
 		default: // "info" + any unknown
-			logger.Info.Println(payload.Message)
+			logger.Info.Printf(payload.Message)
 		}
 		c.Status(http.StatusOK)
 	})
@@ -232,7 +232,7 @@ func SetupRouter(env string) *gin.Engine {
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		log.Fatalf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
+		logger.Error.Printf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
 	}
 	router.SetHTMLTemplate(template.Must(template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
 	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
@@ -257,7 +257,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	refereeID := r.URL.Query().Get("referee_id")
 
 	if refereeID == "" {
-		logger.Warn.Println("[Handler] Missing referee ID in query params")
+		logger.Warn.Printf("[Handler] Missing referee ID in query params")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
 		return
 	}
@@ -325,7 +325,7 @@ func main() {
 	// optionally defer close:
 	defer func() {
 		if err := logger.CloseLogger(); err != nil {
-			log.Printf("Error closing logger: %v", err)
+			logger.Error.Printf("[Logger] Error closing logger: %v", err)
 		}
 	}()
 
@@ -355,7 +355,7 @@ func main() {
 	}
 
 	// announce start
-	logger.Info.Println("[main] Starting application on port :8080")
+	logger.Info.Printf("[main] Starting application on port :8080")
 
 	// start background routines
 	hbManager := NewHeartbeatManager()
@@ -391,6 +391,7 @@ func main() {
 	logger.Info.Printf("[main] Server running on %s", addr)
 	if err := server.ListenAndServe(); err != nil {
 		// if the server fails to start, we can log a fatal error
-		log.Fatalf("[main] Failed to start server: %v", err)
+		logger.Error.Printf("[main] Failed to start server: %v", err)
+		os.Exit(1)
 	}
 }

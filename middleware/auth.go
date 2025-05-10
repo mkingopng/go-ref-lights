@@ -13,11 +13,11 @@ import (
 // -------------- authentication middleware --------------
 
 // AuthRequired is a middleware that ensures the user is logged in.
-// How it works:
-// - Retrieves the session from the request context.
-// - Checks if the "user" session variable is set.
-// - If no user is found, redirects to "/choose-meet" and aborts execution.
-// - Otherwise, the request proceeds.
+/*How it works:
+- Retrieves the session from the request context.
+- Checks if the "user" session variable is set.
+- If no user is found, redirects to "/choose-meet" and aborts execution.
+- Otherwise, the request proceeds.*/
 func AuthRequired(c *gin.Context) {
 	session := sessions.Default(c)
 	user := session.Get("user")
