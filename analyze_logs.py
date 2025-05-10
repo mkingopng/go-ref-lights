@@ -40,16 +40,16 @@ df = pd.DataFrame(records)
 # Count log types
 type_counts = df["type"].value_counts().reset_index()
 type_counts.columns = ["log_type", "count"]
-type_counts.to_csv("summary_log_types.csv", index=False)
-print("📊 Top log types saved to summary_log_types.csv")
+type_counts.to_csv("mtn_top_rumble_summary_log_types.csv", index=False)
+print("📊 Top log types saved to mtn_top_rumble_summary_log_types.csv")
 
 # Extract and save all errors/warnings
 df_error = df[df["message"].str.contains("error|fail|drop|unexpected", case=False, na=False)]
-df_error.to_csv("log_issues_only.csv", index=False)
-print(f"❗ Found {len(df_error)} potential issues — saved to log_issues_only.csv")
+df_error.to_csv("mtn_top_rumble_log_issues_only.csv", index=False)
+print(f"❗ Found {len(df_error)} potential issues — saved to mtn_top_rumble_log_issues_only.csv")
 
 # Optional: Save all logs as CSV for timeline review
-df.to_csv("all_logs_flat.csv", index=False)
-print("🕒 Full log timeline saved to all_logs_flat.csv")
+df.to_csv("mtn_top_rumble_all_logs_flat.csv", index=False)
+print("🕒 Full log timeline saved to mtn_top_rumble_all_logs_flat.csv")
 
 print("\n✅ Done. You can now open the CSVs in Excel, Pycharm, or pandas.")
