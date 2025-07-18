@@ -18,16 +18,16 @@
       "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Mountain_Top_Rumble",
-      "date": "April 27",
+      "name": "Strength_Quest",
+      "date": "July 18",
       "admin": {
-        "username": "mtr1",
+        "username": "sq1",
         "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "mtr2",
+          "username": "sq2",
           "password": "Y8DrnC",
           "isadmin": true
         }
