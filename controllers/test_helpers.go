@@ -13,11 +13,12 @@ import (
 	"strings"
 	"testing"
 
+	"go-ref-lights/services"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
-	"go-ref-lights/services"
 	"golang.org/x/crypto/bcrypt"
 )
 

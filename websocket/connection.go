@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
+
+	"github.com/gorilla/websocket"
 )
 
 // ------------------------- websocket connection interface ------------------

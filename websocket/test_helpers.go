@@ -3,8 +3,9 @@
 package websocket
 
 import (
-	"github.com/stretchr/testify/mock"
 	"time"
+
+	"github.com/stretchr/testify/mock"
 )
 
 // InitTest sets up the test environment for WebSocket-based meet state handling.

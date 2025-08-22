@@ -8,9 +8,10 @@ import (
 	"sync"
 	"testing"
 
+	"go-ref-lights/services"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/services"
 )
 
 // ============ Global test-setup ============

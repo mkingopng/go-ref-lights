@@ -2,7 +2,6 @@
 // +build unit
 
 // file: websocket/broadcast_test.go
-//
 package websocket
 
 import (
@@ -47,12 +46,13 @@ func TestBroadcastMessage_Success(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "testAction", decoded["action"])
 		assert.Equal(t, "testData", decoded["data"])
+		assert.Equal(t, "APL Test Meet", decoded["meetName"])
 	default:
 		t.Fatal("Expected message in broadcast channel, but got none")
 	}
 }
 
-// TestBroadcastFinalResults verifies that broadcastFinalResults sends a displayResults message
+// TestBroadcastFinalResults verifies that broadcastFinalResults sends a displayResults message with meetName
 func TestBroadcastFinalResults(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
@@ -72,14 +72,24 @@ func TestBroadcastFinalResults(t *testing.T) {
 		var decoded map[string]string
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
+
+		// Verify the action type
 		assert.Equal(t, "displayResults", decoded["action"])
+
+		// Verify all decision fields are present
 		assert.Equal(t, "good", decoded["leftDecision"])
+		assert.Equal(t, "no lift", decoded["centerDecision"])
+		assert.Equal(t, "good", decoded["rightDecision"])
+
+		// Verify meetName is included for proper filtering
+		assert.Equal(t, "APL Test Meet", decoded["meetName"])
+		assert.NotEmpty(t, decoded["meetName"], "meetName must be present for message filtering")
 	default:
 		t.Fatal("Expected final results broadcast, but got none")
 	}
 }
 
-// TestBroadcastFinalResults_ClearsAfterTimeout verifies that broadcastFinalResults sends a clearResults message after a timeout
+// TestBroadcastFinalResults_ClearsAfterTimeout verifies that broadcastFinalResults sends clearResults message with meetName after timeout
 func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 	InitTest()
 	flushBroadcastChannel()
@@ -107,24 +117,28 @@ func TestBroadcastFinalResults_ClearsAfterTimeout(t *testing.T) {
 	defer func() { sleepFunc = origSleep }()
 	broadcastFinalResults("APL Test Meet")
 
-	// first message should be displayResults
+	// first message should be displayResults with meetName
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
 		assert.Equal(t, "displayResults", decoded["action"])
+		assert.Equal(t, "APL Test Meet", decoded["meetName"])
+		assert.NotEmpty(t, decoded["meetName"], "displayResults message must include meetName for filtering")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected displayResults broadcast, but got none")
 	}
 
-	// then, the clearResults message should be sent
+	// then, the clearResults message should be sent with meetName
 	select {
 	case msg := <-mockBroadcast:
 		var decoded map[string]string
 		err := json.Unmarshal(msg, &decoded)
 		assert.NoError(t, err)
 		assert.Equal(t, "clearResults", decoded["action"])
+		assert.Equal(t, "APL Test Meet", decoded["meetName"])
+		assert.NotEmpty(t, decoded["meetName"], "clearResults message must include meetName for filtering")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected clearResults broadcast after simulated timeout, but got none")
 	}
@@ -163,5 +177,58 @@ func TestSendBroadcastMessage(t *testing.T) {
 		assert.Equal(t, rawData, msg)
 	default:
 		t.Fatal("Expected raw message in broadcast channel, but got none")
+	}
+}
+
+// TestBroadcastMessage_EmptyMeetName verifies that BroadcastMessage rejects empty meetName
+func TestBroadcastMessage_EmptyMeetName(t *testing.T) {
+	InitTest()
+	flushBroadcastChannel()
+
+	message := map[string]interface{}{
+		"action": "testAction",
+		"data":   "testData",
+	}
+
+	BroadcastMessage("", message)
+
+	// Should not send any message when meetName is empty
+	select {
+	case <-mockBroadcast:
+		t.Fatal("Expected no message in broadcast channel when meetName is empty, but got one")
+	default:
+		// This is expected - no message should be sent
+	}
+}
+
+// TestBroadcastFinalResults_EmptyMeetName verifies that broadcastFinalResults rejects empty meetName
+func TestBroadcastFinalResults_EmptyMeetName(t *testing.T) {
+	InitTest()
+	flushBroadcastChannel()
+
+	broadcastFinalResults("")
+
+	// Should not send any message when meetName is empty
+	select {
+	case <-mockBroadcast:
+		t.Fatal("Expected no message in broadcast channel when meetName is empty, but got one")
+	default:
+		// This is expected - no message should be sent
+	}
+}
+
+// TestBroadcastTimeUpdateWithIndex_EmptyMeetName verifies that broadcastTimeUpdateWithIndex rejects empty meetName
+func TestBroadcastTimeUpdateWithIndex_EmptyMeetName(t *testing.T) {
+	InitTest()
+	flushBroadcastChannel()
+
+	broadcastTimeUpdateWithIndex("updateTime", 30, 1, "")
+
+	// Should not send any message when meetName is empty
+	select {
+	case <-mockBroadcast:
+		t.Fatal("Expected no message in broadcast channel when meetName is empty, but got one")
+	default:
+		// This is expected - no message should be sent
 	}
 }

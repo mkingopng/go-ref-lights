@@ -4,8 +4,9 @@ package services
 import (
 	"errors"
 
-	"github.com/skip2/go-qrcode"
 	"go-ref-lights/logger"
+
+	"github.com/skip2/go-qrcode"
 )
 
 // define a function type for the encoder

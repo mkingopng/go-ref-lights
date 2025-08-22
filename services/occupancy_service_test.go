@@ -7,9 +7,10 @@ package services
 import (
 	"testing"
 
+	"go-ref-lights/websocket"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go-ref-lights/websocket"
 )
 
 // resetGlobalOccupancy clears the global occupancy map (used between tests)

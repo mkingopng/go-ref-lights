@@ -4,12 +4,13 @@ package controllers
 
 import (
 	"encoding/json"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/services"
 	"go-ref-lights/websocket"
 	"net/http"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 )
 
 // PositionController manages referee position assignments

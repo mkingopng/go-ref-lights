@@ -2,15 +2,15 @@
 // +build unit
 
 // file: models/meet_test.go
-//
 package models
 
 import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"go-ref-lights/websocket"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // TestAdminInitialization: Create an Admin and verify struct fields

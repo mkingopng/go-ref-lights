@@ -5,10 +5,11 @@ package websocket
 import (
 	"time"
 
+	"go-ref-lights/logger"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"go-ref-lights/logger"
 )
 
 // namespace for all RefVision metrics

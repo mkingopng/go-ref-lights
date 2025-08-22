@@ -5,9 +5,10 @@ package middleware
 import (
 	"net/http"
 
+	"go-ref-lights/logger"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"go-ref-lights/logger"
 )
 
 // -------------- authentication middleware --------------

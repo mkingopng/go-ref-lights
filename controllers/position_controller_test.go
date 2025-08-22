@@ -8,8 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"go-ref-lights/services"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // reset globals if needed (ActiveUsers, etc.)
