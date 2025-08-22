@@ -1,34 +1,17 @@
 {
     "meets": [
         {
-            "name": "test_mule",
-            "date": "April 5",
-            "admin": {
-                "username": "test",
-                "password": "$2b$12$/bMaRL.5EG5eia6KsMQNhe6Rpn2wLDJ4alqAxq1j6JDG7XYm1C6PG",
-                "isadmin": true
-            },
-            "secondaryAdmins": [
-                {
-                    "username": "test2",
-                    "password": "$2b$12$c.NHcIwVbDeqGelUPsb3/O6s3jmDECu74TZ2CqtTc.igX8ko5pliu",
-                    "isadmin": true
-                }
-            ],
-            "logo": "/static/images/APL_logo_white.png"
-        },
-        {
             "name": "Nationals_Platform_1",
             "date": "August 24",
             "admin": {
                 "username": "P1-1",
-                "password": "$2b$12$qALNLMGxrRoD2Go1ExsUK.bFzhh3BMWPnJmbYRP0qtoEP7ThyDVDq",
+                "password": "$2b$12$9LrLugcwiOdGnQxHauc.9uXaohGilKNQkJELy75tQNVNg3FjdjH4K",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "P1-2",
-                    "password": "$2b$12$FrfN7nU5ulZPf7PsNgFm4.KIHwlHBE47PDysyFm4J6bVsWKYg9UBS",
+                    "password": "$2b$12$oJ3G5Q8Jw6qkMOP30fgAaO4HmDevisKhiCwhRA7P2z00DMQgOIM1y",
                     "isadmin": true
                 }
             ],
@@ -39,36 +22,17 @@
             "date": "August 24",
             "admin": {
                 "username": "P2-1",
-                "password": "$2b$12$7X/UjdqTWqq2dmbkZut5k.HNZ0WzcxEwxqp7ty8gzCV6MF1DY3vqq",
+                "password": "$2b$12$GW8fvd9cQKn.Mj3shHfvru034Q1lIxEKHAO8NmivliEhpO0yK.GTm",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "P2-2",
-                    "password": "$2b$12$2ildIlki7jwyYLo3PZ4QRecstz09OGvY26zy5ShVoFen5XvYM2qQO",
+                    "password": "$2b$12$hKW/e6pL9SsxSFArZ2OwaeMdNhcCU4qIQQU34aXKP0l8zz.8ermsW",
                     "isadmin": true
                 }
             ],
             "logo": "/static/images/Nationals_logo_2025.png"
-        },
-        {
-            "name": "Sudo",
-            "date": "April 6",
-            "admin": {
-                "username": "sudo",
-                "password": "$2b$12$4mODZsZI670.nZzGOTUit.e6BvSOlvvtHyJRCe5Ld/pDXO647Chsq",
-                "isadmin": true,
-                "sudo": true
-            },
-            "secondaryAdmins": [
-                {
-                    "username": "sudo2",
-                    "password": "$2b$12$D2UpPi6zNSn7/jPidu6hlu1ovoegskzXXLbshOawdctLSw.wHcDTq",
-                    "isadmin": true,
-                    "sudo": true
-                }
-            ],
-            "logo": "/static/images/APL_logo_white.png"
         }
     ]
 }

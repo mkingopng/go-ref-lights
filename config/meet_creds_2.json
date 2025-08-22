@@ -1,23 +1,6 @@
 {
   "meets": [
     {
-      "name": "test_mule",
-      "date": "April 5",
-      "admin": {
-        "username": "test",
-        "password": "mule",
-        "isadmin": true
-      },
-      "secondaryAdmins": [
-        {
-          "username": "test2",
-          "password": "mule2",
-          "isadmin": true
-        }
-      ],
-      "logo": "/static/images/APL_logo_white.png"
-    },
-    {
       "name": "Nationals_Platform_1",
       "date": "August 24",
       "admin": {
@@ -50,25 +33,6 @@
         }
       ],
       "logo": "/static/images/Nationals_logo_2025.png"
-    },
-    {
-      "name": "Sudo",
-      "date": "April 6",
-      "admin": {
-        "username": "sudo",
-        "password": "sudo",
-        "isadmin": true,
-        "sudo": true
-      },
-      "secondaryAdmins": [
-        {
-          "username": "sudo2",
-          "password": "Pzuf9x",
-          "isadmin": true,
-          "sudo": true
-        }
-      ],
-      "logo": "/static/images/APL_logo_white.png"
     }
   ]
 }
