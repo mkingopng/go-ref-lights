@@ -82,3 +82,7 @@ go test -v ./...
 
 ## Contact
 For any issues or inquiries, please contact **michael.kenneth.kingston@gmail.com**.
+
+```bash
+go test -v -tags=unit ./...
+```

@@ -14,8 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PuerkitoBio/goquery"
 	"go-ref-lights/internal/app"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // helper: closes a response body and logs any error

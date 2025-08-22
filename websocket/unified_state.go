@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"go-ref-lights/logger"
+
+	"github.com/gorilla/websocket"
 )
 
 // StateProvider is an interface for fetching MeetState objects

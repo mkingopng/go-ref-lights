@@ -1,4 +1,4 @@
-# .github/workflows/ci.yml
+# .github/workflows/cicd.yml
 name: CI/CD Pipeline
 
 on:
@@ -59,8 +59,11 @@ jobs:
         run: mkdir logs
 
     # 1) Run only unit tests (the ones you tag with //go:build unit)
-      - name: Run Unit Tests
-        run: go test -v -tags=unit ./...
+      - name: Run Unit Tests (with explicit exit code)
+#        run: go test -v -tags=unit ./...
+        run: |
+          echo "Running go test with verbose output"
+          go test -v -tags=unit ./... || exit 1
 
       # 2) Run local e2e / integration tests (the ones you tag with //go:build integration)
 #      - name: Run Local E2E Tests
@@ -79,7 +82,7 @@ jobs:
     # Updated to depend on the 'verify' job
     needs: build
     runs-on: ubuntu-latest
-    if: always()
+    # if: always()
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

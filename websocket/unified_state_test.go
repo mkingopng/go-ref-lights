@@ -2,14 +2,14 @@
 // +build unit
 
 // file: websocket/unified_state_test.go
-//
 package websocket
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGetMeetStateCreatesNewState verifies that a new MeetState is created with default values

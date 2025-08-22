@@ -34,3 +34,12 @@ func (m *MockOccupancyService) UnsetPosition(meetName, position, user string) er
 func (m *MockOccupancyService) ResetOccupancyForMeet(meetName string) {
 	m.Called(meetName)
 }
+
+// ClearGlobalOccupancy clears the global occupancyMap for test isolation
+func ClearGlobalOccupancy() {
+	occupancyMutex.Lock()
+	defer occupancyMutex.Unlock()
+	for k := range occupancyMap {
+		delete(occupancyMap, k)
+	}
+}

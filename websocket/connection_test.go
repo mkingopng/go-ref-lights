@@ -2,7 +2,6 @@
 // +build unit
 
 // websocket/connection_test.go
-//
 package websocket
 
 import (

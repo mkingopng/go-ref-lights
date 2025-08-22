@@ -2,16 +2,16 @@
 // +build unit
 
 // file: services/qrcode_service_test.go
-//
 package services
 
 import (
 	"errors"
 	"testing"
 
+	"go-ref-lights/websocket"
+
 	"github.com/skip2/go-qrcode"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/websocket"
 )
 
 // mock encoder function (successful)

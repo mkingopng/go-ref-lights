@@ -13,9 +13,10 @@ import (
 	"strings"
 	"testing"
 
+	"go-ref-lights/websocket"
+
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/websocket"
 )
 
 // testSetupTemplates creates a temporary templates directory with a fake template file

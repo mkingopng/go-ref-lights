@@ -22,6 +22,13 @@ type realMessenger struct{}
 
 // BroadcastMessage marshals the message and sends it to all connections in the given meet.
 func (r *realMessenger) BroadcastMessage(meetName string, msg map[string]interface{}) {
+	if !validateMeetName(meetName, "realMessenger.BroadcastMessage") {
+		return
+	}
+
+	// Add meetName to the message to ensure proper filtering
+	msg["meetName"] = meetName
+
 	m, err := json.Marshal(msg)
 	if err != nil {
 		logger.Error.Printf("[realMessenger.BroadcastMessage] Error marshalling message: %v", err)
@@ -33,6 +40,10 @@ func (r *realMessenger) BroadcastMessage(meetName string, msg map[string]interfa
 
 // BroadcastTimeUpdate sends a time update message (with index) to all connections.
 func (r *realMessenger) BroadcastTimeUpdate(action string, timeLeft int, index int, meetName string) {
+	if !validateMeetName(meetName, "realMessenger.BroadcastTimeUpdate") {
+		return
+	}
+
 	msg := map[string]interface{}{
 		"action":   action,
 		"index":    index,

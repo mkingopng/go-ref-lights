@@ -9,6 +9,24 @@ import (
 	"go-ref-lights/logger"
 )
 
+const (
+	// ErrEmptyMeetName is the error message for empty meetName validation
+	ErrEmptyMeetName = "meetName is empty - message will not be properly filtered"
+)
+
+// validateMeetName checks if meetName is valid and logs an error if not
+func validateMeetName(meetName, functionName string) bool {
+	if meetName == "" {
+		logger.Error.Printf("[%s] %s", functionName, ErrEmptyMeetName)
+		return false
+	}
+	if len(meetName) > 100 { // reasonable limit to prevent potential issues
+		logger.Error.Printf("[%s] meetName too long (%d chars) - potential security issue", functionName, len(meetName))
+		return false
+	}
+	return true
+}
+
 // allow tests to override the sleep behaviour.
 var sleepFunc = time.Sleep
 
@@ -61,7 +79,14 @@ func HandleMessages() {
 
 // BroadcastMessage sends a message to all WebSocket clients associated with the given meet.
 func BroadcastMessage(meetName string, message map[string]interface{}) {
-	logger.Debug.Printf("[BroadcastMessage] Broadcasting next attempt timers for meet=%s", meetName)
+	if !validateMeetName(meetName, "BroadcastMessage") {
+		return
+	}
+
+	logger.Debug.Printf("[BroadcastMessage] Broadcasting message for meet=%s", meetName)
+
+	// add meetName to the message to ensure proper filtering
+	message["meetName"] = meetName
 
 	// convert message to JSON
 	msg, err := json.Marshal(message)
@@ -76,11 +101,16 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 
 // broadcastFinalResults sends the final decisions to all connections in a meet
 func broadcastFinalResults(meetName string) {
+	if !validateMeetName(meetName, "broadcastFinalResults") {
+		return
+	}
+
 	meetState := DefaultStateProvider.GetMeetState(meetName) // fetch the current meet state
 
 	// prepare the decision submission message
 	submission := map[string]string{
 		"action":         "displayResults",
+		"meetName":       meetName,
 		"leftDecision":   meetState.JudgeDecisions["left"],
 		"centerDecision": meetState.JudgeDecisions["center"],
 		"rightDecision":  meetState.JudgeDecisions["right"],
@@ -105,7 +135,10 @@ func broadcastFinalResults(meetName string) {
 	go func() {
 		sleepFunc(time.Duration(resultsDisplayDuration) * time.Second)
 		// prepare a clear message
-		clearMsg := map[string]string{"action": "clearResults"}
+		clearMsg := map[string]string{
+			"action":   "clearResults",
+			"meetName": meetName,
+		}
 		clearJSON, err := json.Marshal(clearMsg)
 		if err != nil {
 			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults: %v", err)
@@ -122,6 +155,10 @@ func broadcastFinalResults(meetName string) {
 //
 //nolint:unused
 func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetName string) { //nolint:unused
+	if !validateMeetName(meetName, "broadcastTimeUpdateWithIndex") {
+		return
+	}
+
 	msg, err := json.Marshal(map[string]interface{}{
 		"action":   action,
 		"timeLeft": timeLeft,
@@ -137,7 +174,9 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 	broadcast <- msg
 }
 
-// SendBroadcastMessage allows raw byte data to be sent over the broadcast channel
+// SendBroadcastMessage allows raw byte data to be sent over the broadcast channel.
+// Note: This function does not validate meetName as it accepts pre-marshalled data.
+// Callers are responsible for ensuring the data contains proper meetName for filtering.
 func SendBroadcastMessage(data []byte) {
 	broadcast <- data
 }

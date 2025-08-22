@@ -18,21 +18,38 @@
       "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Mountain_Top_Rumble",
-      "date": "April 27",
+      "name": "Nationals_Platform_1",
+      "date": "August 24",
       "admin": {
-        "username": "mtr1",
+        "username": "P1-1",
         "password": "D4Rgdw",
         "isadmin": true
       },
       "secondaryAdmins": [
         {
-          "username": "mtr2",
+          "username": "P1-2",
           "password": "Y8DrnC",
           "isadmin": true
         }
         ],
-      "logo": "/static/images/APL_logo_white.png"
+      "logo": "/static/images/Nationals_logo_2025.png"
+    },
+    {
+      "name": "Nationals_Platform_2",
+      "date": "August 24",
+      "admin": {
+        "username": "P2-1",
+        "password": "BGB8qf",
+        "isadmin": true
+      },
+      "secondaryAdmins": [
+        {
+          "username": "P2-2",
+          "password": "4h1Skz",
+          "isadmin": true
+        }
+      ],
+      "logo": "/static/images/Nationals_logo_2025.png"
     },
     {
       "name": "Sudo",

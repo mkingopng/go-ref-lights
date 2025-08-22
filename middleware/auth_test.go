@@ -13,11 +13,12 @@ import (
 	"os"
 	"testing"
 
+	"go-ref-lights/websocket"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"go-ref-lights/websocket"
 )
 
 var (

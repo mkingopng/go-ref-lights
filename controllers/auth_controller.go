@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-gonic/gin"
 	"go-ref-lights/logger"
 	"go-ref-lights/models"
+
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
