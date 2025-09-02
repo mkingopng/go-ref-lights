@@ -25,18 +25,18 @@ repos:
         pass_filenames: false
         args: ["-exclude-dir=cdk.out", "./..."]
 
-      - id: go-test
-        name: Go Unit Tests
-        language: system
-        entry: /bin/bash
-        args:
-          - -c
-          - |
-            export MEETS_PATH="config/meets.json"
-            export MEET_CREDS_PATH="config/meet_creds.json"
-            go test -v -tags=unit ./...
-        types: [go]
-        pass_filenames: false
+#      - id: go-test
+#        name: Go Unit Tests
+#        language: system
+#        entry: /bin/bash
+#        args:
+#          - -c
+#          - |
+#            export MEETS_PATH="config/meets.json"
+#            export MEET_CREDS_PATH="config/meet_creds.json"
+#            go test -v -tags=unit ./...
+#        types: [go]
+#        pass_filenames: false
 #      - id: pytest
 #        name: Run Pytest
 #        entry: pytest

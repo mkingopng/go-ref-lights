@@ -61,7 +61,12 @@ The application can run locally for testing or be deployed to a server.
 	  ```
 
 4. **Environment Variables** (optional)
-	- By default, `ENV=development`. If you want to run in production, set `ENV=production` to enable production settings (e.g., using `gin.ReleaseMode` and enabling secure cookies).
+	- **ENV**: Controls application mode and logging levels
+		- `ENV=development` (default): Verbose logging with all levels including DEBUG
+		- `ENV=production`: Optimized logging with ERROR, WARN, and critical INFO only
+		- `ENV=test`: Minimal logging for test environments
+	- **LOG_LEVEL**: Optional override for specific log level (DEBUG, INFO, WARN, ERROR)
+	- Production mode also enables `gin.ReleaseMode` and secure cookies.
 
 ---
 
@@ -78,11 +83,13 @@ The application can run locally for testing or be deployed to a server.
 2. **Production Deployment**
 	- Set environment variables (for example, using a `.env` file or manually):
 	  ```bash
-	  export ENV=production
+	  export ENV=production          # Enables production logging and security
 	  export APP_HOST=0.0.0.0
 	  export APP_PORT=8080
+	  # Optional: Override log level if needed
+	  # export LOG_LEVEL=DEBUG
 	  ```
-	- Run the same `go run main.go`. The server will be available on the specified host and port.
+	- Run the same `go run main.go`. The server will be available on the specified host and port with optimized logging.
 
 ---
 
@@ -233,6 +240,98 @@ This role is primarily a fallback if the normal admin cannot resolve a problem o
 
 With **go-ref-lights**, meet directors and referees can manage and visualize attempts, decisions, and timers in real time. The built-in Admin Panel and Sudo fallback mode provide robust control in case of disruptions. Refer to the sections above if you encounter any issues, and feel free to customize the code and templates to suit your federation’s style or requirements.
 
-Enjoy hosting powerlifting meets with **go-ref-lights**! If you have further questions, check the logs (`logger.*`) for debugging info or consult the code to extend functionality.
+## 15. Logging and Troubleshooting
+
+### Log Files
+- Application logs are stored in the `./logs/` directory with timestamped filenames
+- In production mode, logs use structured JSON format for easy parsing
+- Development mode provides verbose logging for debugging
+
+### Environment-Based Log Levels
+
+The logging system automatically configures based on the ENV environment variable:
+
+| Environment | Log Level | DEBUG | INFO | WARN | ERROR | File Logging |
+|-------------|-----------|-------|------|------|-------|--------------|
+| production  | WARN      | ❌    | ⚠️*   | ✅    | ✅     | ✅           |
+| development | DEBUG     | ✅    | ✅    | ✅    | ✅     | ✅           |
+| test        | WARN      | ❌    | ❌    | ✅    | ✅     | ❌           |
+
+*Critical INFO only in production
+
+**Configuration Examples:**
+```bash
+ENV=production ./go-ref-lights          # Production logging
+ENV=development ./go-ref-lights         # Verbose logging
+ENV=test ./go-ref-lights                # Test logging
+LOG_LEVEL=DEBUG ./go-ref-lights         # Override level
+```
+
+**Optimizations Applied:**
+- **WebSocket operations**: Connection upgrades, message processing, referee registration → DEBUG level
+- **Timer operations**: Routine countdown updates, timer state changes → DEBUG level
+- **HTTP requests**: Successful requests → DEBUG level, errors preserved with context
+- **Performance**: Conditional logging prevents expensive operations when disabled
+
+### Common Log Patterns
+```bash
+# View recent logs
+tail -f logs/$(ls logs/ | tail -1)
+
+# Search for errors
+grep "ERROR" logs/*.log
+
+# Parse JSON logs in production
+cat logs/*.log | jq '.level, .message, .context'
+
+# WebSocket issues only
+cat logs/*.log | jq 'select(.context.component == "websocket" and (.level == "ERROR" or .level == "WARN"))'
+```
+
+### Testing the Logging System
+
+The application includes comprehensive logging tests:
+
+```bash
+# Run unit tests
+go test -v ./logger/
+
+# Run integration tests (environment configuration testing)
+go test -v -tags=integration ./logger/
+
+# Run with coverage
+go test -coverprofile=coverage.out ./logger/
+go tool cover -func=coverage.out
+```
+
+**Integration tests validate:**
+- Environment-based configuration (all ENV and LOG_LEVEL combinations)
+- File logging behavior (production vs test mode)
+- Log level filtering and message suppression
+- Thread safety and concurrent access
+- Edge cases (invalid values, case sensitivity)
+- Performance and log file size monitoring
+
+### Troubleshooting with Logs
+- WebSocket connection issues: Look for "websocket" component ERROR/WARN logs
+- Authentication problems: Check "authentication" component logs
+- Timer issues: Search for "timer" component logs
+- Position conflicts: Look for "position" component logs
+
+**WebSocket Specific Issues:**
+- Connection failures: Search for "connection_upgrade_failed" action
+- Message delivery problems: Look for "message_write_failed" or "message_dropped" actions
+- Client issues: Check for "json_parse_error" or "incomplete_decision" actions
+- Network problems: Search for "ping_failed" action
+
+**Configuration Issues:**
+- Logs not appearing: Check ENV and LOG_LEVEL settings
+- Too many logs in production: Ensure ENV=production (not development)
+- Missing debug logs: Set LOG_LEVEL=DEBUG or ENV=development
+- File not created in tests: Expected behavior - test mode uses stdout/stderr only
+
+---
+
+Enjoy hosting powerlifting meets with **go-ref-lights**! If you have further questions, check the structured logs for debugging info or consult the code to extend functionality.
 
 ---

@@ -10,6 +10,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"go-ref-lights/logger"
 	"sync"
 	"time"
@@ -52,18 +53,39 @@ existing timers, clear judge decisions, or begin a fresh countdown. Broadcasts s
 updates to connected clients as needed.
 */
 func (tm *TimerManager) HandleTimerAction(action, meetName string) {
-	logger.Info.Printf("[HandleTimerAction] Received '%s' for meet='%s'", action, meetName)
+	// Convert routine timer actions to DEBUG level
+	logContext := logger.NewTimerContext("timer_action_received", meetName, action, "")
+	logger.LogDebugWithContext(logContext, "Processing timer action")
 
 	meetState := tm.Provider.GetMeetState(meetName)
-	logger.Info.Printf("[HandleTimerAction] Using MeetState pointer %p for meet='%s'", meetState, meetName)
+	if meetState == nil {
+		// Keep ERROR level for missing meet state
+		logContext := logger.NewTimerContext("meet_state_missing", meetName, action, "")
+		logger.LogErrorWithContext(logContext, "Meet state not found for timer action")
+		return
+	}
+
+	// Convert routine state pointer logging to DEBUG level
+	logContext = logger.NewTimerContext("meet_state_accessed", meetName, action, "")
+	logContext["statePointer"] = fmt.Sprintf("%p", meetState)
+	logger.LogDebugWithContext(logContext, "Accessed MeetState for timer action")
 
 	switch action {
 	case "startTimer":
 		// clear previous decisions and notify clients to clear results
-		logger.Info.Printf("[HandleTimerAction] Clearing old decisions, sending 'clearResults'")
+		// Convert routine decision clearing to DEBUG level
+		logContext = logger.NewTimerContext("decisions_cleared", meetName, "startTimer", "")
+		logger.LogDebugWithContext(logContext, "Clearing old decisions and sending clearResults")
 		meetState.JudgeDecisions = make(map[string]string)
 		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
+		clearJSON, err := json.Marshal(clearMsg)
+		if err != nil {
+			// Keep ERROR level for marshaling failures
+			logContext = logger.NewTimerContext("clear_message_marshal_error", meetName, "startTimer", "")
+			logContext = logger.AddError(logContext, err)
+			logger.LogErrorWithContext(logContext, "Failed to marshal clearResults message")
+			return
+		}
 		tm.Messenger.BroadcastRaw(clearJSON)
 
 		// explicitly cancel any active platform ready timer
@@ -71,31 +93,50 @@ func (tm *TimerManager) HandleTimerAction(action, meetName string) {
 
 		// start the platform ready timer
 		tm.Messenger.BroadcastMessage(meetName, map[string]interface{}{"action": "startTimer"})
-		logger.Info.Printf("[HandleTimerAction] Now calling startPlatformReadyTimer for meet='%s'", meetName)
+		// Convert routine timer start to DEBUG level
+		logContext = logger.NewTimerContext("platform_ready_starting", meetName, "startTimer", "")
+		logger.LogDebugWithContext(logContext, "Starting platform ready timer")
 		tm.startPlatformReadyTimer(meetState)
 
 	case "resetTimer":
-		logger.Info.Printf("[HandleTimerAction] 🔄 Processing resetTimer action for meet='%s'", meetName)
+		// Convert routine timer reset to DEBUG level
+		logContext = logger.NewTimerContext("timer_reset", meetName, "resetTimer", "")
+		logger.LogDebugWithContext(logContext, "Processing resetTimer action")
 		tm.resetPlatformReadyTimer(meetState)
 		meetState.JudgeDecisions = make(map[string]string)
 		clearMsg := map[string]string{"action": "clearResults"}
-		clearJSON, _ := json.Marshal(clearMsg)
+		clearJSON, err := json.Marshal(clearMsg)
+		if err != nil {
+			// Keep ERROR level for marshaling failures
+			logContext = logger.NewTimerContext("clear_message_marshal_error", meetName, "resetTimer", "")
+			logContext = logger.AddError(logContext, err)
+			logger.LogErrorWithContext(logContext, "Failed to marshal clearResults message")
+			return
+		}
 		tm.Messenger.BroadcastRaw(clearJSON)
 
 	case "startNextAttemptTimer":
-		logger.Info.Printf("[HandleTimerAction] Now calling startNextAttemptTimer for meet='%s'", meetName)
+		// Convert routine next attempt timer start to DEBUG level
+		logContext = logger.NewTimerContext("next_attempt_starting", meetName, "startNextAttemptTimer", "")
+		logger.LogDebugWithContext(logContext, "Starting next attempt timer")
 		tm.startNextAttemptTimer(meetState)
 
 	case "updatePlatformReadyTime":
 		// the UI might be echoing updates; we typically ignore or no-op here
-		logger.Debug.Printf("[HandleTimerAction] Ignoring timer update echo from client for meet='%s'", meetName)
+		// Keep as DEBUG level for routine update echoes
+		logContext = logger.NewTimerContext("update_echo_ignored", meetName, "updatePlatformReadyTime", "")
+		logger.LogDebugWithContext(logContext, "Ignoring timer update echo from client")
 		return
 
 	default:
-		logger.Debug.Printf("[HandleTimerAction] Action='%s' not recognized", action)
+		// Keep as DEBUG level for unrecognized actions
+		logContext = logger.NewTimerContext("unrecognized_action", meetName, action, "")
+		logger.LogDebugWithContext(logContext, "Timer action not recognized")
 	}
 
-	logger.Info.Printf("[HandleTimerAction] Finished processing action='%s' for meet='%s'", action, meetName)
+	// Convert routine action completion to DEBUG level
+	logContext = logger.NewTimerContext("timer_action_completed", meetName, action, "")
+	logger.LogDebugWithContext(logContext, "Finished processing timer action")
 }
 
 // -------------------- platform ready timer management --------------------
@@ -107,12 +148,17 @@ cancelling any existing platform-ready timer. The function broadcasts remaining
 time to connected clients until time runs out or the timer is reset/cancelled.
 */
 func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
-	logger.Info.Printf("[startPlatformReadyTimer] Called for meet='%s'", meetState.MeetName)
+	// Convert routine timer start to DEBUG level
+	logContext := logger.NewTimerContext("platform_ready_timer_called", meetState.MeetName, "platform_ready", "")
+	logger.LogDebugWithContext(logContext, "Platform ready timer function called")
 
 	tm.platformReadyMutex.Lock()
 	// cancel existing timer if running
 	if meetState.PlatformReadyCancel != nil {
 		meetState.PlatformReadyCancel()
+		// Convert routine timer cancellation to DEBUG level
+		logContext := logger.NewTimerContext("existing_timer_cancelled", meetState.MeetName, "platform_ready", meetState.PlatformReadyTimerID)
+		logger.LogDebugWithContext(logContext, "Cancelled existing platform ready timer")
 	}
 
 	// create a new cancellable context
@@ -127,13 +173,23 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 	// set the single timer to active and store its end time
 	meetState.PlatformReadyActive = true
 	meetState.PlatformReadyEnd = time.Now().Add(60 * time.Second)
-	logger.Info.Printf("[startPlatformReadyTimer] Timer is set to 60s for meet='%s', endTime=%v",
-		meetState.MeetName, meetState.PlatformReadyEnd)
+	// Convert routine timer setup to DEBUG level
+	logContext = logger.NewTimerContext("platform_ready_timer_set", meetState.MeetName, "platform_ready", meetState.PlatformReadyTimerID)
+	logContext["duration"] = "60s"
+	logContext["endTime"] = meetState.PlatformReadyEnd.Format(time.RFC3339)
+	logger.LogDebugWithContext(logContext, "Platform ready timer configured")
 	tm.platformReadyMutex.Unlock()
 
 	// clear lights and broadcast initial time left
 	clearMsg := map[string]string{"action": "clearResults"}
-	clearJSON, _ := json.Marshal(clearMsg)
+	clearJSON, err := json.Marshal(clearMsg)
+	if err != nil {
+		// Keep ERROR level for marshaling failures
+		logContext := logger.NewTimerContext("clear_message_marshal_error", meetState.MeetName, "platform_ready", localTimerID)
+		logContext = logger.AddError(logContext, err)
+		logger.LogErrorWithContext(logContext, "Failed to marshal clearResults message in platform ready timer")
+		return
+	}
 	tm.Messenger.BroadcastRaw(clearJSON)
 
 	timeLeft := int(time.Until(meetState.PlatformReadyEnd).Seconds())
@@ -151,16 +207,19 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 
 				// if a new timer started, exit this one
 				if meetState.PlatformReadyTimerID != timerID {
-					logger.Info.Printf("[startPlatformReadyTimer] Timer ID mismatch for meet='%s'; exiting old timer",
-						meetState.MeetName)
+					// Convert routine timer ID mismatch to DEBUG level
+					logContext := logger.NewTimerContext("timer_id_mismatch", meetState.MeetName, "platform_ready", timerID)
+					logContext["currentTimerID"] = meetState.PlatformReadyTimerID
+					logger.LogDebugWithContext(logContext, "Timer ID mismatch detected, exiting old timer")
 					tm.platformReadyMutex.Unlock()
 					return
 				}
 
 				// if the timer is no longer active, exit
 				if !meetState.PlatformReadyActive {
-					logger.Info.Printf("[startPlatformReadyTimer] Timer was stopped early for meet='%s'",
-						meetState.MeetName)
+					// Convert routine early timer stop to DEBUG level
+					logContext := logger.NewTimerContext("timer_stopped_early", meetState.MeetName, "platform_ready", timerID)
+					logger.LogDebugWithContext(logContext, "Timer was stopped early")
 					tm.platformReadyMutex.Unlock()
 					return
 				}
@@ -173,21 +232,29 @@ func (tm *TimerManager) startPlatformReadyTimer(meetState *MeetState) {
 
 				// if time is up, broadcast and reset
 				if timeLeft <= 0 {
-					logger.Info.Printf("[startPlatformReadyTimer] Timer reached 0; marking expired for meet='%s'", meetState.MeetName)
+					// Convert routine timer expiration to DEBUG level
+					logContext := logger.NewTimerContext("timer_expired", meetState.MeetName, "platform_ready", timerID)
+					logger.LogDebugWithContext(logContext, "Platform ready timer reached 0, marking expired")
 					tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", 0, 0, meetState.MeetName)
-					tm.Messenger.BroadcastRaw([]byte(`{"action":"platformReadyExpired"}`))
+
+					// Broadcast expiration message with error handling
+					expirationMsg := []byte(`{"action":"platformReadyExpired"}`)
+					tm.Messenger.BroadcastRaw(expirationMsg)
+
 					meetState.PlatformReadyActive = false
 					meetState.PlatformReadyEnd = time.Time{}
 					tm.platformReadyMutex.Unlock()
 					return
 				}
 
-				// otherwise, broadcast the updated time
+				// otherwise, broadcast the updated time (routine countdown updates - no logging needed)
 				tm.Messenger.BroadcastTimeUpdate("updatePlatformReadyTime", timeLeft, 0, meetState.MeetName)
 				tm.platformReadyMutex.Unlock()
 
 			case <-ctx.Done():
-				logger.Info.Printf("[startPlatformReadyTimer] Context cancelled for meet='%s'", meetState.MeetName)
+				// Convert routine context cancellation to DEBUG level
+				logContext := logger.NewTimerContext("timer_context_cancelled", meetState.MeetName, "platform_ready", timerID)
+				logger.LogDebugWithContext(logContext, "Timer context cancelled")
 				return
 			}
 		}
@@ -204,9 +271,16 @@ func (tm *TimerManager) resetPlatformReadyTimer(meetState *MeetState) {
 	defer tm.platformReadyMutex.Unlock()
 
 	if !meetState.PlatformReadyActive {
-		logger.Warn.Println("[resetPlatformReadyTimer] ⚠️ No active platform ready timer to reset.")
+		// Keep WARN level for attempting to reset non-active timer
+		context := logger.NewTimerContext("reset_inactive_timer", meetState.MeetName, "platform_ready", meetState.PlatformReadyTimerID)
+		logger.LogWarnWithContext(context, "No active platform ready timer to reset")
 		return
 	}
+
+	// Convert routine timer reset to DEBUG level
+	context := logger.NewTimerContext("timer_reset_successful", meetState.MeetName, "platform_ready", meetState.PlatformReadyTimerID)
+	logger.LogDebugWithContext(context, "Platform ready timer reset successfully")
+
 	meetState.PlatformReadyActive = false
 	meetState.PlatformReadyTimeLeft = 60
 }
@@ -229,7 +303,11 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 		startVal = tm.NextAttemptStartValue
 	}
 
-	// clear previous decisions and notify clients to clear results
+	// Convert routine timer creation to DEBUG level
+	logContext := logger.NewTimerContext("next_attempt_timer_created", meetState.MeetName, "next_attempt", timerID)
+	logContext["duration"] = fmt.Sprintf("%ds", startVal)
+	logger.LogDebugWithContext(logContext, "Creating next attempt timer")
+
 	deadline := time.Now().Add(time.Duration(startVal) * time.Second)
 	newTimer := NextAttemptTimer{
 		ID:       timerID,
@@ -255,14 +333,14 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 
 			// check if the timer is still in the list
 			if idx == -1 {
-				// timer not found; must've been removed or ended
+				// timer not found; must've been removed or ended (routine - no logging needed)
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 
 			// check if the timer is still active
 			if !meetState.NextAttemptTimers[idx].Active {
-				// already inactive
+				// already inactive (routine - no logging needed)
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
@@ -276,17 +354,19 @@ func (tm *TimerManager) startNextAttemptTimer(meetState *MeetState) {
 			// update the time left
 			meetState.NextAttemptTimers[idx].TimeLeft = timeLeft
 
-			// broadcast updated timers
+			// broadcast updated timers (routine countdown updates - no logging needed)
 			broadcastAllNextAttemptTimersFunc(meetState.NextAttemptTimers, meetState.MeetName)
 
 			if timeLeft <= 0 {
-				// timer is done
+				// timer is done - convert to DEBUG level
+				logContext := logger.NewTimerContext("next_attempt_timer_expired", meetState.MeetName, "next_attempt", id)
+				logger.LogDebugWithContext(logContext, "Next attempt timer expired")
 				meetState.NextAttemptTimers[idx].Active = false
 				tm.nextAttemptMutex.Unlock()
 				return
 			}
 
-			// still active; update the time left
+			// still active; update the time left (routine - no logging needed)
 			tm.nextAttemptMutex.Unlock()
 		}
 	}(timerID)
@@ -341,7 +421,10 @@ func broadcastAllNextAttemptTimers(timers []NextAttemptTimer, meetName string) {
 
 	out, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error.Printf("[broadcastAllNextAttemptTimers] Error marshalling next attempt timers: %v", err)
+		// Keep ERROR level for marshaling failures
+		context := logger.NewTimerContext("next_attempt_marshal_error", "", "next_attempt", "")
+		context = logger.AddError(context, err)
+		logger.LogErrorWithContext(context, "Failed to marshal next attempt timers")
 		return
 	}
 

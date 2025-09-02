@@ -17,11 +17,19 @@ const (
 // validateMeetName checks if meetName is valid and logs an error if not
 func validateMeetName(meetName, functionName string) bool {
 	if meetName == "" {
-		logger.Error.Printf("[%s] %s", functionName, ErrEmptyMeetName)
+		// Keep ERROR level for empty meet name validation
+		logContext := logger.NewWebSocketContext("validation_error", "", "", "")
+		logContext["function"] = functionName
+		logContext["error"] = string(ErrEmptyMeetName)
+		logger.LogErrorWithContext(logContext, "Meet name validation failed")
 		return false
 	}
 	if len(meetName) > 100 { // reasonable limit to prevent potential issues
-		logger.Error.Printf("[%s] meetName too long (%d chars) - potential security issue", functionName, len(meetName))
+		// Keep ERROR level for security-related validation
+		context := logger.NewWebSocketContext("validation_error", meetName, "", "")
+		context["function"] = functionName
+		context["meetNameLength"] = len(meetName)
+		logger.LogErrorWithContext(context, "Meet name too long - potential security issue")
 		return false
 	}
 	return true
@@ -34,7 +42,9 @@ var sleepFunc = time.Sleep
 func StartNextAttemptTimer(meetState *MeetState) {
 	// check if the meetState is nil
 	if defaultTimerManager == nil {
-		logger.Error.Println("[StartNextAttemptTimer] defaultTimerManager is nil!")
+		// Keep ERROR level for nil timer manager
+		context := logger.NewSystemContext("timer_manager_nil", "broadcast")
+		logger.LogErrorWithContext(context, "defaultTimerManager is nil")
 		return
 	}
 	// check if the meetState is nil
@@ -57,7 +67,10 @@ func HandleMessages() {
 				meetFilter = m
 			}
 		} else {
-			logger.Debug.Printf("[HandleMessages] JSON unmarshal error: %v", err)
+			// Keep as DEBUG level for JSON unmarshal errors
+			context := logger.NewWebSocketContext("json_unmarshal_error", "", "", "")
+			context = logger.AddError(context, err)
+			logger.LogDebugWithContext(context, "JSON unmarshal error in message handling")
 		}
 
 		// acquire lock, broadcast to each connection
@@ -70,7 +83,9 @@ func HandleMessages() {
 			case c.send <- msg:
 				// message queued
 			default:
-				logger.Warn.Printf("[HandleMessages] Dropping broadcast msg for %v", c.conn.RemoteAddr())
+				// Keep WARN level for dropped messages
+				context := logger.NewWebSocketContext("broadcast_message_dropped", "", "", c.conn.RemoteAddr().String())
+				logger.LogWarnWithContext(context, "Dropping broadcast message due to full send channel")
 			}
 		}
 		connectionsMu.RUnlock()
@@ -83,7 +98,9 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 		return
 	}
 
-	logger.Debug.Printf("[BroadcastMessage] Broadcasting message for meet=%s", meetName)
+	// Keep as DEBUG level for routine broadcast operations
+	context := logger.NewWebSocketContext("message_broadcasting", meetName, "", "")
+	logger.LogDebugWithContext(context, "Broadcasting message to meet")
 
 	// add meetName to the message to ensure proper filtering
 	message["meetName"] = meetName
@@ -91,7 +108,10 @@ func BroadcastMessage(meetName string, message map[string]interface{}) {
 	// convert message to JSON
 	msg, err := json.Marshal(message)
 	if err != nil {
-		logger.Error.Printf("[BroadcastMessage] Error marshalling message: %v", err)
+		// Keep ERROR level for marshaling failures
+		context := logger.NewWebSocketContext("broadcast_marshal_error", meetName, "", "")
+		context = logger.AddError(context, err)
+		logger.LogErrorWithContext(context, "Failed to marshal broadcast message")
 		return
 	}
 
@@ -119,11 +139,18 @@ func broadcastFinalResults(meetName string) {
 	// convert submission to JSON
 	resultMsg, err := json.Marshal(submission)
 	if err != nil {
-		logger.Error.Printf("[broadcastFinalResults] Error marshalling final results message: %v", err)
+		// Keep ERROR level for marshaling failures
+		context := logger.NewWebSocketContext("final_results_marshal_error", meetName, "", "")
+		context = logger.AddError(context, err)
+		logger.LogErrorWithContext(context, "Failed to marshal final results message")
 		return
 	}
-	logger.Info.Printf("[broadcastFinalResults] meet=%s -> 'displayResults' with Left=%s, center=%s, Right=%s",
-		meetName, meetState.JudgeDecisions["left"], meetState.JudgeDecisions["center"], meetState.JudgeDecisions["right"])
+	// Convert routine final results broadcast to DEBUG level
+	context := logger.NewWebSocketContext("final_results_broadcast", meetName, "", "")
+	context["leftDecision"] = meetState.JudgeDecisions["left"]
+	context["centerDecision"] = meetState.JudgeDecisions["center"]
+	context["rightDecision"] = meetState.JudgeDecisions["right"]
+	logger.LogDebugWithContext(context, "Broadcasting final results to meet")
 
 	// broadcast the results to all clients
 	broadcast <- resultMsg
@@ -141,7 +168,10 @@ func broadcastFinalResults(meetName string) {
 		}
 		clearJSON, err := json.Marshal(clearMsg)
 		if err != nil {
-			logger.Error.Printf("[broadcastFinalResults] Error marshalling clearResults: %v", err)
+			// Keep ERROR level for marshaling failures
+			context := logger.NewWebSocketContext("clear_results_marshal_error", meetName, "", "")
+			context = logger.AddError(context, err)
+			logger.LogErrorWithContext(context, "Failed to marshal clearResults message")
 			return
 		}
 		// send the clear message to the broadcast channel
@@ -166,7 +196,10 @@ func broadcastTimeUpdateWithIndex(action string, timeLeft int, index int, meetNa
 		"meetName": meetName,
 	})
 	if err != nil {
-		logger.Error.Printf("[broadcastTimeUpdateWithIndex] Error marshalling time update: %v", err)
+		// Keep ERROR level for marshaling failures
+		context := logger.NewTimerContext("time_update_marshal_error", "", "time_update", index)
+		context = logger.AddError(context, err)
+		logger.LogErrorWithContext(context, "Failed to marshal time update message")
 		return
 	}
 

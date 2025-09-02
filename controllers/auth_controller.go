@@ -6,6 +6,7 @@ import (
 	"go-ref-lights/services"
 	"net/http"
 	"sync"
+	"time"
 
 	"go-ref-lights/logger"
 	"go-ref-lights/models"
@@ -82,7 +83,10 @@ func SetMeetHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[SetMeetHandler] Meet selected: %s by client %s — redirecting to login", meetName, c.ClientIP())
+	// Log successful meet selection at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("POST", "/set-meet", c.Request.UserAgent(), c.ClientIP(), http.StatusFound)
+	httpContext["meetName"] = meetName
+	logger.LogDebugWithContext(httpContext, "Meet selected successfully, redirecting to login")
 	c.Redirect(http.StatusFound, "/login")
 }
 
@@ -123,7 +127,10 @@ func MeetHandler(c *gin.Context) {
 	}
 
 	// render the template with the correct logo.
-	logger.Info.Printf("[MeetHandler] Rendering index for meet=%s, IP=%s", currentMeet.Name, c.ClientIP())
+	// Log successful page rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/index", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["meetName"] = currentMeet.Name
+	logger.LogDebugWithContext(httpContext, "Rendering index page successfully")
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"meetName": currentMeet.Name,
 		"logo":     currentMeet.Logo,
@@ -186,7 +193,10 @@ func ActiveUsersHandler(c *gin.Context) {
 	}
 	ActiveUsersMu.RUnlock()
 
-	logger.Info.Printf("[ActiveUsersHandler] Admin at %s requested active users: count=%d", c.ClientIP(), len(userList))
+	// Log successful admin request at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/active-users", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["userCount"] = len(userList)
+	logger.LogDebugWithContext(httpContext, "Admin requested active users list successfully")
 	c.JSON(http.StatusOK, gin.H{"users": userList})
 }
 
@@ -336,10 +346,32 @@ func LoginHandler(c *gin.Context) {
 
 	// if still not authenticated, fail
 	if !authenticated {
-		logger.Warn.Printf("[LoginHandler] Invalid login for user=%s at meet=%s from %s", username, meetName, c.ClientIP())
+		// Log authentication failure with comprehensive error context
+		errorCtx := logger.NewAuthenticationErrorContext(
+			"Authentication failed: Invalid username or password",
+			username,
+			c.ClientIP(),
+			c.Request.UserAgent(),
+		).WithCode("AUTH_001").
+			WithMeet(meetName, "").
+			WithDetail("failureReason", "invalid_credentials").
+			WithDetail("passwordProvided", password != "").
+			WithDetail("requestPath", c.Request.URL.Path).
+			WithDetail("requestMethod", c.Request.Method).
+			WithDetail("attemptTimestamp", time.Now())
+
+		errorCtx.LogWarn()
+
+		// Add rate limiting context for security
+		rateLimitContext := logger.NewSystemContext("rate_limiting", "auth")
+		rateLimitContext["clientIP"] = c.ClientIP()
+		rateLimitContext["username"] = username
+		logger.LogDebugWithContext(rateLimitContext, "Authentication failure recorded for rate limiting")
+
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Invalid username or password.",
+			"Logo":     getLogoForMeet(meetName),
 		})
 		return
 	}
@@ -347,7 +379,20 @@ func LoginHandler(c *gin.Context) {
 	// 3) Prevent duplicate logins
 	ActiveUsersMu.Lock()
 	if ActiveUsers[username] {
-		logger.Warn.Printf("[LoginHandler] Duplicate login attempt denied for user=%s at meet=%s from %s", username, meetName, c.ClientIP())
+		// Log duplicate login attempt with comprehensive error context
+		errorCtx := logger.NewAuthenticationErrorContext(
+			"Authentication denied: User already logged in elsewhere",
+			username,
+			c.ClientIP(),
+			c.Request.UserAgent(),
+		).WithCode("AUTH_002").
+			WithMeet(meetName, "").
+			WithDetail("failureReason", "already_logged_in").
+			WithDetail("existingSession", true).
+			WithDetail("requestPath", c.Request.URL.Path)
+
+		errorCtx.LogWarn()
+
 		c.HTML(http.StatusUnauthorized, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "You are already logged in elsewhere. Force logout?",
@@ -366,7 +411,19 @@ func LoginHandler(c *gin.Context) {
 	session.Set("sudo", isSudo)
 
 	if err := session.Save(); err != nil {
-		logger.Error.Printf("[LoginHandler] Session save failed for user=%s at meet=%s from %s: %v", username, meetName, c.ClientIP(), err)
+		// Log session save failure with comprehensive error context
+		errorCtx := logger.NewErrorContext(logger.SessionError, logger.SeverityHigh, "Session save failed during login").
+			WithCode("SESS_001").
+			WithUser(username, "").
+			WithMeet(meetName, "").
+			WithRequest("", c.ClientIP(), c.Request.UserAgent()).
+			WithError(err).
+			WithDetail("operation", "login_session_save").
+			WithDetail("isAdmin", isAdmin).
+			WithDetail("isSudo", isSudo)
+
+		errorCtx.LogError()
+
 		c.HTML(http.StatusInternalServerError, "login.html", gin.H{
 			"MeetName": meetName,
 			"Error":    "Internal error, please try again.",
@@ -374,7 +431,15 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[LoginHandler] Authenticated user=%s at meet=%s (isAdmin=%v, isSudo=%v) from %s", username, meetName, isAdmin, isSudo, c.ClientIP())
+	// Log successful authentication - keep at INFO level for security auditing
+	successCtx := logger.NewAuthenticationContext("login_success", username, c.ClientIP())
+	successCtx["meetName"] = meetName
+	successCtx["isAdmin"] = isAdmin
+	successCtx["isSudo"] = isSudo
+	successCtx["userAgent"] = c.Request.UserAgent()
+	successCtx["requestPath"] = c.Request.URL.Path
+	successCtx["sessionCreated"] = true
+	logger.LogInfoWithContext(successCtx, "User authenticated successfully")
 
 	// 5) If a position was desired, auto-claim it
 	desiredPos := session.Get("desiredPosition")
@@ -382,7 +447,20 @@ func LoginHandler(c *gin.Context) {
 		posString := desiredPos.(string)
 		logger.Info.Printf("[LoginHandler] Auto-claim requested: user=%s position=%s meet=%s", username, posString, meetName)
 		if err := occupancyService.SetPosition(meetName, posString, username); err != nil {
-			logger.Warn.Printf("[LoginHandler] Auto-claim failed for user=%s on position=%s: %v", username, posString, err)
+			// Log position auto-claim failure with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Auto-claim position failed during login",
+				meetName,
+				posString,
+				username,
+			).WithCode("POS_001").
+				WithError(err).
+				WithDetail("operation", "auto_claim_login").
+				WithDetail("ipAddress", c.ClientIP()).
+				WithDetail("userAgent", c.Request.UserAgent())
+
+			errorCtx.LogWarn()
+
 			c.String(http.StatusForbidden, "That seat is already taken or invalid. Please try another seat.")
 			return
 		}
@@ -441,7 +519,10 @@ func ForceMyLogin(c *gin.Context) {
 	delete(ActiveUsers, username)
 	ActiveUsersMu.Unlock()
 
-	logger.Info.Printf("[ForceMyLogin] User %s forcibly removed from ActiveUsers by client %s", username, c.ClientIP())
+	// Log force login action - keep at INFO level for security auditing
+	authContext := logger.NewAuthenticationContext("force_login", username, c.ClientIP())
+	authContext["userAgent"] = c.Request.UserAgent()
+	logger.LogInfoWithContext(authContext, "User forcibly removed from active users for re-login")
 
 	// redirect to login
 	c.Redirect(http.StatusFound, "/login?username="+username)

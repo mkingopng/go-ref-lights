@@ -1,0 +1,30 @@
+{
+  "enabled": true,
+  "name": "Code Quality Analyzer",
+  "description": "Monitors source code files for changes and analyzes modified code for potential improvements including code smells, design patterns, and best practices. Generates suggestions for improving code quality while maintaining existing functionality, focusing on readability, maintainability, and performance optimizations.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.go",
+      "*.py",
+      "*.js",
+      "*.html",
+      "*.css",
+      "controllers/*.go",
+      "services/*.go",
+      "models/*.go",
+      "websocket/*.go",
+      "middleware/*.go",
+      "cmd/**/*.go",
+      "log_analysis/*.py",
+      "referee_lights_cdk/*.py",
+      "static/js/*.js",
+      "templates/*.html"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Please analyze the project code for potential improvements including:\n\n1. **Code Smells**: Identify any code smells like long methods, duplicate code, large classes, or complex conditionals\n2. **Design Patterns**: Suggest appropriate design patterns that could improve the code structure\n3. **Best Practices**: Check adherence to language-specific best practices (Go, Python, JavaScript, HTML/CSS)\n4. **Readability**: Assess variable naming, function organization, and code clarity\n5. **Maintainability**: Look for opportunities to reduce coupling, improve cohesion, and enhance testability\n6. **Performance**: Identify potential performance optimizations without changing functionality\n7. **Security**: Check for common security issues or vulnerabilities\n8. **Testing**: Suggest improvements to test coverage or test quality if test files are modified\n\nFocus on actionable suggestions that maintain existing functionality while improving code quality. Provide specific examples and explain the benefits of each suggested improvement. If the code looks good as-is, acknowledge that and highlight what's working well.\n\nFor Go code, pay special attention to:\n- Goroutine and concurrency patterns\n- Error handling\n- Interface usage\n- Memory management\n- HTTP handler patterns\n\nFor Python code, focus on:\n- PEP 8 compliance\n- Type hints\n- Exception handling\n- AWS CDK best practices\n\nFor JavaScript/HTML/CSS, consider:\n- Modern JavaScript features\n- Accessibility\n- Performance optimizations\n- Mobile responsiveness\n\nGenerate your analysis and suggestions, then ask the user if they'd like you to implement any of the improvements."
+  }
+}

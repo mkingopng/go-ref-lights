@@ -1,0 +1,67 @@
+{
+  "mcpServers": {
+    "awslabs.aws-documentation-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-documentation-mcp-server@latest"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR",
+        "AWS_DOCUMENTATION_PARTITION": "aws"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/noone/Documents/GitHub/go-ref-lights"
+      ],
+      "autoApprove": [],
+      "disabled": false
+    },
+    "git": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-git"
+      ],
+      "autoApprove": [],
+      "disabled": false
+    },
+    "fetch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-fetch"
+      ],
+      "autoApprove": [],
+      "disabled": false
+    },
+    "godoc": {
+      "command": "godoc-mcp-server",
+      "args": [],
+      "autoApprove": [],
+      "disabled": false
+    },
+    "manpages": {
+      "command": "python",
+      "args": [
+        "-m",
+        "man_mcp_server"
+      ],
+      "autoApprove": [],
+      "disabled": false
+    },
+    "trivy": {
+      "command": "trivy",
+      "args": [
+        "mcp"
+      ],
+      "autoApprove": [],
+      "disabled": false
+    }
+  }
+}

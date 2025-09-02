@@ -54,6 +54,10 @@ func putMetric(metricName string, value float64, unit string, meetName string) {
 	})
 
 	if err != nil {
-		logger.Error.Printf("[putMetric] CloudWatch metric failed (%s): %v", metricName, err)
+		// Keep ERROR level for CloudWatch metric failures
+		context := logger.NewSystemContext("cloudwatch_metric_failed", "metrics")
+		context["metricName"] = metricName
+		context = logger.AddError(context, err)
+		logger.LogErrorWithContext(context, "CloudWatch metric submission failed")
 	}
 }

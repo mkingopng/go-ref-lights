@@ -66,14 +66,33 @@ var upgrader = websocket.Upgrader{
 func ServeWs(w http.ResponseWriter, r *http.Request) {
 	meetName := r.URL.Query().Get("meetName")
 	if meetName == "" {
-		logger.Warn.Println("No meetName provided; proceeding anyway.")
+		// Keep WARN level for missing meetName parameter
+		logContext := logger.NewWebSocketContext("missing_meet_name", "Anonymous", "", r.RemoteAddr)
+		logger.LogWarnWithContext(logContext, "No meetName provided in WebSocket upgrade, proceeding with Anonymous")
 		meetName = "Anonymous"
 	}
 
-	logger.Info.Printf("[ServeWs] Upgrading to WS: remoteAddr=%v, meetName=%q", r.RemoteAddr, meetName)
+	// Convert routine connection upgrade to DEBUG level
+	logContext := logger.NewWebSocketContext("connection_upgrade", meetName, "", r.RemoteAddr)
+	logger.LogDebugWithContext(logContext, "WebSocket connection upgrade initiated")
 	wsConn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		logger.Error.Printf("[ServeWs] WebSocket upgrade error: %v", err)
+		// Log WebSocket upgrade failure with comprehensive error context
+		errorCtx := logger.NewWebSocketErrorContext(
+			"WebSocket upgrade failed",
+			meetName,
+			"",
+			r.RemoteAddr,
+		).WithCode("WS_001").
+			WithError(err).
+			WithDetail("userAgent", r.UserAgent()).
+			WithDetail("origin", r.Header.Get("Origin")).
+			WithDetail("protocol", r.Header.Get("Sec-WebSocket-Protocol")).
+			WithDetail("requestPath", r.URL.Path).
+			WithDetail("requestMethod", r.Method)
+
+		errorCtx.LogError()
+
 		http.Error(w, "Failed to upgrade WebSocket", http.StatusBadRequest)
 		return
 	}
@@ -98,28 +117,94 @@ func ServeWs(w http.ResponseWriter, r *http.Request) {
 // readPump listens for messages from the WebSocket client
 func (c *Connection) readPump() {
 	defer func() {
+		c.logConnectionClosure()
 		unregisterConnection(c)
 		_ = c.conn.Close()
 	}()
 
+	// Configure connection limits and timeouts
+	c.conn.SetReadLimit(maxMessageSize)
+	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		context := logger.NewWebSocketContext("read_deadline_error", c.meetName, c.judgeID, c.conn.RemoteAddr().String())
+		logger.LogWarnWithContext(context, "Failed to set initial read deadline: %v", err)
+		return
+	}
+	c.conn.SetPongHandler(func(string) error {
+		// Return the error from SetReadDeadline so gorilla can handle connection cleanup
+		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
+
 	for {
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// break from the loop (closing the connection)
+			c.logReadError(err)
 			break
 		}
 
-		// handle text messages
 		if messageType == websocket.TextMessage {
-			var dm DecisionMessage
-			if jsonErr := json.Unmarshal(message, &dm); jsonErr != nil {
-				logger.Warn.Printf("[readPump] JSON parse error: %v", jsonErr)
-			} else {
-				handleIncoming(c, dm)
-			}
+			c.handleTextMessage(message)
 		}
 	}
 }
+
+// logConnectionClosure logs connection closure with context
+func (c *Connection) logConnectionClosure() {
+	context := logger.NewWebSocketContext("connection_closed", c.meetName, c.judgeID, c.conn.RemoteAddr().String())
+	logger.LogDebugWithContext(context, "WebSocket connection closed")
+}
+
+// logReadError logs read errors with appropriate level based on error type
+func (c *Connection) logReadError(err error) {
+	context := logger.NewWebSocketContext("read_error", c.meetName, c.judgeID, c.conn.RemoteAddr().String())
+
+	// Check if it's a normal closure
+	if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+		errorCtx := logger.NewWebSocketErrorContext(
+			"Unexpected WebSocket connection closure",
+			c.meetName,
+			c.judgeID,
+			c.conn.RemoteAddr().String(),
+		).WithCode("WS_010").WithError(err)
+
+		errorCtx.LogWarn()
+	} else {
+		// Normal closure - log at debug level
+		logger.LogDebugWithContext(context, "WebSocket connection closed normally")
+	}
+}
+
+// handleTextMessage processes incoming text messages with enhanced error handling
+func (c *Connection) handleTextMessage(message []byte) {
+	var dm DecisionMessage
+	if jsonErr := json.Unmarshal(message, &dm); jsonErr != nil {
+		errorCtx := logger.NewWebSocketErrorContext(
+			"Failed to parse incoming JSON message",
+			c.meetName,
+			c.judgeID,
+			c.conn.RemoteAddr().String(),
+		).WithCode("WS_002").
+			WithError(jsonErr).
+			WithDetail("messageLength", len(message)).
+			WithDetail("messagePreview", c.safeMessagePreview(message))
+
+		errorCtx.LogWarn()
+		return
+	}
+
+	handleIncoming(c, dm)
+}
+
+// safeMessagePreview creates a safe preview of message content
+func (c *Connection) safeMessagePreview(message []byte) string {
+	const maxPreviewLength = 100
+	if len(message) <= maxPreviewLength {
+		return string(message)
+	}
+	return string(message[:maxPreviewLength]) + "..."
+}
+
+// maxMessageSize defines the maximum allowed message size
+const maxMessageSize = 512
 
 // writePump handles outgoing messages to the WebSocket client
 func (c *Connection) writePump() {
@@ -138,12 +223,25 @@ func (c *Connection) writePump() {
 			}
 			if !ok {
 				// channel closed => send a close frame
-				logger.Debug.Printf("[writePump] Send channel closed for %v", c.conn.RemoteAddr())
+				// Keep as DEBUG level for routine channel closure
+				context := logger.NewWebSocketContext("send_channel_closed", c.meetName, c.judgeID, c.conn.RemoteAddr().String())
+				logger.LogDebugWithContext(context, "Send channel closed, terminating connection")
 				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				logger.Warn.Printf("[writePump] Error writing to %v: %v", c.conn.RemoteAddr(), err)
+				// Log message write failure with comprehensive error context
+				errorCtx := logger.NewWebSocketErrorContext(
+					"Failed to write message to WebSocket connection",
+					c.meetName,
+					c.judgeID,
+					c.conn.RemoteAddr().String(),
+				).WithCode("WS_003").
+					WithError(err).
+					WithDetail("messageLength", len(message)).
+					WithDetail("messageType", "text")
+
+				errorCtx.LogWarn()
 				return
 			}
 
@@ -153,7 +251,18 @@ func (c *Connection) writePump() {
 				return
 			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logger.Warn.Printf("[writePump] Ping error for %v: %v", c.conn.RemoteAddr(), err)
+				// Log ping failure with comprehensive error context
+				errorCtx := logger.NewWebSocketErrorContext(
+					"Failed to send ping message",
+					c.meetName,
+					c.judgeID,
+					c.conn.RemoteAddr().String(),
+				).WithCode("WS_004").
+					WithError(err).
+					WithDetail("messageType", "ping").
+					WithDetail("keepAliveCheck", true)
+
+				errorCtx.LogWarn()
 				return
 			}
 		}
@@ -191,42 +300,67 @@ type DecisionMessage struct {
 
 // handleIncoming processes inbound JSON messages
 func handleIncoming(c *Connection, dm DecisionMessage) {
-	logger.Debug.Printf("[handleIncoming] Action=%s, JudgeID=%s, Meet=%s",
-		dm.Action, dm.JudgeID, dm.MeetName)
+	// Keep as DEBUG level for routine message handling
+	context := logger.NewWebSocketContext("message_received", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+	context["messageAction"] = dm.Action
+	logger.LogDebugWithContext(context, "Processing incoming WebSocket message")
 
 	switch dm.Action {
 	case "registerRef":
 		c.judgeID = dm.JudgeID
-		logger.Info.Printf("Referee %s registered on meet %s (conn=%v)",
-			dm.JudgeID, dm.MeetName, c.conn.RemoteAddr())
+		// Convert routine referee registration to DEBUG level
+		context := logger.NewWebSocketContext("referee_registered", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+		logger.LogDebugWithContext(context, "Referee registered successfully")
 		broadcastRefereeHealth(dm.MeetName)
 
 	case "startTimer":
-		logger.Info.Printf("Received startTimer from %v", c.conn.RemoteAddr())
+		// Convert routine timer start to DEBUG level
+		context := logger.NewWebSocketContext("start_timer_received", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+		logger.LogDebugWithContext(context, "Start timer command received")
 		defaultTimerManager.HandleTimerAction("startTimer", dm.MeetName)
 
 	case "resetLights":
-		logger.Info.Printf("Received resetLights from %v", c.conn.RemoteAddr())
+		// Convert routine reset lights to DEBUG level
+		context := logger.NewWebSocketContext("reset_lights_received", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+		logger.LogDebugWithContext(context, "Reset lights command received")
 		msg := map[string]string{
 			"action":   "resetLights",
 			"meetName": dm.MeetName,
 		}
 		out, err := json.Marshal(msg)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetLights: %v", err)
+			// Log marshaling failure with comprehensive error context
+			errorCtx := logger.NewErrorContext(logger.MarshalingError, logger.SeverityMedium, "Failed to marshal resetLights message").
+				WithCode("WS_006").
+				WithMeet(dm.MeetName, dm.JudgeID).
+				WithError(err).
+				WithDetail("messageType", "resetLights").
+				WithDetail("remoteAddr", c.conn.RemoteAddr().String())
+
+			errorCtx.LogError()
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
 
 	case "resetTimer":
-		logger.Info.Printf("Received resetTimer from %v", c.conn.RemoteAddr())
+		// Convert routine reset timer to DEBUG level
+		context := logger.NewWebSocketContext("reset_timer_received", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+		logger.LogDebugWithContext(context, "Reset timer command received")
 		msg := map[string]string{
 			"action":   "resetTimer",
 			"meetName": dm.MeetName,
 		}
 		out, err := json.Marshal(msg)
 		if err != nil {
-			logger.Error.Printf("Error marshaling resetTimer: %v", err)
+			// Log marshaling failure with comprehensive error context
+			errorCtx := logger.NewErrorContext(logger.MarshalingError, logger.SeverityMedium, "Failed to marshal resetTimer message").
+				WithCode("WS_007").
+				WithMeet(dm.MeetName, dm.JudgeID).
+				WithError(err).
+				WithDetail("messageType", "resetTimer").
+				WithDetail("remoteAddr", c.conn.RemoteAddr().String())
+
+			errorCtx.LogError()
 		} else {
 			broadcastToMeet(dm.MeetName, out)
 		}
@@ -235,18 +369,35 @@ func handleIncoming(c *Connection, dm DecisionMessage) {
 		processDecision(c, dm)
 
 	default:
-		logger.Debug.Printf("Unhandled action: %s", dm.Action)
+		// Keep as DEBUG level for unhandled actions
+		context := logger.NewWebSocketContext("unhandled_action", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+		context["action"] = dm.Action
+		logger.LogDebugWithContext(context, "Received unhandled WebSocket action")
 	}
 }
 
 // processDecision checks if all judge decisions have arrived, then broadcasts final results if so
 func processDecision(c *Connection, dm DecisionMessage) {
 	if dm.JudgeID == "" || dm.Decision == "" {
-		logger.Warn.Printf("Incomplete decision from %v; ignoring", c.conn.RemoteAddr())
+		// Log incomplete decision with comprehensive error context
+		errorCtx := logger.NewWebSocketErrorContext(
+			"Received incomplete decision data, ignoring",
+			dm.MeetName,
+			dm.JudgeID,
+			c.conn.RemoteAddr().String(),
+		).WithCode("WS_005").
+			WithDetail("judgeIdProvided", dm.JudgeID != "").
+			WithDetail("decisionProvided", dm.Decision != "").
+			WithDetail("action", dm.Action).
+			WithDetail("validationFailure", "missing_required_fields")
+
+		errorCtx.LogWarn()
 		return
 	}
-	logger.Info.Printf("Processing decision from %s: %s (meet: %s)",
-		dm.JudgeID, dm.Decision, dm.MeetName)
+	// Convert routine decision processing to DEBUG level
+	context := logger.NewWebSocketContext("decision_received", dm.MeetName, dm.JudgeID, c.conn.RemoteAddr().String())
+	context["decision"] = dm.Decision
+	logger.LogDebugWithContext(context, "Processing referee decision")
 
 	meetState := DefaultStateProvider.GetMeetState(dm.MeetName)
 	meetState.JudgeDecisions[dm.JudgeID] = dm.Decision
@@ -263,7 +414,16 @@ func processDecision(c *Connection, dm DecisionMessage) {
 	}
 	out, err := json.Marshal(submission)
 	if err != nil {
-		logger.Error.Printf("Error marshaling judgeSubmitted: %v", err)
+		// Log marshaling failure with comprehensive error context
+		errorCtx := logger.NewErrorContext(logger.MarshalingError, logger.SeverityMedium, "Failed to marshal judgeSubmitted message").
+			WithCode("WS_008").
+			WithMeet(dm.MeetName, dm.JudgeID).
+			WithError(err).
+			WithDetail("messageType", "judgeSubmitted").
+			WithDetail("remoteAddr", c.conn.RemoteAddr().String()).
+			WithDetail("decision", dm.Decision)
+
+		errorCtx.LogError()
 		return
 	}
 	broadcastToMeet(dm.MeetName, out)
@@ -279,7 +439,18 @@ var broadcastToMeet = func(meetName string, message []byte) {
 			select {
 			case c.send <- message:
 			default:
-				logger.Warn.Printf("Dropping message for %v", c.conn.RemoteAddr())
+				// Log dropped message with comprehensive error context
+				errorCtx := logger.NewWebSocketErrorContext(
+					"Dropping message due to full send channel",
+					meetName,
+					c.judgeID,
+					c.conn.RemoteAddr().String(),
+				).WithCode("WS_009").
+					WithDetail("messageLength", len(message)).
+					WithDetail("channelFull", true).
+					WithDetail("connectionHealth", "degraded")
+
+				errorCtx.LogWarn()
 			}
 		}
 	}

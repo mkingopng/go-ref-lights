@@ -1,0 +1,29 @@
+{
+  "enabled": true,
+  "name": "Source to Docs Sync",
+  "description": "Monitors all source files in the repository (Go files, Python files, configuration files, and templates) and triggers documentation updates in README.md and docs/ folder when changes are detected.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.go",
+      "*.py",
+      "*.html",
+      "*.js",
+      "*.css",
+      "*.yaml",
+      "*.yml",
+      "*.json",
+      "go.mod",
+      "go.sum",
+      "pyproject.toml",
+      "poetry.lock",
+      "Dockerfile",
+      "docker-compose.yml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source files have been modified in this Go/Python referee lights application. Please review the changes and update the documentation accordingly. Focus on:\n\n1. Update README.md if there are significant architectural or feature changes\n2. Update relevant files in the docs/ folder (user_manual.md, TODO.md, etc.) if functionality has changed\n3. Ensure documentation reflects current API endpoints, configuration options, and deployment procedures\n4. Update any code examples or usage instructions that may be affected\n5. Check if new features need to be documented or existing documentation needs clarification\n\nThe project is a real-time referee lighting system for powerlifting competitions with Go backend, WebSocket communication, and AWS deployment. Maintain consistency with the existing documentation style and technical accuracy."
+  }
+}

@@ -52,7 +52,9 @@ func GetMeetState(meetName string) *MeetState {
 
 	state, exists := meets[meetName]
 	if !exists {
-		logger.Info.Printf("[GetMeetState] Creating new MeetState for meet=%s", meetName)
+		// Convert routine meet state creation to DEBUG level
+		context := logger.NewWebSocketContext("meet_state_created", meetName, "", "")
+		logger.LogDebugWithContext(context, "Creating new MeetState")
 		state = &MeetState{
 			MeetName:              meetName,
 			RefereeSessions:       make(map[string]*websocket.Conn),
@@ -62,7 +64,9 @@ func GetMeetState(meetName string) *MeetState {
 		}
 		meets[meetName] = state
 	} else {
-		logger.Debug.Printf("[GetMeetState] Retrieved existing MeetState for meet=%s", meetName)
+		// Keep as DEBUG level for routine state retrieval
+		context := logger.NewWebSocketContext("meet_state_retrieved", meetName, "", "")
+		logger.LogDebugWithContext(context, "Retrieved existing MeetState")
 	}
 
 	return state
@@ -75,7 +79,9 @@ func CancelPlatformReadyTimer(meetName string) {
 
 	if state, exists := meets[meetName]; exists {
 		if state.PlatformReadyCancel != nil {
-			logger.Info.Printf("[CancelPlatformReadyTimer] Cancelling existing platform ready timer for meet=%s", meetName)
+			// Convert routine timer cancellation to DEBUG level
+			context := logger.NewTimerContext("platform_ready_cancelled", meetName, "platform_ready", "")
+			logger.LogDebugWithContext(context, "Cancelling existing platform ready timer")
 			state.PlatformReadyCancel()
 			state.PlatformReadyCancel = nil
 			state.PlatformReadyActive = false
@@ -90,9 +96,13 @@ func ClearMeetState(meetName string) {
 
 	if _, exists := meets[meetName]; exists {
 		delete(meets, meetName)
-		logger.Info.Printf("[ClearMeetState] Cleared MeetState for meet=%s", meetName)
+		// Convert routine state clearing to DEBUG level
+		context := logger.NewWebSocketContext("meet_state_cleared", meetName, "", "")
+		logger.LogDebugWithContext(context, "Cleared MeetState")
 	} else {
-		logger.Warn.Printf("[ClearMeetState] Attempted to clear non-existent MeetState for meet=%s", meetName)
+		// Keep WARN level for attempting to clear non-existent state
+		context := logger.NewWebSocketContext("meet_state_clear_failed", meetName, "", "")
+		logger.LogWarnWithContext(context, "Attempted to clear non-existent MeetState")
 	}
 }
 

@@ -31,11 +31,21 @@ func (r *realMessenger) BroadcastMessage(meetName string, msg map[string]interfa
 
 	m, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error.Printf("[realMessenger.BroadcastMessage] Error marshalling message: %v", err)
+		// Log marshaling failure with comprehensive error context
+		errorCtx := logger.NewErrorContext(logger.MarshalingError, logger.SeverityMedium, "Failed to marshal broadcast message").
+			WithCode("MSG_001").
+			WithMeet(meetName, "").
+			WithError(err).
+			WithDetail("messageType", "broadcast").
+			WithDetail("messageKeys", getMapKeys(msg))
+
+		errorCtx.LogError()
 		return
 	}
 	broadcast <- m
-	logger.Info.Printf("[realMessenger.BroadcastMessage] Sent to meet=%s", meetName)
+	// Convert routine broadcast success to DEBUG level
+	context := logger.NewWebSocketContext("message_broadcast", meetName, "", "")
+	logger.LogDebugWithContext(context, "Message broadcast to meet")
 }
 
 // BroadcastTimeUpdate sends a time update message (with index) to all connections.
@@ -52,15 +62,41 @@ func (r *realMessenger) BroadcastTimeUpdate(action string, timeLeft int, index i
 	}
 	m, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error.Printf("[realMessenger.BroadcastTimeUpdate] Error marshalling time update: %v", err)
+		// Log marshaling failure with comprehensive error context
+		errorCtx := logger.NewTimerErrorContext(
+			"Failed to marshal time update message",
+			meetName,
+			action,
+			index,
+		).WithCode("MSG_002").
+			WithError(err).
+			WithDetail("timeLeft", timeLeft).
+			WithDetail("messageType", "time_update")
+
+		errorCtx.LogError()
 		return
 	}
 	broadcast <- m
-	logger.Info.Printf("[realMessenger.BroadcastTimeUpdate] meet=%s action=%s timeLeft=%d", meetName, action, timeLeft)
+	// Convert routine time updates to DEBUG level to reduce noise
+	context := logger.NewTimerContext("time_update_broadcast", meetName, action, index)
+	context["timeLeft"] = timeLeft
+	logger.LogDebugWithContext(context, "Time update broadcast to meet")
 }
 
 // BroadcastRaw sends a raw JSON message.
 func (r *realMessenger) BroadcastRaw(msg []byte) {
 	broadcast <- msg
-	logger.Info.Printf("[realMessenger.BroadcastRaw] Sent: %s", string(msg))
+	// Convert routine raw broadcasts to DEBUG level
+	context := logger.NewWebSocketContext("raw_broadcast", "", "", "")
+	context["messageSize"] = len(msg)
+	logger.LogDebugWithContext(context, "Raw message broadcast sent")
+}
+
+// getMapKeys returns the keys of a map[string]interface{} for logging purposes
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

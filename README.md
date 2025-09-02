@@ -12,6 +12,7 @@ RefLights is a referee lighting system designed for powerlifting competitions. I
 - **Platform ready & next attempt timers**: Countdown timers for lifter readiness and next attempts.
 - **Secure authentication**: Password-based login with bcrypt hashing.
 - **AWS deployment**: Hosted using **AWS Fargate, ECS, ALB, and CloudWatch** for monitoring.
+- **Optimized logging system**: Environment-based log levels with structured JSON logging for production monitoring and debugging.
 
 ## Installation (Local Development)
 ### Prerequisites
@@ -70,6 +71,67 @@ go test -v ./...
 - **Red Button**: Signals a failed lift.
 - **Platform Ready Timer**: Initiated for lifter readiness.
 - **Vacate Position**: Frees up a referee slot.
+
+## Logging System
+
+RefLights features an optimized logging system designed for production reliability and development debugging:
+
+### Environment-Based Log Levels
+- **Production** (`ENV=production`): ERROR, WARN, and critical INFO messages only - optimized for performance
+- **Development** (`ENV=development`): All log levels including DEBUG for comprehensive debugging
+- **Test** (`ENV=test`): ERROR and WARN messages only for clean test output
+
+### Structured Logging
+Production logs use JSON format with rich context for easy parsing and analysis:
+```json
+{
+  "timestamp": "2023-01-01T12:00:00Z",
+  "level": "ERROR",
+  "message": "WebSocket connection upgrade failed",
+  "context": {
+    "component": "websocket",
+    "action": "connection_upgrade_failed",
+    "meetName": "Test Meet",
+    "refereeId": "left",
+    "remoteAddr": "192.168.1.100",
+    "errorCategory": "websocket",
+    "errorSeverity": "medium",
+    "errorCode": "WS_001"
+  },
+  "source": "connection.go:123",
+  "error": "connection timeout"
+}
+```
+
+### Error Categorization
+The logging system includes comprehensive error categorization for better monitoring and troubleshooting:
+- **Categories**: Authentication, WebSocket, Timer, Position, Validation, System, and more
+- **Severity Levels**: Critical, High, Medium, Low for proper alerting
+- **Error Codes**: Systematic codes (AUTH_001, WS_001, POS_002) for tracking specific issues
+- **Rich Context**: IP addresses, user agents, meet details, and failure reasons
+
+### Performance Optimizations
+- **WebSocket logging optimized**: Routine operations (heartbeats, message processing) suppressed in production
+- **Timer logging optimized**: Routine countdown updates suppressed in production
+- **HTTP request logging**: Successful requests suppressed, errors preserved with context
+- **Conditional logging**: Expensive operations only executed when logs will be written
+- **Structured context**: Rich debugging information without performance overhead
+
+### Configuration
+Set logging level via environment variables:
+```bash
+ENV=production ./go-ref-lights          # Production logging (WARN level)
+ENV=development ./go-ref-lights         # Verbose logging (DEBUG level)
+ENV=test ./go-ref-lights                # Test logging (WARN level, no files)
+LOG_LEVEL=DEBUG ./go-ref-lights         # Override specific level
+```
+
+### Testing
+The logging system includes comprehensive tests:
+```bash
+go test -v ./logger/                    # Unit tests
+go test -v -tags=integration ./logger/  # Integration tests
+```
 
 ## Future Enhancements
 - Integration with OpenLifter for automated lift decisions.

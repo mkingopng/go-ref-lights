@@ -20,7 +20,8 @@ type PositionController struct {
 
 // NewPositionController initializes a PositionController instance
 func NewPositionController(service services.OccupancyServiceInterface) *PositionController {
-	logger.Debug.Println("[NewPositionController] Initializing PositionController")
+	initContext := logger.NewSystemContext("initialization", "position_controller")
+	logger.LogDebugWithContext(initContext, "Initializing PositionController")
 	return &PositionController{OccupancyService: service}
 }
 
@@ -33,19 +34,30 @@ func (pc *PositionController) VacatePosition(c *gin.Context) {
 	userEmail, _ := session.Get("user").(string)
 	position, _ := session.Get("refPosition").(string)
 	meetName, _ := session.Get("meetName").(string)
-	logger.Info.Printf("[VacatePosition] Request to vacate from user=%s, position=%s, meet=%s, IP=%s", userEmail, position, meetName, clientIP)
+	// Log position vacation request at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("POST", "/position/vacate", c.Request.UserAgent(), clientIP, http.StatusFound)
+	httpContext["meetName"] = meetName
+	httpContext["position"] = position
+	httpContext["refereeId"] = userEmail
+	logger.LogDebugWithContext(httpContext, "Position vacation requested, redirecting to logout")
 	c.Redirect(http.StatusFound, "/logout?reason=vacate")
 }
 
 // ------------------- Real-time occupancy updates -------------------
 
 func (pc *PositionController) BroadcastOccupancy(meetName string) {
-	logger.Info.Printf("[BroadcastOccupancy] Starting broadcast for meet=%s", meetName)
+	broadcastContext := logger.NewPositionContext("broadcast_occupancy", meetName, "", "")
+	logger.LogInfoWithContext(broadcastContext, "Starting occupancy broadcast for meet %s", meetName)
 
 	// get the current occupancy state
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	logger.Debug.Printf("[BroadcastOccupancy] Current occupancy for meet=%s: Left=%s, Center=%s, Right=%s",
-		meetName, occ.LeftUser, occ.CenterUser, occ.RightUser)
+	occupancyContext := logger.NewPositionContext("get_occupancy", meetName, "", "")
+	occupancyContext["leftUser"] = occ.LeftUser
+	occupancyContext["centerUser"] = occ.CenterUser
+	occupancyContext["rightUser"] = occ.RightUser
+	logger.LogDebugWithContext(occupancyContext,
+		"Current occupancy state - Left: %s, Center: %s, Right: %s",
+		occ.LeftUser, occ.CenterUser, occ.RightUser)
 
 	// create the message
 	msg := map[string]interface{}{
@@ -59,14 +71,24 @@ func (pc *PositionController) BroadcastOccupancy(meetName string) {
 	// marshal the message to JSON
 	jsonBytes, err := json.Marshal(msg)
 	if err != nil {
-		logger.Error.Printf("[BroadcastOccupancy] Failed to marshal message for meet=%s: %v", meetName, err)
+		marshalContext := logger.NewPositionContext("marshal_error", meetName, "", "")
+		marshalContext["error"] = err.Error()
+		marshalContext["messageType"] = "occupancy_broadcast"
+		logger.LogErrorWithContext(marshalContext, "Failed to marshal occupancy broadcast message: %v", err)
 		return
 	}
-	logger.Debug.Printf("[BroadcastOccupancy] Marshaled message for meet=%s: %s", meetName, string(jsonBytes))
+
+	marshalContext := logger.NewPositionContext("marshal_success", meetName, "", "")
+	marshalContext["messageSize"] = len(jsonBytes)
+	marshalContext["messageType"] = "occupancy_broadcast"
+	logger.LogDebugWithContext(marshalContext, "Occupancy message marshaled successfully (%d bytes)", len(jsonBytes))
 
 	// send to all connected clients
 	go websocket.SendBroadcastMessage(jsonBytes)
-	logger.Info.Printf("[BroadcastOccupancy] Broadcast message sent for meet=%s", meetName)
+
+	sendContext := logger.NewPositionContext("broadcast_sent", meetName, "", "")
+	sendContext["messageSize"] = len(jsonBytes)
+	logger.LogInfoWithContext(sendContext, "Occupancy broadcast message sent for meet %s", meetName)
 }
 
 // ------------------- API endpoints -------------------
@@ -79,16 +101,31 @@ func (pc *PositionController) GetOccupancyAPI(c *gin.Context) {
 	meetName, ok := meetNameRaw.(string)
 
 	if !ok || meetName == "" {
-		logger.Warn.Printf("[GetOccupancyAPI] No meet selected in session. IP=%s", clientIP)
+		apiContext := logger.NewHTTPContext("GET", "/occupancy", c.Request.UserAgent(), clientIP, http.StatusBadRequest)
+		apiContext["component"] = "position_controller"
+		apiContext["action"] = "get_occupancy_api"
+		apiContext["error"] = "no_meet_selected"
+		logger.LogWarnWithContext(apiContext, "Occupancy API request without meet selection")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No meet selected"})
 		return
 	}
 
-	logger.Info.Printf("[GetOccupancyAPI] Fetching occupancy for meet=%s. IP=%s", meetName, clientIP)
+	// Log occupancy API request at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/occupancy", c.Request.UserAgent(), clientIP, http.StatusOK)
+	httpContext["meetName"] = meetName
+	logger.LogDebugWithContext(httpContext, "Occupancy data requested")
 
 	occ := pc.OccupancyService.GetOccupancy(meetName)
-	logger.Debug.Printf("[GetOccupancyAPI] Occupancy state: meet=%s, Left=%s, Center=%s, Right=%s",
-		meetName, occ.LeftUser, occ.CenterUser, occ.RightUser)
+	apiContext := logger.NewHTTPContext("GET", "/occupancy", c.Request.UserAgent(), clientIP, http.StatusOK)
+	apiContext["component"] = "position_controller"
+	apiContext["action"] = "get_occupancy_api"
+	apiContext["meetName"] = meetName
+	apiContext["leftUser"] = occ.LeftUser
+	apiContext["centerUser"] = occ.CenterUser
+	apiContext["rightUser"] = occ.RightUser
+	logger.LogDebugWithContext(apiContext,
+		"Occupancy API response - Left: %s, Center: %s, Right: %s",
+		occ.LeftUser, occ.CenterUser, occ.RightUser)
 
 	c.JSON(http.StatusOK, gin.H{
 		"leftUser":   occ.LeftUser,

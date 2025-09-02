@@ -1,0 +1,22 @@
+# .mcp-go-tools.yaml
+server:
+  address: "127.0.0.1:8081"   # MCP server bind address
+  log_level: "info"
+
+tools:
+  - name: "logs"
+    type: "command"
+    command: "tail"
+    args: ["-n", "100", "logs/latest.log"]
+
+  - name: "meets"
+    type: "file"
+    path: "./config/meets.json"
+
+  - name: "creds"
+    type: "file"
+    path: "./config/meet_creds.json"
+
+  - name: "occupancy"
+    type: "http"
+    url: "http://localhost:8080/api/occupancy"

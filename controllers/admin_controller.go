@@ -162,7 +162,13 @@ func (ac *AdminController) ForceVacate(c *gin.Context) {
 	// ensure WebSocket Broadcast function is called
 	ac.PositionController.BroadcastOccupancy(meetName)
 
-	logger.Info.Printf("[ForceVacate] Admin forcibly removed %s from %s position in %s", occupant, position, meetName)
+	// Log admin force vacate action - keep at INFO level for security auditing
+	adminContext := logger.NewHTTPContext("POST", "/force-vacate", c.Request.UserAgent(), c.ClientIP(), http.StatusFound)
+	adminContext["meetName"] = meetName
+	adminContext["position"] = position
+	adminContext["occupant"] = occupant
+	adminContext["action"] = "force_vacate"
+	logger.LogInfoWithContext(adminContext, "Admin forcibly removed referee from position")
 
 	// redirect back to the admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
@@ -198,7 +204,11 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[ResetInstance] Resetting meet '%s'", meetName)
+	// Log meet reset initiation - keep at INFO level for security auditing
+	adminContext := logger.NewHTTPContext("POST", "/reset-instance", c.Request.UserAgent(), c.ClientIP(), http.StatusFound)
+	adminContext["meetName"] = meetName
+	adminContext["action"] = "reset_meet_start"
+	logger.LogInfoWithContext(adminContext, "Admin initiated meet reset")
 
 	// clear all active users so none are "already logged in" for the old meet
 	ActiveUsersMu.Lock()
@@ -209,7 +219,9 @@ func (ac *AdminController) ResetInstance(c *gin.Context) {
 	ac.OccupancyService.ResetOccupancyForMeet(meetName)
 	ac.PositionController.BroadcastOccupancy(meetName)
 
-	logger.Info.Printf("[ResetInstance] Meet '%s' reset successfully", meetName)
+	// Log meet reset completion - keep at INFO level for security auditing
+	adminContext["action"] = "reset_meet_complete"
+	logger.LogInfoWithContext(adminContext, "Admin meet reset completed successfully")
 
 	// redirect back to admin panel
 	c.Redirect(http.StatusFound, "/admin?meet="+meetName)
@@ -249,7 +261,11 @@ func (ac *AdminController) ForceLogout(c *gin.Context) {
 
 	// remove user from the active list
 	delete(ActiveUsers, username)
-	logger.Info.Printf("[ForceLogout] Admin forcibly logged out user=%s", username)
+	// Log admin force logout - keep at INFO level for security auditing
+	adminContext := logger.NewHTTPContext("POST", "/force-logout", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	adminContext["targetUser"] = username
+	adminContext["action"] = "force_logout"
+	logger.LogInfoWithContext(adminContext, "Admin forcibly logged out user")
 	c.JSON(http.StatusOK, gin.H{"message": "User logged out successfully"})
 }
 

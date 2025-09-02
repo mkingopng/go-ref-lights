@@ -83,7 +83,18 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	validPositions := map[string]bool{"left": true, "center": true, "right": true}
 	if !validPositions[position] {
 		err := errors.New("invalid position selected — must be left, center, or right")
-		logger.Error.Printf("[SetPosition] ❌ Invalid position: position=%s, user=%s, meet=%s", position, userEmail, meetName)
+		// Log validation error with comprehensive error context
+		errorCtx := logger.NewValidationErrorContext(
+			"Invalid position selected",
+			"position",
+			position,
+		).WithCode("POS_005").
+			WithMeet(meetName, "").
+			WithDetail("userId", userEmail).
+			WithDetail("validPositions", []string{"left", "center", "right"}).
+			WithDetail("operation", "set_position")
+
+		errorCtx.LogError()
 		return err
 	}
 
@@ -92,22 +103,55 @@ func (s *OccupancyService) SetPosition(meetName, position, userEmail string) err
 	case "left":
 		if occ.LeftUser != "" && occ.LeftUser != userEmail {
 			err := errors.New("left position is already taken")
-			logger.Warn.Printf("[SetPosition] 🚫 Conflict: left seat taken by %s — user=%s, meet=%s",
-				occ.LeftUser, userEmail, meetName)
+			// Log position conflict with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position occupancy conflict: left seat already taken",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_002").
+				WithDetail("currentOccupant", occ.LeftUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "position_occupied").
+				WithDetail("operation", "set_position")
+
+			errorCtx.LogWarn()
 			return err
 		}
 	case "center":
 		if occ.CenterUser != "" && occ.CenterUser != userEmail {
 			err := errors.New("center position is already taken")
-			logger.Warn.Printf("[SetPosition] 🚫 Conflict: center seat taken by %s — user=%s, meet=%s",
-				occ.CenterUser, userEmail, meetName)
+			// Log position conflict with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position occupancy conflict: center seat already taken",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_003").
+				WithDetail("currentOccupant", occ.CenterUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "position_occupied").
+				WithDetail("operation", "set_position")
+
+			errorCtx.LogWarn()
 			return err
 		}
 	case "right":
 		if occ.RightUser != "" && occ.RightUser != userEmail {
 			err := errors.New("right position is already taken")
-			logger.Warn.Printf("[SetPosition] 🚫 Conflict: right seat taken by %s — user=%s, meet=%s",
-				occ.RightUser, userEmail, meetName)
+			// Log position conflict with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position occupancy conflict: right seat already taken",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_004").
+				WithDetail("currentOccupant", occ.RightUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "position_occupied").
+				WithDetail("operation", "set_position")
+
+			errorCtx.LogWarn()
 			return err
 		}
 	}
@@ -161,7 +205,19 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			logger.Info.Printf("[UnsetPosition] ✅ Clearing LEFT seat for user=%s in meet=%s", userEmail, meetName)
 			occ.LeftUser = ""
 		} else {
-			logger.Warn.Printf("[UnsetPosition] ❌ LEFT seat mismatch: expected=%s, actual=%s", userEmail, occ.LeftUser)
+			// Log position mismatch with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position unset failed: user does not hold left position",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_006").
+				WithDetail("currentOccupant", occ.LeftUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "user_mismatch").
+				WithDetail("operation", "unset_position")
+
+			errorCtx.LogWarn()
 			return errors.New("user does not hold this position")
 		}
 
@@ -170,7 +226,19 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			logger.Info.Printf("[UnsetPosition] ✅ Clearing CENTER seat for user=%s in meet=%s", userEmail, meetName)
 			occ.CenterUser = ""
 		} else {
-			logger.Warn.Printf("[UnsetPosition] ❌ CENTER seat mismatch: expected=%s, actual=%s", userEmail, occ.CenterUser)
+			// Log position mismatch with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position unset failed: user does not hold center position",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_007").
+				WithDetail("currentOccupant", occ.CenterUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "user_mismatch").
+				WithDetail("operation", "unset_position")
+
+			errorCtx.LogWarn()
 			return errors.New("user does not hold this position")
 		}
 
@@ -179,13 +247,36 @@ func (s *OccupancyService) UnsetPosition(meetName, position, userEmail string) e
 			logger.Info.Printf("[UnsetPosition] ✅ Clearing RIGHT seat for user=%s in meet=%s", userEmail, meetName)
 			occ.RightUser = ""
 		} else {
-			logger.Warn.Printf("[UnsetPosition] ❌ RIGHT seat mismatch: expected=%s, actual=%s", userEmail, occ.RightUser)
+			// Log position mismatch with comprehensive error context
+			errorCtx := logger.NewPositionErrorContext(
+				"Position unset failed: user does not hold right position",
+				meetName,
+				position,
+				userEmail,
+			).WithCode("POS_008").
+				WithDetail("currentOccupant", occ.RightUser).
+				WithDetail("requestedBy", userEmail).
+				WithDetail("conflictType", "user_mismatch").
+				WithDetail("operation", "unset_position")
+
+			errorCtx.LogWarn()
 			return errors.New("user does not hold this position")
 		}
 
 	default:
 		err := errors.New("invalid position")
-		logger.Error.Printf("[UnsetPosition] ❌ Invalid position specified: %s", position)
+		// Log validation error with comprehensive error context
+		errorCtx := logger.NewValidationErrorContext(
+			"Invalid position specified for unset operation",
+			"position",
+			position,
+		).WithCode("POS_009").
+			WithMeet(meetName, "").
+			WithDetail("userId", userEmail).
+			WithDetail("validPositions", []string{"left", "center", "right"}).
+			WithDetail("operation", "unset_position")
+
+		errorCtx.LogError()
 		return err
 	}
 

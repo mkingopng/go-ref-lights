@@ -47,8 +47,10 @@ func getNextAnonymousName() string {
 
 // Health provides a simple endpoint to check server health.
 func Health(c *gin.Context) {
-	clientIP := c.ClientIP()                                                // [Added: capture client IP]
-	logger.Info.Printf("[Health] Health check requested from %s", clientIP) // [Improved Log]
+	clientIP := c.ClientIP() // [Added: capture client IP]
+	// Log health check at DEBUG level (development only) - these are frequent and noisy
+	httpContext := logger.NewHTTPContext("GET", "/health", c.Request.UserAgent(), clientIP, http.StatusOK)
+	logger.LogDebugWithContext(httpContext, "Health check requested")
 	c.JSON(http.StatusOK, gin.H{
 		"status": "healthy",
 	})
@@ -157,7 +159,11 @@ func Index(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[Index] Rendering dashboard for meet=%s. IP=%s", meetName, clientIP)
+	// Log dashboard rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/index", c.Request.UserAgent(), clientIP, http.StatusOK)
+	httpContext["meetName"] = meetName
+	httpContext["isSudo"] = isSudo
+	logger.LogDebugWithContext(httpContext, "Rendering dashboard page")
 	data := gin.H{
 		"meetName": meetName,
 		"IsSudo":   isSudo,
@@ -169,10 +175,14 @@ func Index(c *gin.Context) {
 // GetQRCode generates and returns a QR code for the application URL.
 func GetQRCode(c *gin.Context) {
 	clientIP := c.ClientIP()
-	logger.Info.Printf("[GetQRCode] QR code requested from IP=%s", clientIP)
-
 	meetName := c.Query("meetName")
 	position := c.Query("position")
+
+	// Log QR code request at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/qrcode", c.Request.UserAgent(), clientIP, http.StatusOK)
+	httpContext["meetName"] = meetName
+	httpContext["position"] = position
+	logger.LogDebugWithContext(httpContext, "QR code generation requested")
 
 	if meetName == "" || position == "" {
 		logger.Warn.Printf("[GetQRCode] Missing query parameters. meetName='%s', position='%s', IP=%s", meetName, position, clientIP)
@@ -190,7 +200,9 @@ func GetQRCode(c *gin.Context) {
 		return
 	}
 
-	logger.Info.Printf("[GetQRCode] QR code successfully generated for meet=%s, position=%s, IP=%s", meetName, position, clientIP)
+	// Log successful QR code generation at DEBUG level (development only)
+	httpContext["statusCode"] = http.StatusOK
+	logger.LogDebugWithContext(httpContext, "QR code generated successfully")
 	c.Header("Content-Type", "image/png")
 	c.Header("Content-Disposition", "inline; filename=\"qrcode.png\"")
 	if _, err := c.Writer.Write(qrBytes); err != nil {
@@ -216,7 +228,10 @@ func Lights(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/meets")
 		return
 	}
-	logger.Info.Printf("[Lights] Rendering lights page for meet: %s", meetName)
+	// Log lights page rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/lights", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["meetName"] = meetName
+	logger.LogDebugWithContext(httpContext, "Rendering lights page")
 
 	creds := services.GetGlobalMeetCredentials()
 	if creds == nil {
@@ -331,7 +346,12 @@ func RefereeHandler(c *gin.Context, occupancyService services.OccupancyServiceIn
 
 // renderCenter renders the center referee page
 func renderCenter(c *gin.Context, meetName string) {
-	logger.Info.Printf("[renderCenter] Rendering center view for meet=%s", meetName)
+	// Log referee view rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/referee/*/center", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["meetName"] = meetName
+	httpContext["position"] = "center"
+	logger.LogDebugWithContext(httpContext, "Rendering center referee view")
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
@@ -341,7 +361,12 @@ func renderCenter(c *gin.Context, meetName string) {
 
 // renderRight renders the right referee page
 func renderRight(c *gin.Context, meetName string) {
-	logger.Info.Printf("[renderRight] Rendering right view for meet=%s", meetName)
+	// Log referee view rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/referee/*/right", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["meetName"] = meetName
+	httpContext["position"] = "right"
+	logger.LogDebugWithContext(httpContext, "Rendering right referee view")
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,
@@ -351,7 +376,12 @@ func renderRight(c *gin.Context, meetName string) {
 
 // renderLeft renders the left referee page
 func renderLeft(c *gin.Context, meetName string) {
-	logger.Info.Printf("[renderLeft] Rendering left view for meet=%s", meetName)
+	// Log referee view rendering at DEBUG level (development only)
+	httpContext := logger.NewHTTPContext("GET", "/referee/*/left", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+	httpContext["meetName"] = meetName
+	httpContext["position"] = "left"
+	logger.LogDebugWithContext(httpContext, "Rendering left referee view")
+
 	data := gin.H{
 		"WebsocketURL": WebsocketURL,
 		"meetName":     meetName,

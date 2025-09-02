@@ -27,6 +27,70 @@ import (
 	"go-ref-lights/websocket"
 )
 
+// initializeLoggingSystem sets up the logging configuration system with environment-based settings
+// and graceful fallback handling for invalid configurations
+func initializeLoggingSystem() error {
+	// Initialize the logger with environment-based configuration
+	if err := logger.InitLogger(); err != nil {
+		return fmt.Errorf("failed to initialize logger: %w", err)
+	}
+
+	// Validate and log the configuration that was applied
+	env := getValidatedEnvironment()
+	logLevel := getValidatedLogLevel()
+
+	// Create startup context for configuration logging
+	startupContext := logger.NewSystemContext("initialization", "logging")
+	startupContext["configuredEnvironment"] = env
+	startupContext["configuredLogLevel"] = logLevel
+
+	// Log successful initialization with configuration details
+	logger.LogInfoWithContext(startupContext,
+		"Logging system initialized successfully (env=%s, level=%s)", env, logLevel)
+
+	// Log any configuration fallbacks that occurred
+	if originalEnv := os.Getenv("ENV"); originalEnv != "" && originalEnv != env {
+		logger.LogWarnWithContext(startupContext,
+			"Invalid ENV value '%s' provided, falling back to '%s'", originalEnv, env)
+	}
+
+	if originalLogLevel := os.Getenv("LOG_LEVEL"); originalLogLevel != "" && originalLogLevel != logLevel {
+		logger.LogWarnWithContext(startupContext,
+			"Invalid LOG_LEVEL value '%s' provided, using environment default '%s'", originalLogLevel, logLevel)
+	}
+
+	return nil
+}
+
+// getValidatedEnvironment returns a validated environment string with fallback to production
+func getValidatedEnvironment() string {
+	env := strings.ToLower(strings.TrimSpace(os.Getenv("ENV")))
+
+	// Validate environment value
+	switch env {
+	case "production", "prod":
+		return "production"
+	case "development", "dev":
+		return "development"
+	case "test":
+		return "test"
+	case "":
+		// Default to production for safety when no ENV is set
+		return "production"
+	default:
+		// Invalid environment value, fall back to production for safety
+		return "production"
+	}
+}
+
+// getValidatedLogLevel returns the current effective log level as a string
+func getValidatedLogLevel() string {
+	if globalLogger := logger.GetGlobalLogger(); globalLogger != nil {
+		return globalLogger.GetLevel().String()
+	}
+	return "WARN" // Default production-safe level
+}
+
 // SetupRouter creates and configures a Gin router.
 func SetupRouter(env string) *gin.Engine {
 	// configure Gin mode
@@ -38,15 +102,29 @@ func SetupRouter(env string) *gin.Engine {
 
 	router := gin.Default()
 
+	// Add custom HTTP logging middleware (environment-aware)
+	router.Use(middleware.HTTPLoggingMiddleware())
+	router.Use(middleware.AuthenticationLoggingMiddleware())
+
 	// serve static files
 	router.Static("/static", "./static")
 	router.StaticFile("/favicon.ico", "./static/images/favicon.ico")
 
-	// reduce logs in non-production
-	if env != "production" {
+	// Configure Gin logging based on environment with structured logging
+	ginContext := logger.NewSystemContext("gin_config", "router")
+	ginContext["environment"] = env
+	ginContext["ginMode"] = gin.Mode()
+
+	if env == "production" {
+		// In production, disable Gin's default logging to reduce noise
 		gin.DefaultWriter = io.Discard
 		gin.DefaultErrorWriter = io.Discard
-		logger.Debug.Println("[SetupRouter] Gin logs have been discarded for non-production mode.")
+		ginContext["defaultLogging"] = "disabled"
+		logger.LogDebugWithContext(ginContext, "Gin framework configured for production (default logging disabled)")
+	} else {
+		// In development, keep Gin's default logging for debugging
+		ginContext["defaultLogging"] = "enabled"
+		logger.LogDebugWithContext(ginContext, "Gin framework configured for development (default logging enabled)")
 	}
 
 	// configure session store for meet-director login
@@ -105,33 +183,53 @@ func SetupRouter(env string) *gin.Engine {
 	// health endpoint
 	router.GET("/health", controllers.Health)
 
-	// simple log endpoint
+	// Client-side log endpoint with enhanced structured logging
 	router.POST("/log", func(c *gin.Context) {
-
-		// parse the JSON payload
+		// Parse the JSON payload
 		var payload struct {
 			Message string `json:"message"`
 			Level   string `json:"level"`
 		}
 
-		// bind JSON payload
+		// Bind JSON payload with enhanced error context
 		if err := c.ShouldBindJSON(&payload); err != nil {
-			logger.Warn.Printf("[SetupRouter /log] Invalid log payload: %v", err)
+			errorContext := logger.NewHTTPContext("POST", "/log", c.Request.UserAgent(), c.ClientIP(), http.StatusBadRequest)
+			errorContext["component"] = "client_logging"
+			errorContext["error"] = err.Error()
+			errorContext["contentType"] = c.GetHeader("Content-Type")
+			logger.LogWarnWithContext(errorContext, "Invalid client log payload received: %v", err)
 			c.Status(http.StatusBadRequest)
 			return
 		}
 
-		// log the message based on level
-		switch payload.Level {
-		case "error":
-			logger.Error.Printf(payload.Message)
-		case "warn":
-			logger.Warn.Printf(payload.Message)
-		case "debug":
-			logger.Debug.Printf(payload.Message)
-		default: // "info" + any unknown
-			logger.Info.Printf(payload.Message)
+		// Create enhanced context for client-side logging
+		clientLogContext := logger.NewHTTPContext("POST", "/log", c.Request.UserAgent(), c.ClientIP(), http.StatusOK)
+		clientLogContext["component"] = "client"
+		clientLogContext["clientLogLevel"] = payload.Level
+		clientLogContext["messageLength"] = len(payload.Message)
+
+		// Add session context if available
+		session := sessions.Default(c)
+		if meetName, ok := session.Get("meetName").(string); ok {
+			clientLogContext["meetName"] = meetName
 		}
+		if user, ok := session.Get("user").(string); ok {
+			clientLogContext["user"] = user
+		}
+
+		// Log the client message with appropriate level and enhanced context
+		switch strings.ToLower(payload.Level) {
+		case "error":
+			logger.LogErrorWithContext(clientLogContext, "Client error: %s", payload.Message)
+		case "warn", "warning":
+			logger.LogWarnWithContext(clientLogContext, "Client warning: %s", payload.Message)
+		case "debug":
+			logger.LogDebugWithContext(clientLogContext, "Client debug: %s", payload.Message)
+		default: // "info" + any unknown levels
+			// Client info messages only logged in development (DEBUG level)
+			logger.LogDebugWithContext(clientLogContext, "Client info: %s", payload.Message)
+		}
+
 		c.Status(http.StatusOK)
 	})
 
@@ -219,15 +317,23 @@ func SetupRouter(env string) *gin.Engine {
 		websocket.ServeWs(c.Writer, c.Request)
 	}) // referees
 
-	// confirm template path
+	// Configure HTML templates with structured logging
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	templatesDir := filepath.Join(basePath, "../../templates")
+
+	templateContext := logger.NewSystemContext("template_config", "router")
+	templateContext["templatesDirectory"] = templatesDir
+	templateContext["basePath"] = basePath
+
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		logger.Error.Printf("[SetupRouter] Templates directory does not exist: %s", templatesDir)
+		templateContext["error"] = err.Error()
+		logger.LogErrorWithContext(templateContext, "Templates directory does not exist: %s", templatesDir)
+	} else {
+		router.SetHTMLTemplate(template.Must(template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
+		logger.LogDebugWithContext(templateContext, "HTML templates loaded successfully from %s", templatesDir)
 	}
-	router.SetHTMLTemplate(template.Must(template.ParseGlob(filepath.Join(templatesDir, "*.html"))))
-	logger.Debug.Printf("[SetupRouter] Templates Path: %s", templatesDir)
+
 	return router
 }
 
@@ -245,11 +351,11 @@ type Manager struct {
 
 // Handler updates the last seen timestamp of a referee
 func Handler(w http.ResponseWriter, r *http.Request) {
-
 	refereeID := r.URL.Query().Get("referee_id")
 
 	if refereeID == "" {
-		logger.Warn.Printf("[Handler] Missing referee ID in query params")
+		heartbeatContext := logger.NewHTTPContext("GET", "/heartbeat", r.UserAgent(), r.RemoteAddr, http.StatusBadRequest)
+		logger.LogWarnWithContext(heartbeatContext, "Heartbeat request missing referee_id parameter")
 		http.Error(w, "Missing referee ID", http.StatusBadRequest)
 		return
 	}
@@ -258,12 +364,51 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	refereeSessions[refereeID] = time.Now()
 	sessionLock.Unlock()
 
-	logger.Debug.Printf("[Handler] Updated heartbeat for referee=%s at %v", refereeID, time.Now())
+	// Log heartbeat update with structured context (DEBUG level for production noise reduction)
+	heartbeatContext := logger.NewHTTPContext("GET", "/heartbeat", r.UserAgent(), r.RemoteAddr, http.StatusOK)
+	heartbeatContext["refereeId"] = refereeID
+	heartbeatContext["timestamp"] = time.Now()
+	logger.LogDebugWithContext(heartbeatContext, "Heartbeat updated for referee %s", refereeID)
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := fmt.Fprintln(w, "Heartbeat received"); err != nil {
-		logger.Warn.Printf("[Handler] Error writing response for referee=%s: %v", refereeID, err)
+		errorContext := logger.NewHTTPContext("GET", "/heartbeat", r.UserAgent(), r.RemoteAddr, http.StatusOK)
+		errorContext["refereeId"] = refereeID
+		errorContext["error"] = err.Error()
+		logger.LogWarnWithContext(errorContext, "Error writing heartbeat response for referee %s: %v", refereeID, err)
 	}
+}
+
+// loadAndValidateMeetCredentials loads and validates meet credentials with proper error handling
+func loadAndValidateMeetCredentials() error {
+	creds, err := services.LoadMeetCredentials()
+	if err != nil {
+		return fmt.Errorf("failed to load meet credentials: %w", err)
+	}
+
+	// Validate credentials structure
+	if len(creds.Meets) == 0 {
+		return fmt.Errorf("no meets configured in credentials file")
+	}
+
+	// Set global credentials
+	services.SetGlobalMeetCredentials(creds)
+
+	// Log successful loading with context
+	credentialsContext := logger.NewSystemContext("startup", "credentials")
+	credentialsContext["meetCount"] = len(creds.Meets)
+
+	// Extract meet names for logging (avoid logging sensitive data)
+	meetNames := make([]string, len(creds.Meets))
+	for i, meet := range creds.Meets {
+		meetNames[i] = meet.Name
+	}
+	credentialsContext["meetNames"] = meetNames
+
+	logger.LogInfoWithContext(credentialsContext,
+		"Successfully loaded %d meet configurations", len(creds.Meets))
+
+	return nil
 }
 
 // NewHeartbeatManager initializes a heartbeat tracker
@@ -278,7 +423,12 @@ func (h *Manager) UpdateHeartbeat(refereeID string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.activeSessions[refereeID] = time.Now()
-	logger.Debug.Printf("[Manager.UpdateHeartbeat] Referee=%s updated at %v", refereeID, time.Now())
+
+	// Use structured logging for heartbeat tracking (DEBUG level to avoid production noise)
+	heartbeatContext := logger.NewSystemContext("heartbeat", "manager")
+	heartbeatContext["refereeId"] = refereeID
+	heartbeatContext["timestamp"] = time.Now()
+	logger.LogDebugWithContext(heartbeatContext, "Heartbeat manager updated for referee %s", refereeID)
 }
 
 // CleanupInactiveSessions removes inactive referees
@@ -289,7 +439,14 @@ func (h *Manager) CleanupInactiveSessions(timeout time.Duration) {
 			h.mu.Lock()
 			for id, lastSeen := range h.activeSessions {
 				if time.Since(lastSeen) > timeout {
-					logger.Info.Printf("[Manager.CleanupInactiveSessions] Removing inactive referee=%s (timeout=%v)", id, timeout)
+					// Log session cleanup with structured context
+					cleanupContext := logger.NewSystemContext("cleanup", "heartbeat_manager")
+					cleanupContext["refereeId"] = id
+					cleanupContext["lastSeen"] = lastSeen
+					cleanupContext["timeout"] = timeout.String()
+					cleanupContext["inactiveDuration"] = time.Since(lastSeen).String()
+					logger.LogInfoWithContext(cleanupContext,
+						"Removing inactive referee session %s (inactive for %v)", id, time.Since(lastSeen))
 					delete(h.activeSessions, id)
 				}
 			}
@@ -299,30 +456,35 @@ func (h *Manager) CleanupInactiveSessions(timeout time.Duration) {
 }
 
 func main() {
-	// load env variables
+	// load env variables first (before any logging initialization)
 	_ = godotenv.Load()
 
-	// explicitly initialise the logger
-	if err := logger.InitLogger(); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+	// Initialize logging configuration system BEFORE any other application startup
+	// This ensures all subsequent operations use the properly configured logger
+	if err := initializeLoggingSystem(); err != nil {
+		// Use standard log for fatal errors during logger initialization
+		log.Fatalf("Failed to initialize logging system: %v", err)
 	}
 
-	// determine the environment
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = "production"
-	}
-	//logger.SetLogLevel(env)
-
-	// optionally defer close:
+	// Defer logger cleanup with proper error handling
 	defer func() {
 		if err := logger.CloseLogger(); err != nil {
-			logger.Error.Printf("[Logger] Error closing logger: %v", err)
+			// Use structured logging for cleanup errors
+			logger.LogErrorWithContext(
+				logger.NewSystemContext("shutdown", "logger"),
+				"Error closing logger: %v", err,
+			)
 		}
 	}()
 
-	// log the environment
-	logger.Info.Printf("[main] Running in %s mode", env)
+	// Get environment configuration (already validated during logger init)
+	env := getValidatedEnvironment()
+
+	// Log application startup with structured logging
+	logger.LogInfoWithContext(
+		logger.NewSystemContext("startup", "main"),
+		"Application starting in %s mode", env,
+	)
 
 	// set application & websocket URLs based on environment
 	var applicationURL, websocketURL string
@@ -337,17 +499,19 @@ func main() {
 	// pass computed URLs to controllers
 	controllers.SetConfig(applicationURL, websocketURL)
 
-	// load credentials
-	creds, err := services.LoadMeetCredentials()
-	if err != nil {
-		logger.Error.Printf("[main] Error loading credentials: %v", err)
-	} else {
-		services.SetGlobalMeetCredentials(creds)
-		logger.Info.Printf("[main] Loaded meets: %+v", creds.Meets)
+	// load credentials with structured error logging and graceful degradation
+	if err := loadAndValidateMeetCredentials(); err != nil {
+		// Log error but continue with limited functionality
+		logger.LogErrorWithContext(
+			logger.NewSystemContext("startup", "credentials"),
+			"Failed to load meet credentials, continuing with limited functionality: %v", err,
+		)
 	}
 
-	// announce start
-	logger.Info.Printf("[main] Starting application on port :8080")
+	// announce application startup
+	startupContext := logger.NewSystemContext("startup", "server")
+	startupContext["port"] = "8080"
+	logger.LogInfoWithContext(startupContext, "Starting RefLights application server")
 
 	// start background routines
 	hbManager := NewHeartbeatManager()
@@ -380,10 +544,23 @@ func main() {
 		Handler:      router,
 	}
 
-	logger.Info.Printf("[main] Server running on %s", addr)
+	// Log server startup with full configuration context
+	serverContext := logger.NewSystemContext("startup", "http_server")
+	serverContext["address"] = addr
+	serverContext["host"] = host
+	serverContext["port"] = port
+	serverContext["environment"] = env
+	serverContext["readTimeout"] = "10s"
+	serverContext["writeTimeout"] = "10s"
+	serverContext["idleTimeout"] = "30s"
+	logger.LogInfoWithContext(serverContext, "HTTP server starting on %s", addr)
+
 	if err := server.ListenAndServe(); err != nil {
-		// if the server fails to start, we can log a fatal error
-		logger.Error.Printf("[main] Failed to start server: %v", err)
+		// Log server startup failure with structured error context
+		errorContext := logger.NewSystemContext("startup", "http_server")
+		errorContext["address"] = addr
+		errorContext["error"] = err.Error()
+		logger.LogErrorWithContext(errorContext, "Failed to start HTTP server: %v", err)
 		os.Exit(1)
 	}
 }
