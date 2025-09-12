@@ -8,12 +8,12 @@ RefLights uses an optimized logging system designed for production reliability a
 
 The logging system uses a hierarchical level system:
 
-| Level | Description | Production | Development | Test |
-|-------|-------------|------------|-------------|------|
-| ERROR | Critical errors requiring immediate attention | ✅ | ✅ | ✅ |
-| WARN  | Important warnings that should be monitored | ✅ | ✅ | ✅ |
-| INFO  | General information messages | ⚠️* | ✅ | ❌ |
-| DEBUG | Detailed debugging information | ❌ | ✅ | ❌ |
+| Level | Description                                   | Production | Development | Test |
+|-------|-----------------------------------------------|------------|-------------|------|
+| ERROR | Critical errors requiring immediate attention | ✅          | ✅           | ✅    |
+| WARN  | Important warnings that should be monitored   | ✅          | ✅           | ✅    |
+| INFO  | General information messages                  | ⚠️*        | ✅           | ❌    |
+| DEBUG | Detailed debugging information                | ❌          | ✅           | ❌    |
 
 *Critical INFO only in production
 
@@ -79,27 +79,27 @@ RefLights includes a comprehensive error categorization system for structured er
 
 ### Error Categories
 
-| Category | Description | Examples |
-|----------|-------------|----------|
-| `authentication` | Login failures, credential issues | Invalid passwords, duplicate logins |
-| `authorization` | Permission denied, access control | Unauthorized resource access |
-| `websocket` | WebSocket connection/communication | Connection upgrades, message failures |
-| `timer` | Timer operation failures | Start/stop failures, invalid states |
-| `position` | Position occupancy conflicts | Seat conflicts, invalid positions |
-| `validation` | Input validation failures | Invalid form data, missing fields |
-| `session` | Session management failures | Session save/load errors |
-| `system` | System-level failures | Configuration errors, startup issues |
-| `network` | Network connectivity issues | Connection timeouts, DNS failures |
-| `marshaling` | JSON marshaling/unmarshaling | Serialization errors |
+| Category         | Description                        | Examples                              |
+|------------------|------------------------------------|---------------------------------------|
+| `authentication` | Login failures, credential issues  | Invalid passwords, duplicate logins   |
+| `authorization`  | Permission denied, access control  | Unauthorized resource access          |
+| `websocket`      | WebSocket connection/communication | Connection upgrades, message failures |
+| `timer`          | Timer operation failures           | Start/stop failures, invalid states   |
+| `position`       | Position occupancy conflicts       | Seat conflicts, invalid positions     |
+| `validation`     | Input validation failures          | Invalid form data, missing fields     |
+| `session`        | Session management failures        | Session save/load errors              |
+| `system`         | System-level failures              | Configuration errors, startup issues  |
+| `network`        | Network connectivity issues        | Connection timeouts, DNS failures     |
+| `marshaling`     | JSON marshaling/unmarshaling       | Serialization errors                  |
 
 ### Error Severity Levels
 
-| Severity | Description | Response Required |
-|----------|-------------|-------------------|
-| `critical` | System-threatening errors | Immediate attention |
-| `high` | Major functionality impact | Urgent investigation |
-| `medium` | Moderate impact, degraded functionality | Monitor and address |
-| `low` | Minor issues, validation failures | Log for analysis |
+| Severity   | Description                             | Response Required    |
+|------------|-----------------------------------------|----------------------|
+| `critical` | System-threatening errors               | Immediate attention  |
+| `high`     | Major functionality impact              | Urgent investigation |
+| `medium`   | Moderate impact, degraded functionality | Monitor and address  |
+| `low`      | Minor issues, validation failures       | Log for analysis     |
 
 ### Error Codes
 
@@ -531,13 +531,13 @@ The integration tests validate:
 
 Integration tests cover these scenarios:
 
-| Environment | LOG_LEVEL | Expected Behavior |
-|-------------|-----------|-------------------|
-| production  | (none)    | WARN level, file logging |
-| development | (none)    | DEBUG level, file logging |
+| Environment | LOG_LEVEL | Expected Behavior           |
+|-------------|-----------|-----------------------------|
+| production  | (none)    | WARN level, file logging    |
+| development | (none)    | DEBUG level, file logging   |
 | test        | (none)    | WARN level, no file logging |
-| production  | DEBUG     | DEBUG level override |
-| invalid     | (none)    | Fallback to WARN level |
+| production  | DEBUG     | DEBUG level override        |
+| invalid     | (none)    | Fallback to WARN level      |
 
 ## Best Practices
 
