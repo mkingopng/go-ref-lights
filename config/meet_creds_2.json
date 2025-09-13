@@ -15,7 +15,7 @@
           "isadmin": true
         }
         ],
-      "logo": "/static/images/Nationals_logo_2025.png"
+      "logo": "/static/images/Nationals_Logo_2025.png"
     },
     {
       "name": "Nationals_Platform_2",
@@ -32,7 +32,7 @@
           "isadmin": true
         }
       ],
-      "logo": "/static/images/Nationals_logo_2025.png"
+      "logo": "/static/images/Nationals_Logo_2025.png"
     }
   ]
 }
