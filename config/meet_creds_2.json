@@ -1,7 +1,7 @@
 {
   "meets": [
     {
-      "name": "Nationals_Platform_1",
+      "name": "APL_Platform",
       "date": "August 24",
       "admin": {
         "username": "P1-1",
@@ -14,11 +14,11 @@
           "password": "Y8DrnC",
           "isadmin": true
         }
-        ],
-      "logo": "static/images/Nationals_Logo_2025.png"
+      ],
+      "logo": "/static/images/APL_logo_white.png"
     },
     {
-      "name": "Nationals_Platform_2",
+      "name": "APL_Platform_2",
       "date": "August 24",
       "admin": {
         "username": "P2-1",
@@ -32,7 +32,7 @@
           "isadmin": true
         }
       ],
-      "logo": "static/images/Nationals_Logo_2025.png"
+      "logo": "/static/images/APL_logo_white.png"
     }
   ]
 }
