@@ -5,34 +5,34 @@
             "date": "August 24",
             "admin": {
                 "username": "P1-1",
-                "password": "$2b$12$9LrLugcwiOdGnQxHauc.9uXaohGilKNQkJELy75tQNVNg3FjdjH4K",
+                "password": "$2b$12$t9R2MaxFZlIT0v95hTTHhOi78tPDZJ9.DG4XYvfD0g2doxWg5wDV6",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "P1-2",
-                    "password": "$2b$12$oJ3G5Q8Jw6qkMOP30fgAaO4HmDevisKhiCwhRA7P2z00DMQgOIM1y",
+                    "password": "$2b$12$E.SCDyUABO6OQ5nx3VQpW.AW6uIDmai12ZPtmKb.jL.loh2a924im",
                     "isadmin": true
                 }
             ],
-            "logo": "/static/images/Nationals_logo_2025.png"
+            "logo": "/static/images/APL_logo_white.png"
         },
         {
             "name": "APL_Platform_2",
             "date": "August 24",
             "admin": {
                 "username": "P2-1",
-                "password": "$2b$12$GW8fvd9cQKn.Mj3shHfvru034Q1lIxEKHAO8NmivliEhpO0yK.GTm",
+                "password": "$2b$12$zxKXOITkGv2roZvdpZ2r.uY7I7S7moowEAq0a8uHL8.jYUmk0K26y",
                 "isadmin": true
             },
             "secondaryAdmins": [
                 {
                     "username": "P2-2",
-                    "password": "$2b$12$hKW/e6pL9SsxSFArZ2OwaeMdNhcCU4qIQQU34aXKP0l8zz.8ermsW",
+                    "password": "$2b$12$Gyqzxa6BlLPFCXvyaahEkuWxzWbRGoiYXeWYzPZReg6w18TapTHDG",
                     "isadmin": true
                 }
             ],
-            "logo": "/static/images/Nationals_logo_2025.png"
+            "logo": "/static/images/APL_logo_white.png"
         }
     ]
 }
